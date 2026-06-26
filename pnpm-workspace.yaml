@@ -1,0 +1,9 @@
+allowBuilds:
+  esbuild: true
+  sharp: true
+# Native deps allowed to run install/build scripts.
+# esbuild: downloads/links its platform binary (won't run without it).
+# sharp:   links libvips bindings for image optimization.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp
