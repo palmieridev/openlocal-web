@@ -1,0 +1,71 @@
+/* Fonts (self-hosted variable via fontsource) */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@import "tailwindcss";
+
+/*
+  Openlocal "Heritage Warmth" design system.
+  Tokens mirror openlocal-claude.pen 1:1 so design and code stay traceable.
+  Radii (rounded-lg 8 / rounded-xl 12 / rounded-2xl 16 / rounded-full) already
+  match Tailwind's defaults, so they are not overridden here.
+*/
+@theme {
+  /* Surfaces */
+  --color-surface-primary: #f5f2e9;
+  --color-surface-secondary: #e8e4d8;
+  --color-surface-card: #ffffff;
+  --color-surface-inverse: #2d2926;
+
+  /* Text */
+  --color-text-primary: #2d2926;
+  --color-text-secondary: #5e5954;
+  --color-text-muted: #8c8782;
+  --color-text-inverse: #f5f2e9;
+
+  /* Brand + state */
+  --color-accent: #7d6b3d;
+  --color-accent-soft: #efe7d2;
+  --color-border: #dad4c6;
+  --color-success: #3d7d5a;
+  --color-success-soft: #dceae0;
+  --color-warning: #c2853d;
+  --color-warning-soft: #f3e6cf;
+  --color-danger: #b4543a;
+  --color-danger-soft: #f0dad1;
+
+  /* Type families */
+  --font-heading: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-data: "Geist Mono Variable", ui-monospace, monospace;
+
+  /* Card elevation used across components */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+@layer base {
+  html {
+    background-color: var(--color-surface-primary);
+    color: var(--color-text-primary);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}

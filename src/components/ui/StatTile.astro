@@ -1,0 +1,37 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  label: string;
+  value: string;
+  icon?: string;
+  delta?: string;
+  deltaTone?: "up" | "down" | "neutral";
+}
+
+const { label, value, icon = "lucide:package", delta, deltaTone = "up" } = Astro.props;
+
+const toneClass =
+  deltaTone === "down"
+    ? "text-danger"
+    : deltaTone === "neutral"
+      ? "text-text-muted"
+      : "text-success";
+const deltaIcon = deltaTone === "down" ? "lucide:trending-down" : "lucide:trending-up";
+---
+
+<div class="flex flex-col gap-2.5 rounded-2xl bg-surface-card p-[18px] shadow-card border border-border/60">
+  <div class="flex items-center justify-between">
+    <span class="text-[13px] text-text-secondary">{label}</span>
+    <span class="flex size-[30px] items-center justify-center rounded-lg bg-accent-soft">
+      <Icon name={icon} class="text-accent" width={16} height={16} />
+    </span>
+  </div>
+  <span class="font-data text-3xl font-semibold text-text-primary">{value}</span>
+  {delta && (
+    <span class={`flex items-center gap-1.5 text-xs font-medium ${toneClass}`}>
+      <Icon name={deltaIcon} width={14} height={14} />
+      {delta}
+    </span>
+  )}
+</div>

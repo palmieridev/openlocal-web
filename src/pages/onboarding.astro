@@ -1,0 +1,41 @@
+---
+import { Icon } from "astro-icon/components";
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import Button from "@/components/ui/Button.astro";
+
+// Business onboarding is backend-driven: POST /api/v1/businesses creates the
+// Clerk org + business, then the web app activates that org. The multi-step
+// form lands in a later milestone; this is the entry placeholder.
+const steps = [
+  { label: "Crea tu cuenta", done: true },
+  { label: "Perfil del negocio", done: false },
+  { label: "Ubicación", done: false },
+  { label: "Primer producto", done: false },
+  { label: "Publica tu tienda", done: false },
+];
+---
+
+<AuthLayout title="Configura tu negocio — Openlocal">
+  <div class="w-full max-w-md rounded-2xl border border-border bg-surface-card p-8 shadow-card">
+    <h1 class="font-heading text-xl font-semibold">Configura tu negocio</h1>
+    <p class="mt-1 text-sm text-text-secondary">Unos pasos para publicar tu tienda.</p>
+
+    <ol class="mt-6 flex flex-col gap-3">
+      {steps.map((s, i) => (
+        <li class="flex items-center gap-3">
+          <span
+            class:list={[
+              "flex size-7 items-center justify-center rounded-full text-xs font-semibold",
+              s.done ? "bg-success text-text-inverse" : "bg-surface-secondary text-text-muted",
+            ]}
+          >
+            {s.done ? <Icon name="lucide:check" width={14} height={14} /> : i + 1}
+          </span>
+          <span class:list={["text-sm", s.done ? "text-text-primary" : "text-text-secondary"]}>{s.label}</span>
+        </li>
+      ))}
+    </ol>
+
+    <Button variant="primary" block class="mt-6">Continuar</Button>
+  </div>
+</AuthLayout>

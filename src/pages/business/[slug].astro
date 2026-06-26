@@ -1,0 +1,249 @@
+---
+import { Icon } from "astro-icon/components";
+import PublicLayout from "@/layouts/PublicLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import Badge from "@/components/ui/Badge.astro";
+import ProductCard from "@/components/ui/ProductCard.astro";
+import { publicApi } from "@/lib/api/client";
+import { text, humanize } from "@/lib/format";
+
+const { slug } = Astro.params;
+const business = slug ? await publicApi.getBusiness(slug) : null;
+
+if (!business) {
+  Astro.response.status = 404;
+}
+
+const products = business ? await publicApi.getBusinessProducts(business.slug) : [];
+
+const hasCoords = business?.latitude && business?.longitude;
+const lat = hasCoords ? Number(business!.latitude) : null;
+const lng = hasCoords ? Number(business!.longitude) : null;
+
+const locationLine = business
+  ? [text(business.address), text(business.neighborhood), business.city, business.state]
+      .filter(Boolean)
+      .join(", ")
+  : "";
+
+const waNumber = business?.whatsapp ?? business?.phone ?? null;
+const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : null;
+---
+
+{
+  !business ? (
+    <PublicLayout title="Negocio no encontrado">
+      <div class="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-24 text-center">
+        <Icon name="lucide:store" class="text-text-muted" width={48} height={48} />
+        <h1 class="font-heading text-2xl font-semibold">Negocio no encontrado</h1>
+        <p class="text-sm text-text-secondary">
+          No encontramos esta tienda. Puede que el enlace haya cambiado.
+        </p>
+        <Button variant="primary" href="/marketplace">Explorar marketplace</Button>
+      </div>
+    </PublicLayout>
+  ) : (
+    <PublicLayout
+      title={`${business.name} — Openlocal`}
+      description={business.description || `Productos de ${business.name} en Openlocal.`}
+    >
+      {/* Cover */}
+      <div class="relative h-48 w-full overflow-hidden bg-surface-secondary sm:h-60">
+        {business.cover_image_url ? (
+          <div
+            class="absolute inset-0 bg-cover bg-center"
+            style={`background-image:url('${business.cover_image_url}')`}
+          />
+        ) : (
+          <div class="absolute inset-0 bg-gradient-to-br from-accent-soft to-surface-secondary" />
+        )}
+      </div>
+
+      <div class="mx-auto max-w-7xl px-4 sm:px-6">
+        {/* Business header */}
+        <div class="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div class="flex items-end gap-4">
+            <div
+              class="flex size-20 shrink-0 items-center justify-center rounded-2xl border-4 border-surface-primary bg-surface-secondary shadow-card"
+              style={business.logo_url ? `background-image:url('${business.logo_url}');background-size:cover;background-position:center;` : ""}
+            >
+              {!business.logo_url && <Icon name="lucide:store" class="text-accent" width={32} height={32} />}
+            </div>
+            <div class="pb-1">
+              <h1 class="font-heading text-2xl font-semibold">{business.name}</h1>
+              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-secondary">
+                <span class="flex items-center gap-1">
+                  <Icon name="lucide:tag" width={13} height={13} class="text-accent" />
+                  {humanize(business.business_type)}
+                </span>
+                {locationLine && (
+                  <span class="flex items-center gap-1">
+                    <Icon name="lucide:map-pin" width={13} height={13} class="text-accent" />
+                    {text(business.neighborhood) || business.city}
+                  </span>
+                )}
+                <span class="flex items-center gap-1">
+                  <Icon name="lucide:package" width={13} height={13} class="text-accent" />
+                  {products.length} productos
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 pb-1">
+            {waHref && (
+              <Button variant="whatsapp" href={waHref} icon="lucide:message-circle">
+                WhatsApp
+              </Button>
+            )}
+            <Button variant="secondary" icon="lucide:bookmark">Guardar</Button>
+          </div>
+        </div>
+
+        {business.description && (
+          <p class="mt-4 max-w-2xl text-sm text-text-secondary">{business.description}</p>
+        )}
+
+        {/* Body: products + aside */}
+        <div class="mt-8 grid gap-8 pb-4 lg:grid-cols-[1fr_320px]">
+          <section>
+            <h2 class="mb-4 font-heading text-lg font-semibold">
+              Productos <span class="text-text-muted">({products.length})</span>
+            </h2>
+
+            {products.length > 0 ? (
+              <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {products.map((p) => (
+                  <ProductCard
+                    name={p.name}
+                    meta={[text(p.brand), p.variant_name].filter(Boolean).join(" · ")}
+                    price={p.price}
+                    currency={p.currency}
+                    stockStatus={p.public_stock_status}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div class="rounded-2xl border border-dashed border-border bg-surface-card/50 p-10 text-center text-sm text-text-secondary">
+                Esta tienda aún no tiene productos públicos.
+              </div>
+            )}
+          </section>
+
+          {/* Aside */}
+          <aside class="flex flex-col gap-4">
+            <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
+              <div class="border-b border-border px-4 py-3 text-sm font-semibold">Ubicación</div>
+              {hasCoords ? (
+                <div id="biz-map" class="h-40 w-full" data-lat={lat} data-lng={lng}></div>
+              ) : (
+                <div class="flex h-40 items-center justify-center bg-surface-secondary">
+                  <Icon name="lucide:map-pinned" class="text-accent/30" width={40} height={40} />
+                </div>
+              )}
+              {locationLine && (
+                <div class="flex items-start gap-2 px-4 py-3 text-[13px] text-text-secondary">
+                  <Icon name="lucide:map-pin" class="mt-0.5 shrink-0 text-accent" width={15} height={15} />
+                  {locationLine}
+                </div>
+              )}
+            </div>
+
+            <div class="rounded-2xl border border-border bg-surface-card">
+              <div class="border-b border-border px-4 py-3 text-sm font-semibold">Entrega y pago</div>
+              <ul class="flex flex-col gap-2 px-4 py-3 text-[13px] text-text-secondary">
+                <li class="flex items-center gap-2">
+                  <Icon
+                    name={business.pickup_available ? "lucide:check" : "lucide:x"}
+                    class={business.pickup_available ? "text-success" : "text-text-muted"}
+                    width={15}
+                    height={15}
+                  />
+                  Recoge en tienda
+                </li>
+                <li class="flex items-center gap-2">
+                  <Icon
+                    name={business.delivery_available ? "lucide:check" : "lucide:x"}
+                    class={business.delivery_available ? "text-success" : "text-text-muted"}
+                    width={15}
+                    height={15}
+                  />
+                  Envío a domicilio
+                </li>
+                <li class="flex items-center gap-2">
+                  <Icon name="lucide:message-circle" class="text-accent" width={15} height={15} />
+                  Pedidos por WhatsApp
+                </li>
+              </ul>
+            </div>
+
+            {(business.phone || business.email || business.website) && (
+              <div class="rounded-2xl border border-border bg-surface-card">
+                <div class="border-b border-border px-4 py-3 text-sm font-semibold">Contacto</div>
+                <ul class="flex flex-col gap-2 px-4 py-3 text-[13px] text-text-secondary">
+                  {business.phone && (
+                    <li class="flex items-center gap-2">
+                      <Icon name="lucide:phone" class="text-accent" width={15} height={15} />
+                      {business.phone}
+                    </li>
+                  )}
+                  {business.email && (
+                    <li class="flex items-center gap-2">
+                      <Icon name="lucide:mail" class="text-accent" width={15} height={15} />
+                      {business.email}
+                    </li>
+                  )}
+                  {business.website && (
+                    <li class="flex items-center gap-2">
+                      <Icon name="lucide:globe" class="text-accent" width={15} height={15} />
+                      <a href={business.website} class="hover:text-text-primary" target="_blank" rel="noopener">
+                        Sitio web
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </aside>
+        </div>
+      </div>
+    </PublicLayout>
+  )
+}
+
+{
+  hasCoords && (
+    <script>
+      import L from "leaflet";
+      import "leaflet/dist/leaflet.css";
+
+      const el = document.getElementById("biz-map");
+      if (el) {
+        const lat = Number(el.dataset.lat);
+        const lng = Number(el.dataset.lng);
+        const map = L.map(el, {
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+        }).setView([lat, lng], 15);
+        L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        const pin = L.divIcon({ className: "", html: '<span class="map-pin-dot"></span>', iconSize: [0, 0] });
+        L.marker([lat, lng], { icon: pin }).addTo(map);
+      }
+    </script>
+
+    <style is:global>
+      .map-pin-dot {
+        display: block;
+        width: 16px;
+        height: 16px;
+        transform: translate(-50%, -50%);
+        background: var(--color-accent);
+        border: 3px solid var(--color-surface-primary);
+        border-radius: 9999px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+    </style>
+  )
+}

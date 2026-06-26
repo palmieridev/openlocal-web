@@ -1,0 +1,60 @@
+---
+import { Icon } from "astro-icon/components";
+
+type Variant = "primary" | "secondary" | "ghost" | "whatsapp" | "inverse";
+type Size = "sm" | "md" | "lg";
+
+interface Props {
+  variant?: Variant;
+  size?: Size;
+  href?: string;
+  type?: "button" | "submit";
+  icon?: string;
+  iconEnd?: string;
+  block?: boolean;
+  class?: string;
+  [key: string]: unknown;
+}
+
+const {
+  variant = "primary",
+  size = "md",
+  href,
+  type = "button",
+  icon,
+  iconEnd,
+  block = false,
+  class: extra = "",
+  ...rest
+} = Astro.props;
+
+const base =
+  "inline-flex items-center justify-center gap-2 font-medium rounded-full transition-colors disabled:opacity-50 disabled:pointer-events-none whitespace-nowrap";
+
+const variants: Record<Variant, string> = {
+  primary: "bg-accent text-text-inverse hover:bg-accent/90",
+  secondary:
+    "bg-surface-card text-text-primary border border-border hover:bg-surface-secondary",
+  ghost: "text-text-secondary hover:bg-surface-secondary",
+  whatsapp: "bg-success text-text-inverse hover:bg-success/90",
+  inverse: "bg-surface-inverse text-text-inverse hover:opacity-90",
+};
+
+const sizes: Record<Size, string> = {
+  sm: "text-xs px-3 py-1.5",
+  md: "text-sm px-4 py-2.5",
+  lg: "text-base px-6 py-3",
+};
+
+const iconSize = size === "lg" ? 18 : size === "sm" ? 14 : 16;
+const cls = [base, variants[variant], sizes[size], block && "w-full", extra]
+  .filter(Boolean)
+  .join(" ");
+const Tag = href ? "a" : "button";
+---
+
+<Tag class={cls} {...href ? { href } : { type }} {...rest}>
+  {icon && <Icon name={icon} width={iconSize} height={iconSize} />}
+  <slot />
+  {iconEnd && <Icon name={iconEnd} width={iconSize} height={iconSize} />}
+</Tag>

@@ -1,0 +1,89 @@
+---
+import { Icon } from "astro-icon/components";
+import Badge from "./Badge.astro";
+import { formatDistance } from "@/lib/format";
+
+interface Props {
+  name: string;
+  type?: string;
+  neighborhood?: string;
+  rating?: number | null;
+  productCount?: number | null;
+  distanceKm?: number | null;
+  tags?: string[];
+  whatsapp?: string | null;
+  logoUrl?: string | null;
+  href?: string;
+}
+
+const {
+  name,
+  type,
+  neighborhood,
+  rating,
+  productCount,
+  distanceKm,
+  tags = [],
+  whatsapp,
+  logoUrl,
+  href,
+} = Astro.props;
+
+const typeLine = [type, neighborhood].filter(Boolean).join(" · ");
+const dist = formatDistance(distanceKm);
+const countLine = [
+  productCount != null ? `${productCount} productos` : null,
+  dist || null,
+]
+  .filter(Boolean)
+  .join(" · ");
+const waHref = whatsapp ? `https://wa.me/${whatsapp.replace(/[^\d]/g, "")}` : null;
+---
+
+<a
+  href={href}
+  class="flex gap-3.5 rounded-2xl border border-border/60 bg-surface-card p-3.5 shadow-card transition-shadow hover:shadow-md"
+>
+  <div
+    class="flex size-24 shrink-0 items-center justify-center rounded-xl bg-surface-secondary"
+    style={logoUrl ? `background-image:url('${logoUrl}');background-size:cover;background-position:center;` : ""}
+  >
+    {!logoUrl && <Icon name="lucide:store" class="text-accent" width={30} height={30} />}
+  </div>
+
+  <div class="flex min-w-0 flex-1 flex-col gap-1">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="truncate font-heading text-[17px] font-semibold text-text-primary">{name}</h3>
+      {rating != null && (
+        <span class="flex shrink-0 items-center gap-1 text-[13px] text-text-secondary">
+          <Icon name="lucide:star" class="text-warning" width={13} height={13} />
+          <span class="font-data">{rating.toFixed(1)}</span>
+        </span>
+      )}
+    </div>
+
+    {typeLine && <p class="text-[13px] text-text-secondary">{typeLine}</p>}
+
+    {tags.length > 0 && (
+      <div class="mt-0.5 flex flex-wrap gap-1.5">
+        {tags.map((t) => <Badge tone="tag">{t}</Badge>)}
+      </div>
+    )}
+
+    <div class="mt-2 flex items-center justify-between gap-2">
+      <span class="truncate text-xs text-text-muted">{countLine}</span>
+      {waHref && (
+        <a
+          href={waHref}
+          target="_blank"
+          rel="noopener"
+          class="flex shrink-0 items-center gap-1.5 rounded-full bg-success px-3 py-1.5 text-xs font-semibold text-text-inverse hover:bg-success/90"
+          onclick="event.stopPropagation()"
+        >
+          <Icon name="lucide:message-circle" width={14} height={14} />
+          WhatsApp
+        </a>
+      )}
+    </div>
+  </div>
+</a>

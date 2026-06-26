@@ -1,0 +1,73 @@
+---
+import { Icon } from "astro-icon/components";
+import Badge from "./Badge.astro";
+import { formatPrice, formatDistance, stockMeta } from "@/lib/format";
+import type { PublicStockStatus } from "@/types/api";
+
+interface Props {
+  name: string;
+  meta?: string;
+  price: string | number;
+  currency?: string;
+  distanceKm?: number | null;
+  stockStatus?: PublicStockStatus | string;
+  imageUrl?: string | null;
+  href?: string;
+}
+
+const {
+  name,
+  meta,
+  price,
+  currency = "MXN",
+  distanceKm,
+  stockStatus,
+  imageUrl,
+  href,
+} = Astro.props;
+
+const stock = stockMeta(stockStatus);
+const dist = formatDistance(distanceKm);
+const Tag = href ? "a" : "div";
+---
+
+<Tag
+  class="group flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-card border border-border/60 transition-shadow hover:shadow-md"
+  {...href ? { href } : {}}
+>
+  <div
+    class="relative flex h-44 items-start justify-end bg-accent-soft p-3"
+    style={imageUrl ? `background-image:url('${imageUrl}');background-size:cover;background-position:center;` : ""}
+  >
+    {!imageUrl && (
+      <Icon
+        name="lucide:image"
+        class="absolute inset-0 m-auto text-accent/30"
+        width={40}
+        height={40}
+      />
+    )}
+    {stockStatus && (
+      <Badge tone="stock" bg={stock.bg} fg={stock.fg} dot={stock.dot}>{stock.label}</Badge>
+    )}
+  </div>
+
+  <div class="flex flex-1 flex-col gap-1.5 p-4">
+    <h3 class="font-heading text-base font-semibold leading-tight text-text-primary">
+      {name}
+    </h3>
+    {meta && <p class="text-[13px] text-text-muted">{meta}</p>}
+
+    <div class="mt-2 flex items-center justify-between">
+      <span class="font-data text-lg font-semibold text-text-primary">
+        {formatPrice(price, currency)}
+      </span>
+      {dist && (
+        <span class="flex items-center gap-1 text-xs text-text-muted">
+          <Icon name="lucide:map-pin" width={13} height={13} />
+          {dist}
+        </span>
+      )}
+    </div>
+  </div>
+</Tag>

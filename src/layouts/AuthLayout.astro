@@ -1,0 +1,22 @@
+---
+import { Icon } from "astro-icon/components";
+import BaseLayout from "./BaseLayout.astro";
+
+interface Props {
+  title?: string;
+}
+const { title } = Astro.props;
+---
+
+<BaseLayout title={title}>
+  <div class="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-12">
+    <a href="/" class="flex items-center gap-2">
+      <span class="flex size-9 items-center justify-center rounded-lg bg-accent">
+        <Icon name="lucide:store" class="text-text-inverse" width={20} height={20} />
+      </span>
+      <span class="font-heading text-xl font-semibold tracking-tight">OpenLocal</span>
+    </a>
+    <slot />
+    <a href="/" class="text-sm text-text-muted hover:text-text-secondary">← Volver al inicio</a>
+  </div>
+</BaseLayout>

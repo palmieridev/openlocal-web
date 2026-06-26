@@ -1,0 +1,34 @@
+---
+type Tone = "stock" | "tag" | "neutral";
+
+interface Props {
+  /** Tag pill (accent-soft) vs neutral vs an explicit colored stock badge. */
+  tone?: Tone;
+  /** For stock badges: pass the bg/fg/dot token classes from format.stockMeta. */
+  bg?: string;
+  fg?: string;
+  dot?: string;
+  class?: string;
+}
+
+const { tone = "tag", bg, fg, dot, class: extra = "" } = Astro.props;
+
+const presets: Record<Tone, string> = {
+  tag: "bg-accent-soft text-accent",
+  neutral: "bg-surface-secondary text-text-muted",
+  stock: `${bg ?? "bg-surface-secondary"} ${fg ?? "text-text-muted"}`,
+};
+
+const cls = [
+  "inline-flex items-center gap-1.5 rounded-full text-[11px] font-semibold px-2.5 py-1",
+  presets[tone],
+  extra,
+]
+  .filter(Boolean)
+  .join(" ");
+---
+
+<span class={cls}>
+  {tone === "stock" && dot && <span class={`size-1.5 rounded-full ${dot}`}></span>}
+  <slot />
+</span>
