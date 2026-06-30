@@ -121,7 +121,7 @@ const stats = [
           <p class="text-sm text-text-secondary">
             Aún no hay negocios publicados. ¿Tienes uno?
           </p>
-          <Button variant="primary" size="sm" href="/register" class="mt-4">
+          <Button variant="primary" size="sm" href="/register/business" class="mt-4">
             Registra tu negocio
           </Button>
         </div>
@@ -146,6 +146,7 @@ const stats = [
               price={p.price}
               currency={p.currency}
               stockStatus={p.public_stock_status}
+              imageUrl={p.image_url}
               href={`/business/${p.business_slug}`}
             />
           ))}
@@ -192,7 +193,7 @@ const stats = [
             Publica tu catálogo, controla tu inventario con código de barras y
             recibe clientes de tu zona. Sin comisiones por venta.
           </p>
-          <Button variant="inverse" href="/register" class="self-start">
+          <Button variant="inverse" href="/register/business" class="self-start">
             Registrar mi negocio
           </Button>
         </div>

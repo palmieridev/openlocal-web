@@ -1,0 +1,116 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import AnalyticsTabs from "@/components/dashboard/AnalyticsTabs.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import Button from "@/components/ui/Button.astro";
+import { getServerAuth } from "@/lib/api/server";
+
+const { businessId } = await getServerAuth(Astro);
+---
+
+<DashboardLayout active="analitica">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : (
+    <div class="mx-auto max-w-xl px-6 py-8" data-business-id={businessId}>
+      <h1 class="font-heading text-2xl font-semibold">Analítica</h1>
+      <AnalyticsTabs active="eoq" />
+
+      <form id="eoq-form" class="ol-card mt-6 flex flex-col gap-4 p-6">
+        <h2 class="font-heading font-semibold">Cantidad económica de pedido (EOQ)</h2>
+        <p class="-mt-2 text-sm text-text-secondary">
+          Encuentra la variante por SKU o código de barras y estima el lote óptimo de compra.
+        </p>
+        <div>
+          <label class="ol-label" for="search">SKU o código de barras</label>
+          <div class="flex gap-2">
+            <input class="ol-input font-data" id="search" placeholder="BOLSA-001" />
+            <Button variant="secondary" size="sm" id="search-btn">Buscar</Button>
+          </div>
+          <p id="search-msg" class="mt-2 hidden text-sm"></p>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="ol-label" for="period_days">Periodo (días)</label>
+            <input class="ol-input font-data" id="period_days" value="90" inputmode="numeric" />
+          </div>
+          <div>
+            <label class="ol-label" for="order_cost">Costo de pedido</label>
+            <input class="ol-input font-data" id="order_cost" value="100" inputmode="decimal" />
+          </div>
+          <div>
+            <label class="ol-label" for="holding">% mantenimiento</label>
+            <input class="ol-input font-data" id="holding" value="20" inputmode="decimal" />
+          </div>
+        </div>
+        <div class="flex justify-end">
+          <Button type="submit" variant="primary" id="calc-btn"><span data-label>Calcular EOQ</span></Button>
+        </div>
+      </form>
+
+      <div id="eoq-result" class="mt-4 hidden"></div>
+    </div>
+  )}
+</DashboardLayout>
+
+<script>
+  const root = document.querySelector("[data-business-id]") as HTMLElement | null;
+  if (root) {
+    const businessId = root.dataset.businessId!;
+    let variantId: string | null = null;
+
+    const searchInput = document.getElementById("search") as HTMLInputElement;
+    const searchMsg = document.getElementById("search-msg") as HTMLElement;
+    const resultEl = document.getElementById("eoq-result") as HTMLElement;
+
+    async function lookup() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+      const param = /^\d{6,}$/.test(q) ? "barcode" : "sku";
+      const res = await fetch(`/api/lookup?${param}=${encodeURIComponent(q)}&business_id=${businessId}`);
+      const data = await res.json();
+      if (res.ok) {
+        variantId = data.id;
+        searchMsg.className = "mt-2 text-sm text-success";
+        searchMsg.textContent = `Variante: ${data.name || data.sku}`;
+      } else {
+        variantId = null;
+        searchMsg.className = "mt-2 text-sm text-danger";
+        searchMsg.textContent = data?.error || "No encontrada.";
+      }
+      searchMsg.classList.remove("hidden");
+    }
+
+    document.getElementById("search-btn")?.addEventListener("click", (e) => { e.preventDefault(); lookup(); });
+
+    document.getElementById("eoq-form")?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!variantId) { searchMsg.className = "mt-2 text-sm text-danger"; searchMsg.textContent = "Primero busca una variante."; searchMsg.classList.remove("hidden"); return; }
+      const params = new URLSearchParams({
+        business_id: businessId,
+        variant_id: variantId,
+        period_days: (document.getElementById("period_days") as HTMLInputElement).value || "90",
+        estimated_order_cost: (document.getElementById("order_cost") as HTMLInputElement).value || "100",
+        estimated_holding_cost_percent: (document.getElementById("holding") as HTMLInputElement).value || "20",
+      });
+      const res = await fetch(`/api/eoq?${params}`);
+      const d = await res.json();
+      if (!res.ok) {
+        resultEl.className = "ol-card mt-4 p-5 text-sm text-danger";
+        resultEl.textContent = d?.error || "Error al calcular.";
+        resultEl.classList.remove("hidden");
+        return;
+      }
+      const eoq = Math.round(Number(d.estimated_eoq));
+      resultEl.className = "ol-card mt-4 p-6";
+      resultEl.innerHTML = `
+        <div class="text-sm text-text-secondary">Cantidad económica de pedido</div>
+        <div class="font-data text-4xl font-semibold mt-1">${eoq} <span class="text-base text-text-muted">unidades</span></div>
+        <div class="mt-4 grid grid-cols-2 gap-3 text-sm">
+          <div class="rounded-xl bg-surface-secondary px-3 py-2"><span class="text-text-muted">Demanda (periodo)</span><div class="font-data">${d.demand}</div></div>
+          <div class="rounded-xl bg-surface-secondary px-3 py-2"><span class="text-text-muted">Tasa mantenimiento</span><div class="font-data">${(Number(d.holding_cost_rate) * 100).toFixed(0)}%</div></div>
+        </div>`;
+      resultEl.classList.remove("hidden");
+    });
+  }
+</script>
