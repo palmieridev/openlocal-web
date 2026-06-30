@@ -9,7 +9,7 @@
 
 /** Public stock signal the storefront/marketplace may surface. */
 export type PublicStockStatus =
-  | "in_stock"
+  | "available"
   | "low_stock"
   | "out_of_stock"
   | "made_to_order"
@@ -105,6 +105,7 @@ export interface PublicProduct {
   price: string;
   currency: string;
   public_stock_status: PublicStockStatus;
+  image_url?: string | null;
 }
 
 /**
@@ -127,6 +128,7 @@ export interface MarketplaceProduct {
   price: string;
   currency: string;
   public_stock_status: PublicStockStatus;
+  image_url?: string | null;
 }
 
 /** The authenticated user projection from GET /api/v1/me. */
@@ -146,4 +148,78 @@ export interface BBox {
   max_lat: number;
   min_lng: number;
   max_lng: number;
+}
+
+export type MovementType =
+  | "purchase"
+  | "production"
+  | "sale"
+  | "loss"
+  | "sample"
+  | "adjustment";
+
+/**
+ * Stock-level / movement / analytics endpoints return raw sqlc rows (snake_case
+ * json tags, decimals as strings). Exact columns are maintained loosely; known
+ * fields are typed and an index signature covers the rest.
+ */
+export interface StockLevel {
+  variant_id: string;
+  sku?: string;
+  product_name?: string;
+  variant_name?: string;
+  quantity_on_hand: string;
+  reorder_point?: string;
+  location_id?: string;
+  [key: string]: unknown;
+}
+
+export interface StockMovement {
+  id: string;
+  variant_id: string;
+  movement_type: MovementType | string;
+  quantity: string;
+  unit_cost?: string | null;
+  notes?: string;
+  reference_type?: string | null;
+  created_at?: string;
+  [key: string]: unknown;
+}
+
+export interface ABCRow {
+  variant_id: string;
+  sku?: string;
+  product_name?: string;
+  variant_name?: string;
+  sales_value?: string;
+  total_value?: string;
+  cumulative_percent?: string;
+  abc_class?: "A" | "B" | "C" | string;
+  quantity_on_hand?: string;
+  [key: string]: unknown;
+}
+
+export interface LowStockRow {
+  variant_id: string;
+  sku?: string;
+  product_name?: string;
+  variant_name?: string;
+  quantity_on_hand: string;
+  reorder_point: string;
+  [key: string]: unknown;
+}
+
+export interface EOQResult {
+  variant_id: string;
+  period_days: number;
+  demand: string;
+  estimated_eoq: string;
+  order_cost: string;
+  holding_cost_rate: string;
+}
+
+/** Response of POST /api/v1/inventory/movements. */
+export interface MovementResult {
+  movement: StockMovement;
+  stock_level: StockLevel;
 }
