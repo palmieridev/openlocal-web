@@ -1,0 +1,12 @@
+---
+import { SignUp } from "@clerk/astro/components";
+import AuthLayout from "@/layouts/AuthLayout.astro";
+
+// Business signup: plain account, then onboarding creates the business + Clerk
+// org via our API (POST /api/businesses). Clerk's forced org task is disabled.
+---
+
+<AuthLayout title="Registrar mi negocio — Openlocal">
+  <SignUp signInUrl="/login" fallbackRedirectUrl="/onboarding" />
+  <a href="/register" class="text-sm text-text-muted hover:text-text-secondary">← Otras opciones</a>
+</AuthLayout>

@@ -1,0 +1,11 @@
+---
+import { SignUp } from "@clerk/astro/components";
+import AuthLayout from "@/layouts/AuthLayout.astro";
+
+// Shopper signup: plain account, no organization. Lands on the marketplace.
+---
+
+<AuthLayout title="Crear cuenta de comprador — Openlocal">
+  <SignUp signInUrl="/login" fallbackRedirectUrl="/marketplace" />
+  <a href="/register" class="text-sm text-text-muted hover:text-text-secondary">← Otras opciones</a>
+</AuthLayout>

@@ -1,0 +1,127 @@
+---
+import { Icon } from "astro-icon/components";
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import Stepper from "@/components/onboarding/Stepper.astro";
+import { getServerAuth } from "@/lib/api/server";
+
+// Step 2 of onboarding. Optional: lets the owner seed a few products before
+// publishing. Requires a business (created in step 1) — bounce back otherwise.
+const { businessId } = await getServerAuth(Astro);
+if (!businessId) return Astro.redirect("/onboarding");
+
+// product_type must match the API enum (stocked_product | made_to_order_product | unique_item).
+const productTypes = [
+  ["stocked_product", "Producto con inventario"],
+  ["made_to_order_product", "Bajo pedido"],
+  ["unique_item", "Pieza única"],
+];
+---
+
+<AuthLayout title="Agrega productos — Openlocal">
+  <div class="flex w-full max-w-xl flex-col gap-6">
+    <Stepper current={2} />
+
+    <div class="ol-card w-full p-8">
+      <h1 class="font-heading text-xl font-semibold">Agrega tus primeros productos</h1>
+      <p class="mt-1 text-sm text-text-secondary">
+        Opcional — puedes agregar o editar tu catálogo cuando quieras desde tu panel.
+      </p>
+
+      <ul id="added-list" class="mt-6 hidden flex-col gap-2"></ul>
+
+      <form id="product-form" data-business-id={businessId} class="mt-6 flex flex-col gap-4 border-t border-border pt-6">
+        <div>
+          <label class="ol-label" for="name">Nombre del producto</label>
+          <input class="ol-input" id="name" name="name" required placeholder="Bolsa tejida a mano" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="ol-label" for="product_type">Tipo</label>
+            <select class="ol-select" id="product_type" name="product_type">
+              {productTypes.map(([v, l]) => <option value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div class="flex items-end pb-2.5">
+            <label class="flex items-center gap-2 text-sm text-text-secondary">
+              <input type="checkbox" name="is_public" checked /> Visible en tienda
+            </label>
+          </div>
+        </div>
+
+        <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
+
+        <Button type="submit" variant="secondary" icon="lucide:plus" id="add-btn" class="self-start">
+          <span data-label>Agregar producto</span>
+        </Button>
+      </form>
+    </div>
+
+    <div class="flex items-center justify-between">
+      <Button variant="ghost" href="/onboarding" icon="lucide:arrow-left">Atrás</Button>
+      <div class="flex items-center gap-2">
+        <Button variant="ghost" href="/onboarding/publish">Omitir por ahora</Button>
+        <Button variant="primary" iconEnd="lucide:arrow-right" href="/onboarding/publish">Continuar</Button>
+      </div>
+    </div>
+  </div>
+</AuthLayout>
+
+<script>
+  const form = document.getElementById("product-form") as HTMLFormElement | null;
+  if (form) {
+    const errEl = document.getElementById("form-error") as HTMLElement;
+    const btn = document.getElementById("add-btn") as HTMLButtonElement;
+    const label = btn.querySelector("[data-label]") as HTMLElement;
+    const list = document.getElementById("added-list") as HTMLElement;
+    const businessId = form.dataset.businessId;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.classList.add("hidden");
+      btn.disabled = true;
+      label.textContent = "Guardando…";
+      const fd = new FormData(form);
+      const name = String(fd.get("name") || "");
+      const payload = {
+        business_id: businessId,
+        name,
+        description: "", // required by the API (ProductRequest)
+        product_type: String(fd.get("product_type") || ""),
+        unit: "pieza",
+        is_public: fd.get("is_public") === "on",
+        status: "active",
+      };
+      try {
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "No se pudo agregar el producto.");
+
+        const li = document.createElement("li");
+        li.className = "flex items-center gap-3 rounded-xl border border-border bg-surface-primary px-4 py-3 text-sm";
+        li.innerHTML =
+          '<span class="flex size-9 items-center justify-center rounded-lg bg-accent-soft text-accent">' +
+          '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg></span>';
+        const text = document.createElement("span");
+        text.className = "font-medium text-text-primary";
+        text.textContent = name;
+        li.appendChild(text);
+        list.prepend(li);
+        list.classList.remove("hidden");
+        list.classList.add("flex");
+
+        form.reset();
+      } catch (err) {
+        errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        errEl.classList.remove("hidden");
+      } finally {
+        btn.disabled = false;
+        label.textContent = "Agregar producto";
+      }
+    });
+  }
+</script>

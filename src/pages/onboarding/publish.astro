@@ -1,0 +1,73 @@
+---
+import { Icon } from "astro-icon/components";
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import Stepper from "@/components/onboarding/Stepper.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import { humanize } from "@/lib/format";
+import type { Business, Product } from "@/types/api";
+
+// Step 3 of onboarding: review + publish. The business was created (status
+// "active") in step 1, so this confirms and routes into the panel.
+const { token, businessId } = await getServerAuth(Astro);
+if (!token || !businessId) return Astro.redirect("/onboarding");
+
+let business: Business | null = null;
+let products: Product[] = [];
+try {
+  const api = authedApi(token, businessId);
+  [business, products] = await Promise.all([api.getBusiness(), api.listProducts(200)]);
+} catch {
+  // Non-fatal: show what we can and still let the owner finish.
+}
+
+const location = business
+  ? [business.neighborhood, business.city].filter(Boolean).join(", ")
+  : "";
+
+const rows = [
+  ["Negocio", business?.name || "—"],
+  ["Categoría", humanize(business?.business_type) || "—"],
+  ["Ubicación", location || "—"],
+  ["Productos", `${products.length} ${products.length === 1 ? "producto" : "productos"}`],
+];
+---
+
+<AuthLayout title="Publicar tu tienda — Openlocal">
+  <div class="flex w-full max-w-lg flex-col gap-6">
+    <Stepper current={3} />
+
+    <div class="ol-card flex w-full flex-col items-center gap-5 p-8 text-center">
+      <span class="flex size-16 items-center justify-center rounded-2xl bg-success-soft text-success">
+        <Icon name="lucide:party-popper" width={30} height={30} />
+      </span>
+      <div class="flex flex-col gap-1.5">
+        <h1 class="font-heading text-2xl font-semibold">¡Tu tienda está lista para publicar!</h1>
+        <p class="text-sm text-text-secondary">
+          Publícala para aparecer en el marketplace y obtener tu enlace público para compartir por WhatsApp.
+        </p>
+      </div>
+
+      <dl class="w-full divide-y divide-border rounded-xl border border-border bg-surface-primary px-4">
+        {rows.map(([k, v]) => (
+          <div class="flex items-center justify-between py-3 text-sm">
+            <dt class="text-text-muted">{k}</dt>
+            <dd class="font-medium text-text-primary">{v}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div class="mt-1 flex w-full items-center justify-between border-t border-border pt-5">
+        <Button variant="ghost" href="/onboarding/products" icon="lucide:arrow-left">Atrás</Button>
+        <Button variant="primary" href="/dashboard" icon="lucide:rocket">Publicar tienda</Button>
+      </div>
+
+      {business?.slug && (
+        <a href={`/business/${business.slug}`} class="text-sm font-medium text-accent hover:underline">
+          Ver mi tienda pública →
+        </a>
+      )}
+    </div>
+  </div>
+</AuthLayout>

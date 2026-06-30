@@ -1,0 +1,314 @@
+---
+import { Icon } from "astro-icon/components";
+import AuthLayout from "@/layouts/AuthLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import Stepper from "@/components/onboarding/Stepper.astro";
+
+// Step 1 of onboarding. POST /api/businesses creates the Clerk org + business
+// and sets the business cookie; we then activate the org client-side and move on
+// to the (optional) product step.
+const businessTypes = [
+  ["retail", "Tienda / Retail"],
+  ["artesanias", "Artesanías"],
+  ["comida", "Comida"],
+  ["servicios", "Servicios"],
+  ["moda", "Moda"],
+  ["belleza", "Belleza"],
+  ["hogar", "Hogar"],
+  ["otro", "Otro"],
+];
+---
+
+<AuthLayout title="Configura tu negocio — Openlocal">
+  <div class="flex w-full max-w-xl flex-col gap-6">
+    <Stepper current={1} />
+
+    <form id="biz-form" class="ol-card w-full p-8">
+      <h1 class="font-heading text-xl font-semibold">Perfil de tu negocio</h1>
+      <p class="mt-1 text-sm text-text-secondary">
+        Esta información aparecerá en tu tienda pública y en el marketplace. Podrás editar todo después.
+      </p>
+
+      <div class="mt-6 flex flex-col gap-5">
+        <section class="flex flex-col gap-4">
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Perfil</h2>
+          <div>
+            <label class="ol-label" for="name">Nombre del negocio *</label>
+            <input class="ol-input" id="name" name="name" required maxlength="160" placeholder="Tejidos Roma" />
+          </div>
+          <div>
+            <label class="ol-label" for="business_type">Tipo de negocio</label>
+            <select class="ol-select" id="business_type" name="business_type">
+              {businessTypes.map(([v, l]) => <option value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label class="ol-label" for="description">Descripción</label>
+            <textarea class="ol-textarea" id="description" name="description" rows="3" placeholder="Qué vendes y qué te hace especial."></textarea>
+          </div>
+          <div>
+            <label class="ol-label" for="logo">Logo del negocio</label>
+            <div class="flex items-center gap-4">
+              <span id="logo-preview" class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-secondary text-text-muted">
+                <Icon name="lucide:image" width={22} height={22} />
+              </span>
+              <div class="flex flex-col gap-1">
+                <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/webp" class="hidden" />
+                <Button type="button" variant="secondary" size="sm" icon="lucide:upload" id="logo-btn" class="self-start">Subir logo</Button>
+                <p class="text-xs text-text-muted">PNG, JPG o WebP · máx 5 MB.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="flex flex-col gap-4">
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Ubicación</h2>
+          <p class="-mt-2 text-sm text-text-secondary">
+            Arrastra el marcador a la ubicación de tu negocio. Así apareces en el mapa del marketplace.
+          </p>
+
+          <div class="overflow-hidden rounded-xl border border-border">
+            <div id="loc-map" class="h-64 w-full"></div>
+          </div>
+          <button
+            type="button"
+            id="loc-geolocate"
+            class="self-start text-sm font-medium text-accent hover:underline"
+          >
+            📍 Usar mi ubicación
+          </button>
+          <input type="hidden" id="latitude" name="latitude" />
+          <input type="hidden" id="longitude" name="longitude" />
+
+          <div>
+            <label class="ol-label" for="address">Dirección</label>
+            <input class="ol-input" id="address" name="address" placeholder="Calle y número" />
+          </div>
+          <div>
+            <label class="ol-label" for="neighborhood">Colonia</label>
+            <input class="ol-input" id="neighborhood" name="neighborhood" placeholder="Roma Norte" />
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="ol-label" for="city">Ciudad</label>
+              <input class="ol-input" id="city" name="city" value="CDMX" />
+            </div>
+            <div>
+              <label class="ol-label" for="state">Estado</label>
+              <input class="ol-input" id="state" name="state" value="CDMX" />
+            </div>
+            <div>
+              <label class="ol-label" for="postal_code">CP</label>
+              <input class="ol-input" id="postal_code" name="postal_code" inputmode="numeric" placeholder="06700" />
+            </div>
+          </div>
+        </section>
+
+        <section class="flex flex-col gap-4">
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Contacto y entrega</h2>
+          <div>
+            <label class="ol-label" for="whatsapp">WhatsApp</label>
+            <input class="ol-input" id="whatsapp" name="whatsapp" inputmode="tel" placeholder="+52 55 1234 5678" />
+          </div>
+          <div class="flex gap-6">
+            <label class="flex items-center gap-2 text-sm text-text-secondary">
+              <input type="checkbox" name="pickup_available" checked /> Recoge en tienda
+            </label>
+            <label class="flex items-center gap-2 text-sm text-text-secondary">
+              <input type="checkbox" name="delivery_available" /> Envío a domicilio
+            </label>
+          </div>
+        </section>
+      </div>
+
+      <p id="biz-error" class="mt-4 hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
+
+      <Button type="submit" variant="primary" block class="mt-6" id="biz-submit">
+        <span data-label>Continuar</span>
+        <Icon name="lucide:arrow-right" width={16} height={16} />
+      </Button>
+    </form>
+  </div>
+</AuthLayout>
+
+<script>
+  import L from "leaflet";
+  import "leaflet/dist/leaflet.css";
+
+  const form = document.getElementById("biz-form") as HTMLFormElement;
+  const errEl = document.getElementById("biz-error") as HTMLElement;
+  const btn = document.getElementById("biz-submit") as HTMLButtonElement;
+  const label = btn?.querySelector("[data-label]") as HTMLElement;
+
+  // ── Location picker ──────────────────────────────────────────────────────
+  const latEl = document.getElementById("latitude") as HTMLInputElement;
+  const lngEl = document.getElementById("longitude") as HTMLInputElement;
+  const mapEl = document.getElementById("loc-map");
+  const CDMX: [number, number] = [19.4326, -99.1332];
+
+  const setVal = (id: string, v: string) => {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el && (!el.value || el.value === "CDMX")) el.value = v;
+  };
+
+  // Fill address fields from coordinates via Nominatim (OSM, no key needed).
+  async function reverseGeocode(lat: number, lng: number) {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=es`,
+      );
+      if (!res.ok) return;
+      const a = (await res.json())?.address ?? {};
+      const street = [a.road, a.house_number].filter(Boolean).join(" ");
+      if (street) setVal("address", street);
+      const colonia = a.neighbourhood || a.suburb || a.quarter || a.city_district;
+      if (colonia) setVal("neighborhood", colonia);
+      const city = a.city || a.town || a.village || a.municipality;
+      if (city) setVal("city", city);
+      if (a.state) setVal("state", a.state);
+      if (a.postcode) setVal("postal_code", a.postcode);
+    } catch {
+      /* geocoding is best-effort; the owner can type the fields manually */
+    }
+  }
+
+  if (mapEl) {
+    const map = L.map(mapEl, { zoomControl: true, attributionControl: false }).setView(CDMX, 12);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+
+    const pin = L.divIcon({ className: "", html: '<span class="loc-pin"></span>', iconSize: [0, 0] });
+    const marker = L.marker(CDMX, { icon: pin, draggable: true }).addTo(map);
+
+    const commit = (lat: number, lng: number, geocode = true) => {
+      latEl.value = lat.toFixed(6);
+      lngEl.value = lng.toFixed(6);
+      if (geocode) reverseGeocode(lat, lng);
+    };
+    marker.on("dragend", () => {
+      const p = marker.getLatLng();
+      commit(p.lat, p.lng);
+    });
+    map.on("click", (e: any) => {
+      marker.setLatLng(e.latlng);
+      commit(e.latlng.lat, e.latlng.lng);
+    });
+
+    document.getElementById("loc-geolocate")?.addEventListener("click", () => {
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition((pos) => {
+        const { latitude, longitude } = pos.coords;
+        map.setView([latitude, longitude], 16);
+        marker.setLatLng([latitude, longitude]);
+        commit(latitude, longitude);
+      });
+    });
+
+    // Leaflet needs a reflow once the card is laid out.
+    setTimeout(() => map.invalidateSize(), 0);
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Logo picker (stored on the Clerk organization after creation) ─────────
+  const logoInput = document.getElementById("logo") as HTMLInputElement | null;
+  const logoPreview = document.getElementById("logo-preview") as HTMLElement | null;
+  const MAX_LOGO = 5 * 1024 * 1024;
+
+  document.getElementById("logo-btn")?.addEventListener("click", () => logoInput?.click());
+  logoInput?.addEventListener("change", () => {
+    const file = logoInput.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_LOGO) {
+      errEl.textContent = "El logo supera 5 MB. Elige una imagen más ligera.";
+      errEl.classList.remove("hidden");
+      logoInput.value = "";
+      return;
+    }
+    errEl.classList.add("hidden");
+    if (logoPreview) {
+      const url = URL.createObjectURL(file);
+      logoPreview.innerHTML = `<img src="${url}" alt="Logo" class="size-full object-cover" />`;
+    }
+  });
+  // ─────────────────────────────────────────────────────────────────────────
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errEl.classList.add("hidden");
+
+    if (!latEl.value || !lngEl.value) {
+      errEl.textContent = "Marca la ubicación de tu negocio en el mapa.";
+      errEl.classList.remove("hidden");
+      mapEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+    btn.disabled = true;
+    const original = label.textContent;
+    label.textContent = "Creando…";
+
+    const fd = new FormData(form);
+    const payload = {
+      name: String(fd.get("name") || ""),
+      business_type: String(fd.get("business_type") || ""),
+      description: String(fd.get("description") || ""),
+      address: String(fd.get("address") || ""),
+      neighborhood: String(fd.get("neighborhood") || ""),
+      city: String(fd.get("city") || ""),
+      state: String(fd.get("state") || ""),
+      postal_code: String(fd.get("postal_code") || ""),
+      latitude: String(fd.get("latitude") || ""),
+      longitude: String(fd.get("longitude") || ""),
+      whatsapp: String(fd.get("whatsapp") || ""),
+      pickup_available: fd.get("pickup_available") === "on",
+      delivery_available: fd.get("delivery_available") === "on",
+      status: "active",
+    };
+
+    try {
+      const res = await fetch("/api/businesses", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "No se pudo crear el negocio.");
+
+      // Activate the new Clerk organization before hitting business-scoped routes.
+      const clerk = (window as any).Clerk;
+      if (clerk?.setActive && data.clerk_org_id) {
+        await clerk.setActive({ organization: data.clerk_org_id });
+      }
+
+      // Store the logo on the Clerk organization (best-effort; never block).
+      const logoFile = logoInput?.files?.[0];
+      if (logoFile && clerk?.organization?.setLogo) {
+        try {
+          await clerk.organization.setLogo({ file: logoFile });
+        } catch {
+          /* logo upload is non-critical; the owner can set it later */
+        }
+      }
+
+      window.location.href = "/onboarding/products";
+    } catch (err) {
+      errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+      errEl.classList.remove("hidden");
+      btn.disabled = false;
+      label.textContent = original;
+    }
+  });
+</script>
+
+<style is:global>
+  .loc-pin {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    transform: translate(-50%, -50%);
+    border-radius: 9999px;
+    background: var(--color-accent);
+    border: 3px solid var(--color-surface-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    cursor: grab;
+  }
+</style>
