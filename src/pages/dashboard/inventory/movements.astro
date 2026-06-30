@@ -1,0 +1,97 @@
+---
+import { Icon } from "astro-icon/components";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import InventoryTabs from "@/components/dashboard/InventoryTabs.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import Button from "@/components/ui/Button.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import { formatPrice } from "@/lib/format";
+import type { StockMovement } from "@/types/api";
+
+const { token, businessId } = await getServerAuth(Astro);
+
+let movements: StockMovement[] = [];
+let loadError = false;
+if (token && businessId) {
+  try {
+    movements = await authedApi(token, businessId).listMovements(100);
+  } catch {
+    loadError = true;
+  }
+}
+
+const label: Record<string, string> = {
+  purchase: "Compra",
+  production: "Producción",
+  sale: "Venta",
+  loss: "Merma",
+  sample: "Muestra",
+  adjustment: "Ajuste",
+};
+const inbound = new Set(["purchase", "production"]);
+const fmtDate = (s?: string) =>
+  s ? new Date(s).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+---
+
+<DashboardLayout active="inventario">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : loadError ? (
+    <NeedsSetup reason="error" />
+  ) : (
+    <div class="mx-auto max-w-5xl px-6 py-8">
+      <div class="flex items-center justify-between">
+        <h1 class="font-heading text-2xl font-semibold">Inventario</h1>
+        <Button variant="primary" size="sm" icon="lucide:plus" href="/dashboard/inventory/adjust">Registrar movimiento</Button>
+      </div>
+      <InventoryTabs active="movements" />
+
+      {movements.length > 0 ? (
+        <div class="ol-card mt-6 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
+                <th class="px-5 py-3 font-medium">Tipo</th>
+                <th class="px-5 py-3 text-right font-medium">Cantidad</th>
+                <th class="px-5 py-3 text-right font-medium">Costo unit.</th>
+                <th class="px-5 py-3 font-medium">Fecha</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              {movements.map((m) => {
+                const isIn = inbound.has(String(m.movement_type));
+                return (
+                  <tr class="hover:bg-surface-primary/50">
+                    <td class="px-5 py-3">
+                      <span class="flex items-center gap-2">
+                        <Icon
+                          name={isIn ? "lucide:arrow-down-left" : "lucide:arrow-up-right"}
+                          class={isIn ? "text-success" : "text-danger"}
+                          width={16}
+                          height={16}
+                        />
+                        {label[String(m.movement_type)] ?? m.movement_type}
+                      </span>
+                    </td>
+                    <td class={`px-5 py-3 text-right font-data ${isIn ? "text-success" : "text-danger"}`}>
+                      {isIn ? "+" : "−"}{m.quantity}
+                    </td>
+                    <td class="px-5 py-3 text-right font-data text-text-muted">{m.unit_cost ? formatPrice(m.unit_cost) : "—"}</td>
+                    <td class="px-5 py-3 text-text-secondary">{fmtDate(m.created_at)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div class="ol-card mt-6 border-dashed p-12 text-center">
+          <Icon name="lucide:arrow-left-right" class="mx-auto text-text-muted" width={32} height={32} />
+          <p class="mt-3 text-sm text-text-secondary">Sin movimientos todavía.</p>
+          <Button variant="primary" size="sm" href="/dashboard/inventory/adjust" class="mt-4">Registrar el primero</Button>
+        </div>
+      )}
+    </div>
+  )}
+</DashboardLayout>

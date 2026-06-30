@@ -1,0 +1,142 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import InventoryTabs from "@/components/dashboard/InventoryTabs.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import Button from "@/components/ui/Button.astro";
+import { getServerAuth } from "@/lib/api/server";
+
+const { businessId } = await getServerAuth(Astro);
+
+const types = [
+  ["purchase", "Compra (entrada)"],
+  ["production", "Producción (entrada)"],
+  ["sale", "Venta (salida)"],
+  ["loss", "Merma (salida)"],
+  ["sample", "Muestra (salida)"],
+  ["adjustment", "Ajuste"],
+];
+---
+
+<DashboardLayout active="inventario">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : (
+    <div class="mx-auto max-w-xl px-6 py-8" data-business-id={businessId}>
+      <h1 class="font-heading text-2xl font-semibold">Registrar movimiento</h1>
+      <InventoryTabs active="adjust" />
+
+      {/* Step 1: find variant */}
+      <div class="ol-card mt-6 flex flex-col gap-3 p-6">
+        <label class="ol-label" for="search">Buscar por SKU o código de barras</label>
+        <div class="flex gap-2">
+          <input class="ol-input" id="search" placeholder="BOLSA-001 o 7501234567890" />
+          <Button variant="secondary" id="search-btn" icon="lucide:search">Buscar</Button>
+        </div>
+        <p id="search-msg" class="hidden text-sm text-danger"></p>
+      </div>
+
+      {/* Step 2: movement form (hidden until a variant is found) */}
+      <form id="move-form" class="ol-card mt-4 hidden flex-col gap-4 p-6">
+        <div class="rounded-xl bg-surface-secondary px-4 py-3">
+          <div class="font-medium" id="v-name">—</div>
+          <div class="font-data text-xs text-text-muted" id="v-sku"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="ol-label" for="movement_type">Tipo</label>
+            <select class="ol-select" id="movement_type" name="movement_type">
+              {types.map(([v, l]) => <option value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label class="ol-label" for="quantity">Cantidad</label>
+            <input class="ol-input font-data" id="quantity" name="quantity" inputmode="decimal" value="1" required />
+          </div>
+        </div>
+        <div>
+          <label class="ol-label" for="unit_cost">Costo unitario (opcional)</label>
+          <input class="ol-input font-data" id="unit_cost" name="unit_cost" inputmode="decimal" placeholder="0.00" />
+        </div>
+        <div>
+          <label class="ol-label" for="notes">Notas</label>
+          <input class="ol-input" id="notes" name="notes" placeholder="Opcional" />
+        </div>
+        <p id="move-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
+        <div class="flex justify-end">
+          <Button type="submit" variant="primary" id="move-btn"><span data-label>Guardar movimiento</span></Button>
+        </div>
+      </form>
+    </div>
+  )}
+</DashboardLayout>
+
+<script>
+  const root = document.querySelector("[data-business-id]") as HTMLElement | null;
+  if (root) {
+    const businessId = root.dataset.businessId!;
+    let variantId: string | null = null;
+
+    const searchInput = document.getElementById("search") as HTMLInputElement;
+    const searchBtn = document.getElementById("search-btn") as HTMLButtonElement;
+    const searchMsg = document.getElementById("search-msg") as HTMLElement;
+    const form = document.getElementById("move-form") as HTMLFormElement;
+    const vName = document.getElementById("v-name") as HTMLElement;
+    const vSku = document.getElementById("v-sku") as HTMLElement;
+    const moveMsg = document.getElementById("move-msg") as HTMLElement;
+
+    async function lookup() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+      searchMsg.classList.add("hidden");
+      const isBarcode = /^\d{6,}$/.test(q);
+      const param = isBarcode ? "barcode" : "sku";
+      const res = await fetch(`/api/lookup?${param}=${encodeURIComponent(q)}&business_id=${businessId}`);
+      const data = await res.json();
+      if (!res.ok) {
+        searchMsg.textContent = data?.error || "No se encontró la variante.";
+        searchMsg.classList.remove("hidden");
+        form.classList.add("hidden");
+        return;
+      }
+      variantId = data.id;
+      vName.textContent = data.name || data.sku || "Variante";
+      vSku.textContent = data.sku || "";
+      form.classList.remove("hidden");
+      form.classList.add("flex");
+    }
+
+    searchBtn?.addEventListener("click", lookup);
+    searchInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); lookup(); }
+    });
+
+    form?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!variantId) return;
+      const fd = new FormData(form);
+      const payload = {
+        business_id: businessId,
+        variant_id: variantId,
+        movement_type: String(fd.get("movement_type") || "adjustment"),
+        quantity: String(fd.get("quantity") || "0"),
+        unit_cost: String(fd.get("unit_cost") || ""),
+        notes: String(fd.get("notes") || ""),
+      };
+      const res = await fetch("/api/movements", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const level = data?.stock_level?.quantity_on_hand ?? "?";
+        moveMsg.className = "rounded-xl bg-success-soft px-3 py-2 text-sm text-success";
+        moveMsg.textContent = `Movimiento guardado. Stock actual: ${level}.`;
+        form.reset();
+      } else {
+        moveMsg.className = "rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger";
+        moveMsg.textContent = data?.error || "Error al guardar.";
+      }
+    });
+  }
+</script>

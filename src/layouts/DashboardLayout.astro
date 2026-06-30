@@ -9,12 +9,12 @@ interface Props {
 }
 const { title = "Panel — Openlocal", active = "inicio" } = Astro.props;
 
+// Scanner is not a top-level destination — it lives inside Inventario and
+// Analítica (where scanning a SKU is actionable), not in the global sidebar.
 const nav = [
   { key: "inicio", label: "Inicio", icon: "lucide:layout-dashboard", href: "/dashboard" },
-  { key: "productos", label: "Productos", icon: "lucide:package", href: "#" },
-  { key: "inventario", label: "Inventario", icon: "lucide:boxes", href: "#" },
-  { key: "analitica", label: "Analítica", icon: "lucide:chart-column", href: "#" },
-  { key: "tienda", label: "Tienda pública", icon: "lucide:store", href: "#" },
+  { key: "inventario", label: "Inventario", icon: "lucide:boxes", href: "/dashboard/inventory" },
+  { key: "analitica", label: "Analítica", icon: "lucide:chart-column", href: "/dashboard/analytics" },
   { key: "ajustes", label: "Ajustes", icon: "lucide:settings", href: "#" },
 ];
 ---
