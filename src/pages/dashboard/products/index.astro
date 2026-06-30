@@ -1,0 +1,95 @@
+---
+import { Icon } from "astro-icon/components";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import { humanize } from "@/lib/format";
+import type { Product } from "@/types/api";
+
+const { token, businessId } = await getServerAuth(Astro);
+
+let products: Product[] = [];
+let loadError = false;
+if (token && businessId) {
+  try {
+    products = await authedApi(token, businessId).listProducts(200);
+  } catch {
+    loadError = true;
+  }
+}
+
+const statusStyle: Record<string, string> = {
+  active: "bg-success-soft text-success",
+  draft: "bg-surface-secondary text-text-muted",
+  archived: "bg-danger-soft text-danger",
+};
+---
+
+<DashboardLayout active="productos">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : loadError ? (
+    <NeedsSetup reason="error" />
+  ) : (
+    <div class="mx-auto max-w-5xl px-6 py-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="font-heading text-2xl font-semibold">Productos</h1>
+          <p class="mt-1 text-sm text-text-secondary">{products.length} en tu catálogo</p>
+        </div>
+        <Button variant="primary" icon="lucide:plus" href="/dashboard/products/new">Nuevo producto</Button>
+      </div>
+
+      {products.length > 0 ? (
+        <div class="ol-card mt-6 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
+                <th class="px-5 py-3 font-medium">Producto</th>
+                <th class="px-5 py-3 font-medium">Tipo</th>
+                <th class="px-5 py-3 font-medium">Estado</th>
+                <th class="px-5 py-3 font-medium">Público</th>
+                <th class="px-5 py-3"></th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              {products.map((p) => (
+                <tr class="hover:bg-surface-primary/50">
+                  <td class="px-5 py-3">
+                    <div class="font-medium text-text-primary">{p.name}</div>
+                    {p.is_handmade && <span class="text-xs text-accent">Hecho a mano</span>}
+                  </td>
+                  <td class="px-5 py-3 text-text-secondary">{humanize(p.product_type)}</td>
+                  <td class="px-5 py-3">
+                    <span class={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusStyle[p.status ?? "draft"] ?? statusStyle.draft}`}>
+                      {humanize(p.status) || "Borrador"}
+                    </span>
+                  </td>
+                  <td class="px-5 py-3">
+                    <Icon
+                      name={p.is_public ? "lucide:eye" : "lucide:eye-off"}
+                      class={p.is_public ? "text-success" : "text-text-muted"}
+                      width={16}
+                      height={16}
+                    />
+                  </td>
+                  <td class="px-5 py-3 text-right">
+                    <a href={`/dashboard/products/${p.id}`} class="text-sm font-medium text-accent hover:underline">Editar</a>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div class="ol-card mt-6 border-dashed p-12 text-center">
+          <Icon name="lucide:package" class="mx-auto text-text-muted" width={32} height={32} />
+          <p class="mt-3 text-sm text-text-secondary">Aún no tienes productos.</p>
+          <Button variant="primary" size="sm" href="/dashboard/products/new" class="mt-4">Crea el primero</Button>
+        </div>
+      )}
+    </div>
+  )}
+</DashboardLayout>

@@ -1,0 +1,117 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import { getServerAuth } from "@/lib/api/server";
+
+const { businessId } = await getServerAuth(Astro);
+
+// product_type must match the API enum (stocked_product | made_to_order_product | unique_item).
+const productTypes = [
+  ["stocked_product", "Producto con inventario"],
+  ["made_to_order_product", "Bajo pedido"],
+  ["unique_item", "Pieza única"],
+];
+const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
+---
+
+<DashboardLayout active="productos">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : (
+    <div class="mx-auto max-w-2xl px-6 py-8">
+      <a href="/dashboard/products" class="text-sm text-text-muted hover:text-text-secondary">← Productos</a>
+      <h1 class="mt-2 font-heading text-2xl font-semibold">Nuevo producto</h1>
+
+      <form id="product-form" data-business-id={businessId} class="ol-card mt-6 flex flex-col gap-4 p-6">
+        <div>
+          <label class="ol-label" for="name">Nombre *</label>
+          <input class="ol-input" id="name" name="name" required placeholder="Bolsa tejida a mano" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="ol-label" for="product_type">Tipo</label>
+            <select class="ol-select" id="product_type" name="product_type">
+              {productTypes.map(([v, l]) => <option value={v}>{l}</option>)}
+            </select>
+          </div>
+          <div>
+            <label class="ol-label" for="unit">Unidad</label>
+            <select class="ol-select" id="unit" name="unit">
+              {units.map((u) => <option value={u}>{u}</option>)}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="ol-label" for="brand">Marca</label>
+          <input class="ol-input" id="brand" name="brand" placeholder="Opcional" />
+        </div>
+        <div>
+          <label class="ol-label" for="description">Descripción</label>
+          <textarea class="ol-textarea" id="description" name="description" rows="3"></textarea>
+        </div>
+        <div class="flex gap-6">
+          <label class="flex items-center gap-2 text-sm text-text-secondary">
+            <input type="checkbox" name="is_handmade" /> Hecho a mano
+          </label>
+          <label class="flex items-center gap-2 text-sm text-text-secondary">
+            <input type="checkbox" name="is_public" checked /> Visible en tienda
+          </label>
+        </div>
+
+        <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
+
+        <div class="flex justify-end gap-2">
+          <Button variant="secondary" href="/dashboard/products">Cancelar</Button>
+          <Button type="submit" variant="primary" id="submit-btn">
+            <span data-label>Crear producto</span>
+          </Button>
+        </div>
+      </form>
+    </div>
+  )}
+</DashboardLayout>
+
+<script>
+  const form = document.getElementById("product-form") as HTMLFormElement | null;
+  if (form) {
+    const errEl = document.getElementById("form-error") as HTMLElement;
+    const btn = document.getElementById("submit-btn") as HTMLButtonElement;
+    const label = btn.querySelector("[data-label]") as HTMLElement;
+    const businessId = form.dataset.businessId;
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.classList.add("hidden");
+      btn.disabled = true;
+      label.textContent = "Guardando…";
+      const fd = new FormData(form);
+      const payload = {
+        business_id: businessId,
+        name: String(fd.get("name") || ""),
+        product_type: String(fd.get("product_type") || ""),
+        unit: String(fd.get("unit") || ""),
+        brand: String(fd.get("brand") || ""),
+        description: String(fd.get("description") || ""),
+        is_handmade: fd.get("is_handmade") === "on",
+        is_public: fd.get("is_public") === "on",
+        status: "active",
+      };
+      try {
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "No se pudo crear el producto.");
+        window.location.href = `/dashboard/products/${data.id}`;
+      } catch (err) {
+        errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        errEl.classList.remove("hidden");
+        btn.disabled = false;
+        label.textContent = "Crear producto";
+      }
+    });
+  }
+</script>

@@ -1,0 +1,194 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import type { Product } from "@/types/api";
+
+const { id } = Astro.params;
+const { token, businessId } = await getServerAuth(Astro);
+
+let product: Product | null = null;
+let loadError = false;
+if (token && businessId && id) {
+  try {
+    product = await authedApi(token, businessId).getProduct(id);
+  } catch {
+    loadError = true;
+  }
+}
+
+const stockStatuses = [
+  ["available", "En stock"],
+  ["low_stock", "Pocas piezas"],
+  ["out_of_stock", "Agotado"],
+  ["made_to_order", "Bajo pedido"],
+  ["unknown", "Consultar"],
+];
+---
+
+<DashboardLayout active="productos">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : loadError || !product ? (
+    <NeedsSetup reason="error" />
+  ) : (
+    <div class="mx-auto max-w-2xl px-6 py-8" data-business-id={businessId} data-product-id={product.id}>
+      <a href="/dashboard/products" class="text-sm text-text-muted hover:text-text-secondary">← Productos</a>
+      <h1 class="mt-2 font-heading text-2xl font-semibold">{product.name}</h1>
+
+      {/* Edit product */}
+      <form id="edit-form" class="ol-card mt-6 flex flex-col gap-4 p-6">
+        <h2 class="font-heading font-semibold">Detalles</h2>
+        <div>
+          <label class="ol-label" for="name">Nombre</label>
+          <input class="ol-input" id="name" name="name" value={product.name} required />
+        </div>
+        <div>
+          <label class="ol-label" for="brand">Marca</label>
+          <input class="ol-input" id="brand" name="brand" value={product.brand ?? ""} />
+        </div>
+        <div>
+          <label class="ol-label" for="description">Descripción</label>
+          <textarea class="ol-textarea" id="description" name="description" rows="3">{product.description}</textarea>
+        </div>
+        <div class="flex gap-6">
+          <label class="flex items-center gap-2 text-sm text-text-secondary">
+            <input type="checkbox" name="is_handmade" checked={product.is_handmade} /> Hecho a mano
+          </label>
+          <label class="flex items-center gap-2 text-sm text-text-secondary">
+            <input type="checkbox" name="is_public" checked={product.is_public} /> Visible en tienda
+          </label>
+        </div>
+        <p id="edit-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
+        <div class="flex justify-end">
+          <Button type="submit" variant="primary" id="edit-btn"><span data-label>Guardar cambios</span></Button>
+        </div>
+      </form>
+
+      {/* Add variant */}
+      <form id="variant-form" class="ol-card mt-6 flex flex-col gap-4 p-6">
+        <h2 class="font-heading font-semibold">Agregar variante</h2>
+        <p class="-mt-2 text-sm text-text-secondary">SKU, precio y código de barras para controlar inventario.</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="ol-label" for="sku">SKU *</label>
+            <input class="ol-input" id="sku" name="sku" required placeholder="BOLSA-001" />
+          </div>
+          <div>
+            <label class="ol-label" for="barcode">Código de barras</label>
+            <input class="ol-input" id="barcode" name="barcode" placeholder="7501234567890" />
+          </div>
+        </div>
+        <div>
+          <label class="ol-label" for="vname">Nombre de la variante</label>
+          <input class="ol-input" id="vname" name="vname" placeholder="Color natural" />
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="ol-label" for="price">Precio (MXN) *</label>
+            <input class="ol-input font-data" id="price" name="price" inputmode="decimal" required placeholder="420.00" />
+          </div>
+          <div>
+            <label class="ol-label" for="cost">Costo</label>
+            <input class="ol-input font-data" id="cost" name="cost" inputmode="decimal" placeholder="0.00" />
+          </div>
+          <div>
+            <label class="ol-label" for="reorder_point">Punto reorden</label>
+            <input class="ol-input font-data" id="reorder_point" name="reorder_point" inputmode="decimal" placeholder="5" />
+          </div>
+        </div>
+        <div>
+          <label class="ol-label" for="public_stock_status">Estado de stock público</label>
+          <select class="ol-select" id="public_stock_status" name="public_stock_status">
+            {stockStatuses.map(([v, l]) => <option value={v}>{l}</option>)}
+          </select>
+        </div>
+        <label class="flex items-center gap-2 text-sm text-text-secondary">
+          <input type="checkbox" name="track_inventory" checked /> Controlar inventario
+        </label>
+        <p id="variant-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
+        <div class="flex justify-end">
+          <Button type="submit" variant="secondary" id="variant-btn"><span data-label>Agregar variante</span></Button>
+        </div>
+      </form>
+    </div>
+  )}
+</DashboardLayout>
+
+<script>
+  const root = document.querySelector("[data-product-id]") as HTMLElement | null;
+  if (root) {
+    const businessId = root.dataset.businessId!;
+    const productId = root.dataset.productId!;
+
+    function flash(el: HTMLElement, ok: boolean, msg: string) {
+      el.textContent = msg;
+      el.className = `rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
+    }
+
+    const editForm = document.getElementById("edit-form") as HTMLFormElement;
+    const editMsg = document.getElementById("edit-msg") as HTMLElement;
+    editForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(editForm);
+      const payload = {
+        business_id: businessId,
+        name: String(fd.get("name") || ""),
+        brand: String(fd.get("brand") || ""),
+        description: String(fd.get("description") || ""),
+        is_handmade: fd.get("is_handmade") === "on",
+        is_public: fd.get("is_public") === "on",
+        status: "active",
+      };
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      flash(editMsg, res.ok, res.ok ? "Cambios guardados." : data?.error || "Error al guardar.");
+    });
+
+    const vForm = document.getElementById("variant-form") as HTMLFormElement;
+    const vMsg = document.getElementById("variant-msg") as HTMLElement;
+    vForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(vForm);
+      const str = (k: string) => String(fd.get(k) || "").trim();
+      // Only send optional fields when filled — the API parses cost/barcode/etc.
+      // strictly and 500s on an empty decimal string.
+      const payload: Record<string, unknown> = {
+        business_id: businessId,
+        product_id: productId,
+        sku: str("sku"),
+        price: str("price") || "0",
+        public_stock_status: str("public_stock_status") || "unknown",
+        track_inventory: fd.get("track_inventory") === "on",
+        currency: "MXN",
+        status: "active",
+      };
+      const barcode = str("barcode");
+      if (barcode) payload.barcode = barcode;
+      const vname = str("vname");
+      if (vname) payload.name = vname;
+      const cost = str("cost");
+      if (cost) payload.cost = cost;
+      const reorder = str("reorder_point");
+      if (reorder) payload.reorder_point = reorder;
+      const res = await fetch("/api/variants", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        flash(vMsg, true, "Variante agregada.");
+        vForm.reset();
+      } else {
+        flash(vMsg, false, data?.error || "Error al agregar variante.");
+      }
+    });
+  }
+</script>
