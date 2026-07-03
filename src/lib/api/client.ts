@@ -8,6 +8,7 @@ import type {
   PublicProduct,
   StockLevel,
   StockMovement,
+  Variant,
 } from "@/types/api";
 
 export class ApiError extends Error {
@@ -161,6 +162,11 @@ export function authedApi(token: string, businessId: string) {
       scoped<Product[]>("/api/v1/products", { limit: clampLimit(limit), offset }),
     getProduct: (id: string) =>
       apiFetch<Product>(`/api/v1/products/${id}`, { token, query: { business_id: businessId } }),
+    listProductVariants: (productId: string) =>
+      apiFetch<Variant[]>(`/api/v1/products/${productId}/variants`, {
+        token,
+        query: { business_id: businessId },
+      }),
     listStockLevels: (limit = 100, offset = 0) =>
       scoped<StockLevel[]>("/api/v1/inventory/stock-levels", { limit: clampLimit(limit), offset }),
     listMovements: (limit = 50, offset = 0) =>

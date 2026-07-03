@@ -1,7 +1,7 @@
 /**
  * TypeScript projections of the Openlocal API response shapes.
  *
- * Derived from the Go DTOs in `openlocal-api` (internal/*/dto.go) and the sqlc
+ * Derived from the Go DTOs in `openlocal-api` (internal/<module>/dto.go) and the sqlc
  * rows returned by the marketplace/public handlers. The published openapi.yaml
  * only lists paths, not schemas, so these types are the contract we maintain by
  * hand until the API ships a richer spec.

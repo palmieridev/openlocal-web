@@ -2,29 +2,60 @@
 import { Icon } from "astro-icon/components";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
+import StatTile from "@/components/ui/StatTile.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
-import { humanize } from "@/lib/format";
 import type { Product } from "@/types/api";
 
 const { token, businessId } = await getServerAuth(Astro);
 
 let products: Product[] = [];
 let loadError = false;
+let skuCount = 0;
+let lowStockCount = 0;
 if (token && businessId) {
-  try {
-    products = await authedApi(token, businessId).listProducts(200);
-  } catch {
-    loadError = true;
-  }
+  const api = authedApi(token, businessId);
+  // Products is the page; stats are best-effort (don't fail the page on them).
+  const [p, sl, ls] = await Promise.allSettled([
+    api.listProducts(100),
+    api.listStockLevels(100),
+    api.lowStock(100),
+  ]);
+  if (p.status === "fulfilled") products = p.value;
+  else loadError = true;
+  if (sl.status === "fulfilled") skuCount = sl.value.length;
+  if (ls.status === "fulfilled") lowStockCount = ls.value.length;
 }
+
+const total = products.length;
+const published = products.filter((p) => p.is_public).length;
+const pubPct = total ? Math.round((published / total) * 100) : 0;
+const activeCount = products.filter((p) => (p.status ?? "") === "active").length;
 
 const statusStyle: Record<string, string> = {
   active: "bg-success-soft text-success",
   draft: "bg-surface-secondary text-text-muted",
   archived: "bg-danger-soft text-danger",
 };
+const statusLabel: Record<string, string> = {
+  active: "Activo",
+  draft: "Borrador",
+  archived: "Archivado",
+};
+const typeLabel: Record<string, string> = {
+  stocked_product: "Inventario",
+  made_to_order_product: "Bajo pedido",
+  unique_item: "Pieza única",
+};
+
+const tabs = [
+  { key: "all", label: "Todos" },
+  { key: "published", label: "Publicados" },
+  { key: "draft", label: "Borradores" },
+  { key: "made_to_order", label: "Bajo pedido" },
+  { key: "unique", label: "Pieza única" },
+];
 ---
 
 <DashboardLayout active="productos">
@@ -33,17 +64,65 @@ const statusStyle: Record<string, string> = {
   ) : loadError ? (
     <NeedsSetup reason="error" />
   ) : (
-    <div class="mx-auto max-w-5xl px-6 py-8">
-      <div class="flex items-center justify-between">
+    <div class="mx-auto max-w-6xl px-6 py-8">
+      {/* Header */}
+      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
         <div>
           <h1 class="font-heading text-2xl font-semibold">Productos</h1>
-          <p class="mt-1 text-sm text-text-secondary">{products.length} en tu catálogo</p>
+          <p class="mt-1 text-sm text-text-secondary">Catálogo · variantes, precios y visibilidad</p>
         </div>
-        <Button variant="primary" icon="lucide:plus" href="/dashboard/products/new">Nuevo producto</Button>
+        <div class="flex items-center gap-2">
+          <Button variant="secondary" icon="lucide:scan-barcode" href="/dashboard/inventory/scan">Escanear</Button>
+          <Button variant="primary" icon="lucide:plus" href="/dashboard/products/new">Nuevo producto</Button>
+        </div>
+      </div>
+
+      {/* Stat tiles */}
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile label="Productos en catálogo" value={String(total)} icon="lucide:package" delta={`${activeCount} activos`} deltaTone="neutral" />
+        <StatTile label="Publicados en tienda" value={String(published)} icon="lucide:eye" delta={`${pubPct}% del catálogo`} deltaTone="up" />
+        <StatTile label="Variantes · SKUs" value={String(skuCount)} icon="lucide:layers" delta="Con inventario" deltaTone="neutral" />
+        <StatTile label="Bajo stock" value={String(lowStockCount)} icon="lucide:triangle-alert" delta="Requieren reorden" deltaTone="down" />
+      </div>
+
+      {/* Tabs + search */}
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <nav id="product-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
+          {tabs.map((t, i) => (
+            <button
+              type="button"
+              data-filter={t.key}
+              class:list={[
+                "rounded-full px-4 py-1.5 transition-colors",
+                i === 0 ? "bg-surface-secondary text-text-primary" : "text-text-secondary hover:text-text-primary",
+              ]}
+            >
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <div class="flex items-center gap-2">
+          <div class="relative">
+            <Icon name="lucide:search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" width={16} height={16} />
+            <input
+              id="product-search"
+              type="search"
+              placeholder="Buscar producto o SKU"
+              class="ol-input w-64 rounded-full pl-9"
+            />
+          </div>
+          <Button variant="secondary" icon="lucide:download" id="export-csv">Exportar CSV</Button>
+        </div>
       </div>
 
       {products.length > 0 ? (
-        <div class="ol-card mt-6 overflow-hidden">
+        <div class="ol-card mt-4 overflow-hidden">
+          <div class="flex items-center justify-between border-b border-border px-5 py-4">
+            <div>
+              <h2 class="font-heading font-semibold">Catálogo de productos</h2>
+              <p class="text-sm text-text-secondary">{total} productos</p>
+            </div>
+          </div>
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
@@ -54,17 +133,26 @@ const statusStyle: Record<string, string> = {
                 <th class="px-5 py-3"></th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-border">
+            <tbody id="product-rows" class="divide-y divide-border">
               {products.map((p) => (
-                <tr class="hover:bg-surface-primary/50">
+                <tr
+                  class="product-row hover:bg-surface-primary/50"
+                  data-name={`${p.name} ${p.brand ?? ""} ${p.slug}`.toLowerCase()}
+                  data-public={p.is_public ? "1" : "0"}
+                  data-status={p.status ?? "draft"}
+                  data-type={p.product_type}
+                >
                   <td class="px-5 py-3">
                     <div class="font-medium text-text-primary">{p.name}</div>
-                    {p.is_handmade && <span class="text-xs text-accent">Hecho a mano</span>}
+                    <div class="mt-0.5 flex items-center gap-2 text-xs text-text-muted">
+                      {p.brand && <span>{p.brand}</span>}
+                      {p.is_handmade && <span class="text-accent">Hecho a mano</span>}
+                    </div>
                   </td>
-                  <td class="px-5 py-3 text-text-secondary">{humanize(p.product_type)}</td>
+                  <td class="px-5 py-3 text-text-secondary">{typeLabel[p.product_type] ?? p.product_type}</td>
                   <td class="px-5 py-3">
                     <span class={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${statusStyle[p.status ?? "draft"] ?? statusStyle.draft}`}>
-                      {humanize(p.status) || "Borrador"}
+                      {statusLabel[p.status ?? "draft"] ?? "Borrador"}
                     </span>
                   </td>
                   <td class="px-5 py-3">
@@ -82,9 +170,10 @@ const statusStyle: Record<string, string> = {
               ))}
             </tbody>
           </table>
+          <p id="no-results" class="hidden px-5 py-10 text-center text-sm text-text-muted">Sin resultados para tu búsqueda.</p>
         </div>
       ) : (
-        <div class="ol-card mt-6 border-dashed p-12 text-center">
+        <div class="ol-card mt-4 border-dashed p-12 text-center">
           <Icon name="lucide:package" class="mx-auto text-text-muted" width={32} height={32} />
           <p class="mt-3 text-sm text-text-secondary">Aún no tienes productos.</p>
           <Button variant="primary" size="sm" href="/dashboard/products/new" class="mt-4">Crea el primero</Button>
@@ -93,3 +182,77 @@ const statusStyle: Record<string, string> = {
     </div>
   )}
 </DashboardLayout>
+
+<script>
+  const tabsEl = document.getElementById("product-tabs");
+  const searchEl = document.getElementById("product-search") as HTMLInputElement | null;
+  const rows = Array.from(document.querySelectorAll<HTMLElement>(".product-row"));
+  const noResults = document.getElementById("no-results");
+
+  let activeFilter = "all";
+
+  function matchesTab(row: HTMLElement): boolean {
+    switch (activeFilter) {
+      case "published":
+        return row.dataset.public === "1";
+      case "draft":
+        return row.dataset.status === "draft";
+      case "made_to_order":
+        return (row.dataset.type ?? "").includes("made_to_order");
+      case "unique":
+        return (row.dataset.type ?? "").includes("unique");
+      default:
+        return true;
+    }
+  }
+
+  function apply() {
+    const q = (searchEl?.value ?? "").trim().toLowerCase();
+    let shown = 0;
+    for (const row of rows) {
+      const ok = matchesTab(row) && (!q || (row.dataset.name ?? "").includes(q));
+      row.classList.toggle("hidden", !ok);
+      if (ok) shown++;
+    }
+    noResults?.classList.toggle("hidden", shown !== 0);
+  }
+
+  tabsEl?.querySelectorAll<HTMLButtonElement>("button[data-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeFilter = btn.dataset.filter ?? "all";
+      tabsEl.querySelectorAll<HTMLButtonElement>("button[data-filter]").forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle("bg-surface-secondary", on);
+        b.classList.toggle("text-text-primary", on);
+        b.classList.toggle("text-text-secondary", !on);
+      });
+      apply();
+    });
+  });
+
+  searchEl?.addEventListener("input", apply);
+
+  document.getElementById("export-csv")?.addEventListener("click", () => {
+    const header = ["Producto", "Marca", "Tipo", "Estado", "Público"];
+    const lines = [header.join(",")];
+    for (const row of rows) {
+      const cells = row.querySelectorAll("td");
+      const name = (cells[0]?.querySelector(".font-medium")?.textContent ?? "").trim();
+      const brand = row.dataset.name?.split(" ")[1] ?? "";
+      const type = (cells[1]?.textContent ?? "").trim();
+      const status = (cells[2]?.textContent ?? "").trim();
+      const pub = row.dataset.public === "1" ? "Sí" : "No";
+      const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
+      lines.push([name, brand, type, status, pub].map(esc).join(","));
+    }
+    const blob = new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "productos.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+</script>
+</content>
+</invoke>
