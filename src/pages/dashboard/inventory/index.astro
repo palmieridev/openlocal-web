@@ -1,27 +1,148 @@
 ---
 import { Icon } from "astro-icon/components";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
-import InventoryTabs from "@/components/dashboard/InventoryTabs.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import MovementPickerModal from "@/components/dashboard/MovementPickerModal.astro";
+import MovementEditModal from "@/components/dashboard/MovementEditModal.astro";
+import ExistenciasTable from "@/components/dashboard/ExistenciasTable.astro";
+import type { ExistRow } from "@/components/dashboard/ExistenciasTable.astro";
+import MovimientosTable from "@/components/dashboard/MovimientosTable.astro";
+import type { MovRow } from "@/components/dashboard/MovimientosTable.astro";
+import StatTile from "@/components/ui/StatTile.astro";
 import Button from "@/components/ui/Button.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
-import type { StockLevel } from "@/types/api";
+import type { Product, StockMovement, StockLevel, Variant } from "@/types/api";
 
 const { token, businessId } = await getServerAuth(Astro);
 
+let movements: StockMovement[] = [];
 let levels: StockLevel[] = [];
 let loadError = false;
 if (token && businessId) {
+  const api = authedApi(token, businessId);
   try {
-    levels = await authedApi(token, businessId).listStockLevels(500);
+    [movements, levels] = await Promise.all([
+      api.listMovements(200),
+      api.listStockLevels(500),
+    ]);
   } catch {
     loadError = true;
   }
 }
 
+// StockMovement carries only variant_id and stock levels may lack SKU/name, so
+// enrich both tables from the catalog (products → variants); keep level rows as fallback.
+const levelInfo = new Map(levels.map((l) => [l.variant_id, l]));
+const catalog = new Map<string, { product: Product; variant: Variant }>();
+if (token && businessId && (levels.length > 0 || movements.length > 0)) {
+  try {
+    const api = authedApi(token, businessId);
+    const products = await api.listProducts(200);
+    const variantLists = await Promise.all(
+      products.map((product: Product) =>
+        api.listProductVariants(product.id)
+          .then((variants: Variant[]) => variants.map((variant) => ({ product, variant })))
+          .catch(() => [] as { product: Product; variant: Variant }[]),
+      ),
+    );
+    for (const list of variantLists) {
+      for (const item of list) catalog.set(item.variant.id, item);
+    }
+  } catch {
+    /* Tables still render from level/movement data if enrichment fails. */
+  }
+}
+
 const isLow = (l: StockLevel) =>
-  l.reorder_point != null && Number(l.quantity_on_hand) <= Number(l.reorder_point);
+  l.reorder_point != null && l.reorder_point !== "" && Number(l.quantity_on_hand) <= Number(l.reorder_point);
+
+// Existencias rows (variant-centric names).
+const existRows: ExistRow[] = levels.map((l) => {
+  const info = catalog.get(l.variant_id);
+  const name = info ? (info.variant.name?.trim() || info.product.name) : (l.product_name ?? l.variant_name ?? "—");
+  return {
+    variantId: l.variant_id,
+    name,
+    sku: info?.variant.sku ?? l.sku ?? "",
+    qty: l.quantity_on_hand,
+    reorder: l.reorder_point ?? "—",
+    low: isLow(l),
+  };
+});
+
+// Movimientos rows.
+type Cat = "entrada" | "salida" | "ajuste" | "produccion";
+const catMeta: Record<Cat, { label: string; badge: string }> = {
+  entrada: { label: "Entrada", badge: "bg-success-soft text-success" },
+  salida: { label: "Salida", badge: "bg-danger-soft text-danger" },
+  ajuste: { label: "Ajuste", badge: "bg-warning-soft text-warning" },
+  produccion: { label: "Producción", badge: "bg-accent-soft text-accent" },
+};
+const typeMap: Record<string, { cat: Cat; origen: string; inbound: boolean }> = {
+  purchase: { cat: "entrada", origen: "Compra", inbound: true },
+  production: { cat: "produccion", origen: "Producción", inbound: true },
+  sale: { cat: "salida", origen: "Venta", inbound: false },
+  loss: { cat: "salida", origen: "Merma", inbound: false },
+  sample: { cat: "salida", origen: "Muestra", inbound: false },
+  adjustment: { cat: "ajuste", origen: "Ajuste", inbound: false },
+  IN_PURCHASE: { cat: "entrada", origen: "Compra", inbound: true },
+  IN_PRODUCTION: { cat: "produccion", origen: "Producción", inbound: true },
+  OUT_SALE: { cat: "salida", origen: "Venta", inbound: false },
+  OUT_LOSS: { cat: "salida", origen: "Merma", inbound: false },
+  IN_ADJUSTMENT: { cat: "ajuste", origen: "Ajuste", inbound: true },
+  OUT_ADJUSTMENT: { cat: "ajuste", origen: "Ajuste", inbound: false },
+};
+
+const fmtDate = (s?: string) =>
+  s
+    ? new Date(s).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+    : "";
+
+function signedQty(m: StockMovement, inbound: boolean): { text: string; tone: "up" | "down" } {
+  const raw = String(m.quantity ?? "").trim();
+  const n = Number(raw);
+  const negative = raw.startsWith("-") || (!inbound && n > 0);
+  const magnitude = raw.replace(/^[+-]/, "");
+  return { text: `${negative ? "−" : "+"}${magnitude}`, tone: negative ? "down" : "up" };
+}
+
+const movRows: MovRow[] = movements.map((m) => {
+  const movementType = String(m.movement_type);
+  const meta = typeMap[movementType] ?? { cat: "ajuste" as Cat, origen: movementType, inbound: false };
+  const info = catalog.get(m.variant_id);
+  const fallback = levelInfo.get(m.variant_id);
+  const variantName = info?.variant.name?.trim();
+  const name = info
+    ? (variantName && variantName !== info.variant.sku ? `${info.product.name} · ${variantName}` : info.product.name)
+    : (fallback?.product_name ?? fallback?.variant_name ?? "—");
+  const qty = signedQty(m, meta.inbound);
+  const origen = m.notes?.trim() || meta.origen;
+  const rawQty = movementType === "OUT_ADJUSTMENT" ? qty.text.replace("−", "-") : String(m.quantity ?? "").replace(/^\+/, "");
+  return {
+    id: m.id,
+    variantId: m.variant_id,
+    movementType,
+    rawQty,
+    unitCost: m.unit_cost ?? "",
+    notes: m.notes ?? "",
+    name,
+    sku: info?.variant.sku ?? fallback?.sku ?? "",
+    badge: catMeta[meta.cat],
+    qty,
+    origen,
+    date: fmtDate(m.created_at),
+  };
+});
+
+// Stat tiles.
+const unitsOnHand = levels.reduce((sum, l) => sum + (Number(l.quantity_on_hand) || 0), 0);
+const lowCount = levels.filter(isLow).length;
+const today = new Date().toDateString();
+const todays = movements.filter((m) => m.created_at && new Date(m.created_at).toDateString() === today);
+const todayIn = todays.filter((m) => typeMap[String(m.movement_type)]?.inbound).length;
+const todayOut = todays.length - todayIn;
+const nfmt = new Intl.NumberFormat("es-MX");
 ---
 
 <DashboardLayout active="inventario">
@@ -30,59 +151,161 @@ const isLow = (l: StockLevel) =>
   ) : loadError ? (
     <NeedsSetup reason="error" />
   ) : (
-    <div class="mx-auto max-w-5xl px-6 py-8">
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <h1 class="font-heading text-2xl font-semibold">Inventario</h1>
+    <>
+      {/* Full-width top bar */}
+      <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface-card px-8 py-5">
+        <div>
+          <h1 class="font-heading text-2xl font-semibold">Inventario</h1>
+          <p class="mt-0.5 text-sm text-text-muted">Existencias y movimientos · entradas, salidas y ajustes</p>
+        </div>
         <div class="flex gap-2">
-          <Button variant="secondary" size="sm" icon="lucide:package" href="/dashboard/products">Productos</Button>
-          <Button variant="secondary" size="sm" icon="lucide:scan-barcode" href="/dashboard/inventory/scan">Escanear</Button>
-          <Button variant="primary" size="sm" icon="lucide:plus" href="/dashboard/products/new">Nuevo producto</Button>
+          <Button variant="primary" size="sm" icon="lucide:plus" data-open-picker>Registrar movimiento</Button>
         </div>
       </div>
-      <InventoryTabs active="levels" />
 
-      {levels.length > 0 ? (
-        <div class="ol-card mt-6 overflow-hidden">
-          <table class="w-full text-sm">
-            <thead>
-              <tr class="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
-                <th class="px-5 py-3 font-medium">Producto / SKU</th>
-                <th class="px-5 py-3 text-right font-medium">En mano</th>
-                <th class="px-5 py-3 text-right font-medium">Reorden</th>
-                <th class="px-5 py-3 font-medium"></th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-border">
-              {levels.map((l) => (
-                <tr class="hover:bg-surface-primary/50">
-                  <td class="px-5 py-3">
-                    <div class="font-medium text-text-primary">{l.product_name ?? l.variant_name ?? "—"}</div>
-                    {l.sku && <div class="font-data text-xs text-text-muted">{l.sku}</div>}
-                  </td>
-                  <td class="px-5 py-3 text-right font-data">{l.quantity_on_hand}</td>
-                  <td class="px-5 py-3 text-right font-data text-text-muted">{l.reorder_point ?? "—"}</td>
-                  <td class="px-5 py-3">
-                    {isLow(l) && (
-                      <span class="flex items-center gap-1 text-xs font-semibold text-warning">
-                        <Icon name="lucide:triangle-alert" width={13} height={13} /> Bajo
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div class="mx-auto max-w-6xl px-8 py-6">
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <StatTile label="Unidades en stock" value={nfmt.format(unitsOnHand)} icon="lucide:boxes" delta={`${levels.length} variantes`} deltaTone="neutral" />
+          <StatTile label="Productos activos" value={nfmt.format(levels.length)} icon="lucide:package" delta="Con existencias" deltaTone="neutral" />
+          <StatTile label="Bajo stock" value={nfmt.format(lowCount)} icon="lucide:triangle-alert" delta="Requieren reorden" deltaTone={lowCount > 0 ? "down" : "neutral"} />
+          <StatTile label="Movimientos hoy" value={nfmt.format(todays.length)} icon="lucide:arrow-left-right" delta={`${todayIn} entradas · ${todayOut} salidas`} deltaTone="neutral" />
         </div>
-      ) : (
-        <div class="ol-card mt-6 border-dashed p-12 text-center">
-          <Icon name="lucide:boxes" class="mx-auto text-text-muted" width={32} height={32} />
-          <p class="mt-3 text-sm text-text-secondary">Sin existencias registradas. Crea un producto con su variante (SKU) y registra un movimiento para empezar.</p>
-          <div class="mt-4 flex justify-center gap-2">
-            <Button variant="secondary" size="sm" icon="lucide:package" href="/dashboard/products">Ver productos</Button>
-            <Button variant="primary" size="sm" icon="lucide:plus" href="/dashboard/products/new">Nuevo producto</Button>
+
+        {/* Fixed toolbar: view tabs + search + export */}
+        <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <nav id="inv-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
+            <button type="button" data-tab="existencias" class="rounded-full bg-surface-secondary px-4 py-1.5 text-text-primary transition-colors">Existencias</button>
+            <button type="button" data-tab="movimientos" class="rounded-full px-4 py-1.5 text-text-secondary transition-colors hover:text-text-primary">Movimientos</button>
+          </nav>
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <Icon name="lucide:search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" width={16} height={16} />
+              <input id="inv-search" type="search" placeholder="Buscar producto o SKU" class="ol-input w-64 rounded-full pl-9" />
+            </div>
+            <Button variant="secondary" icon="lucide:download" id="export-csv">Exportar CSV</Button>
           </div>
         </div>
-      )}
-    </div>
+
+        <div id="panel-existencias" class="mt-4">
+          <ExistenciasTable rows={existRows} />
+        </div>
+        <div id="panel-movimientos" class="mt-4 hidden">
+          <MovimientosTable rows={movRows} />
+        </div>
+      </div>
+
+      <MovementPickerModal />
+      <MovementEditModal businessId={businessId} />
+    </>
   )}
 </DashboardLayout>
+
+<script>
+  const tabsEl = document.getElementById("inv-tabs");
+  const searchEl = document.getElementById("inv-search") as HTMLInputElement | null;
+  const panelExist = document.getElementById("panel-existencias");
+  const panelMov = document.getElementById("panel-movimientos");
+  const stockRows = Array.from(document.querySelectorAll<HTMLElement>(".stock-row"));
+  const movRows = Array.from(document.querySelectorAll<HTMLElement>(".ledger-row"));
+  const noResults = document.getElementById("no-results");
+  const ledgerEmpty = document.getElementById("ledger-empty");
+
+  let active = "existencias";
+  const rowsFor = () => (active === "existencias" ? stockRows : movRows);
+  const emptyFor = () => (active === "existencias" ? noResults : ledgerEmpty);
+
+  function applySearch() {
+    const q = (searchEl?.value ?? "").trim().toLowerCase();
+    let shown = 0;
+    for (const row of rowsFor()) {
+      const ok = !q || (row.dataset.search ?? "").includes(q);
+      row.classList.toggle("hidden", !ok);
+      if (ok) shown++;
+    }
+    emptyFor()?.classList.toggle("hidden", shown !== 0);
+  }
+
+  function setTab(tab: string) {
+    active = tab;
+    panelExist?.classList.toggle("hidden", tab !== "existencias");
+    panelMov?.classList.toggle("hidden", tab !== "movimientos");
+    tabsEl?.querySelectorAll<HTMLButtonElement>("button[data-tab]").forEach((b) => {
+      const on = b.dataset.tab === tab;
+      b.classList.toggle("bg-surface-secondary", on);
+      b.classList.toggle("text-text-primary", on);
+      b.classList.toggle("text-text-secondary", !on);
+    });
+    applySearch();
+  }
+
+  tabsEl?.querySelectorAll<HTMLButtonElement>("button[data-tab]").forEach((b) => {
+    b.addEventListener("click", () => setTab(b.dataset.tab!));
+  });
+  searchEl?.addEventListener("input", applySearch);
+
+  // Stock row actions → create a movement for that variant.
+  document.querySelectorAll<HTMLButtonElement>(".stock-action").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const row = btn.closest<HTMLElement>(".stock-row");
+      if (!row) return;
+      (window as any).openMovementModal?.({
+        variantId: row.dataset.variantId!,
+        variantName: row.dataset.name!,
+        variantSku: row.dataset.sku!,
+        mode: btn.dataset.move!,
+      });
+    });
+  });
+
+  // Ledger row click → edit / delete that movement.
+  for (const row of movRows) {
+    row.addEventListener("click", () => {
+      (window as any).openMovementModal?.({
+        movementId: row.dataset.moveId!,
+        variantId: row.dataset.variantId!,
+        variantName: row.dataset.vname!,
+        variantSku: row.dataset.vsku!,
+        movementType: row.dataset.type!,
+        quantity: row.dataset.qty!,
+        unitCost: row.dataset.cost!,
+        notes: row.dataset.notes!,
+      });
+    });
+  }
+
+  // Export the active table.
+  document.getElementById("export-csv")?.addEventListener("click", () => {
+    const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+    const existMode = active === "existencias";
+    const header = existMode
+      ? ["Producto", "SKU", "En mano", "Reorden", "Estado"]
+      : ["Producto", "SKU", "Tipo", "Cantidad", "Origen", "Fecha"];
+    const lines = [header.map(esc).join(",")];
+    for (const row of rowsFor()) {
+      if (row.classList.contains("hidden")) continue;
+      let cells: string[];
+      if (existMode) {
+        const tds = row.querySelectorAll("td");
+        cells = [
+          (tds[0]?.querySelector(".font-medium")?.textContent ?? "").trim(),
+          row.dataset.sku ?? "",
+          (tds[1]?.textContent ?? "").trim(),
+          (tds[2]?.textContent ?? "").trim(),
+          row.dataset.low === "1" ? "Bajo" : "OK",
+        ];
+      } else {
+        cells = (JSON.parse(row.dataset.csv ?? "[]") as string[]).map((c) => c.replace("−", "-"));
+      }
+      lines.push(cells.map(esc).join(","));
+    }
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${existMode ? "existencias" : "movimientos"}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  setTab("existencias");
+</script>
