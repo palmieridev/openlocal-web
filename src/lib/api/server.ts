@@ -3,8 +3,8 @@ import { apiFetch, ApiError } from "./client";
 import type { Business } from "@/types/api";
 
 /**
- * Cookie holding the active business id. Set at onboarding (the API has no
- * "resolve my business" endpoint yet), read on every owner-area request.
+ * Cookie holding the active business id. It is set at onboarding and refreshed
+ * from /businesses/me on new browsers/devices.
  */
 export const BUSINESS_COOKIE = "ol_bid";
 
@@ -22,18 +22,6 @@ export interface ServerAuth {
 
 /**
  * Resolve Clerk identity/token + the active business id from a page/endpoint.
- *
- * The business id lives in a cookie, which can go stale (e.g. the business was
- * deleted in Clerk/the DB but the browser still holds `ol_bid`). To avoid
- * trapping the owner in a broken panel, we validate the id against the API: if
- * the business no longer exists (404) we drop the cookie and report
- * `businessId: null` so pages fall back to onboarding.
- *
- * We do NOT drop the cookie on 403. Right after onboarding the freshly-activated
- * Clerk org claim hasn't propagated to the SSR token yet, so the validation GET
- * transiently 403s; clearing here would bounce the owner straight back to the
- * onboarding form (losing the business they just created). 403 = keep the id and
- * let the page show its retry/NeedsSetup state instead.
  */
 export async function getServerAuth(ctx: AuthCtx): Promise<ServerAuth> {
   const auth = ctx.locals.auth();
@@ -49,9 +37,18 @@ export async function getServerAuth(ctx: AuthCtx): Promise<ServerAuth> {
         clearBusinessCookie(ctx.cookies);
         businessId = null;
       }
-      // Other failures (403 org-claim race, API down, network) keep the id so
-      // the page can show its retry/NeedsSetup state instead of bouncing to
-      // onboarding.
+      // Other failures (403 org-claim race, API down, network) keep the id.
+    }
+  }
+
+  if (token && !businessId) {
+    try {
+      const business = await apiFetch<Business>("/api/v1/businesses/me", { token });
+      businessId = business.id;
+      setBusinessCookie(ctx.cookies, business.id);
+    } catch {
+      // 403 = no active Clerk org claim, 404 = no linked business, network/API
+      // failures should all leave owner pages in their setup/error fallback.
     }
   }
 

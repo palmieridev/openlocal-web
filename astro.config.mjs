@@ -10,6 +10,9 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "standalone" }),
   integrations: [clerk(), icon({ iconDir: "src/icons" })],
+  server: {
+    host: "0.0.0.0",
+  },
   vite: {
     plugins: [tailwindcss()],
   },

@@ -151,12 +151,12 @@ export interface BBox {
 }
 
 export type MovementType =
-  | "purchase"
-  | "production"
-  | "sale"
-  | "loss"
-  | "sample"
-  | "adjustment";
+  | "IN_PURCHASE"
+  | "IN_PRODUCTION"
+  | "OUT_SALE"
+  | "OUT_ADJUSTMENT"
+  | "IN_ADJUSTMENT"
+  | "OUT_LOSS";
 
 /**
  * Stock-level / movement / analytics endpoints return raw sqlc rows (snake_case
