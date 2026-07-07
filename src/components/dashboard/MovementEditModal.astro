@@ -1,0 +1,266 @@
+---
+import { Icon } from "astro-icon/components";
+import Button from "@/components/ui/Button.astro";
+
+interface Props {
+  businessId: string;
+}
+const { businessId } = Astro.props;
+
+const segs: [string, string][] = [
+  ["entrada", "Entrada"],
+  ["salida", "Salida"],
+  ["ajuste", "Ajuste"],
+];
+---
+
+<div id="mv-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4" data-business-id={businessId}>
+  <form id="mv-form" class="ol-card flex w-full max-w-sm flex-col gap-4 p-5 shadow-xl">
+    <input type="hidden" name="movement_id" />
+    <input type="hidden" name="variant_id" />
+    <div class="flex items-center justify-between">
+      <h2 id="mv-title" class="font-heading font-semibold">Registrar movimiento</h2>
+      <button type="button" id="mv-close" class="text-text-muted hover:text-text-secondary" aria-label="Cerrar">
+        <Icon name="lucide:x" width={18} height={18} />
+      </button>
+    </div>
+
+    <div class="rounded-xl bg-surface-secondary px-4 py-3">
+      <div class="font-medium text-text-primary" id="mv-vname">—</div>
+      <div class="font-data text-xs text-text-muted" id="mv-vsku"></div>
+    </div>
+
+    <div id="mv-seg" class="flex gap-1.5 rounded-full bg-surface-secondary p-1 text-sm">
+      {segs.map(([k, l], i) => (
+        <button
+          type="button"
+          data-seg={k}
+          class:list={[
+            "flex-1 rounded-full py-2 font-medium transition-colors",
+            i === 0 ? "bg-surface-card text-text-primary shadow-card" : "text-text-muted hover:text-text-primary",
+          ]}
+        >
+          {l}
+        </button>
+      ))}
+    </div>
+
+    <div id="mv-motivo-wrap">
+      <label class="ol-label" for="mv-motivo">Motivo</label>
+      <select class="ol-select" id="mv-motivo" name="movement_type"></select>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="ol-label" for="mv-qty">Cantidad</label>
+        <input class="ol-input font-data" id="mv-qty" name="quantity" inputmode="decimal" value="1" required />
+      </div>
+      <div id="mv-cost-wrap">
+        <label class="ol-label" for="mv-cost">Costo unitario</label>
+        <input class="ol-input font-data" id="mv-cost" name="unit_cost" inputmode="decimal" placeholder="0.00" />
+      </div>
+    </div>
+
+    <div>
+      <label class="ol-label" for="mv-notes">Notas / origen</label>
+      <input class="ol-input" id="mv-notes" name="notes" placeholder="Opcional" />
+    </div>
+
+    <p id="mv-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
+
+    <div class="flex items-center justify-between border-t border-border pt-4">
+      <button type="button" id="mv-delete" class="hidden items-center gap-1.5 text-sm font-semibold text-danger hover:underline">
+        <Icon name="lucide:trash-2" width={15} height={15} /> Eliminar
+      </button>
+      <div class="ml-auto flex items-center gap-2">
+        <Button type="button" variant="secondary" id="mv-cancel">Cancelar</Button>
+        <Button type="submit" variant="primary" id="mv-submit"><span data-label>Guardar</span></Button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+  interface OpenOpts {
+    variantId: string;
+    variantName?: string;
+    variantSku?: string;
+    mode?: string; // create: entrada|salida|ajuste
+    movementId?: string; // edit
+    movementType?: string;
+    quantity?: string;
+    unitCost?: string;
+    notes?: string;
+  }
+  declare global {
+    interface Window { openMovementModal?: (o: OpenOpts) => void; }
+  }
+
+  const modal = document.getElementById("mv-modal");
+  if (modal && !(window as any).__mvInit) {
+    (window as any).__mvInit = true;
+    const businessId = (modal as HTMLElement).dataset.businessId!;
+    const form = document.getElementById("mv-form") as HTMLFormElement;
+    const title = document.getElementById("mv-title") as HTMLElement;
+    const vName = document.getElementById("mv-vname") as HTMLElement;
+    const vSku = document.getElementById("mv-vsku") as HTMLElement;
+    const segBtns = Array.from(document.querySelectorAll<HTMLButtonElement>("#mv-seg button[data-seg]"));
+    const motivoWrap = document.getElementById("mv-motivo-wrap") as HTMLElement;
+    const motivoSel = document.getElementById("mv-motivo") as HTMLSelectElement;
+    const costWrap = document.getElementById("mv-cost-wrap") as HTMLElement;
+    const qty = document.getElementById("mv-qty") as HTMLInputElement;
+    const cost = document.getElementById("mv-cost") as HTMLInputElement;
+    const notes = document.getElementById("mv-notes") as HTMLInputElement;
+    const idInput = form.querySelector<HTMLInputElement>("input[name=movement_id]")!;
+    const variantInput = form.querySelector<HTMLInputElement>("input[name=variant_id]")!;
+    const msg = document.getElementById("mv-msg") as HTMLElement;
+    const submitBtn = document.getElementById("mv-submit") as HTMLButtonElement;
+    const delBtn = document.getElementById("mv-delete") as HTMLButtonElement;
+
+    const MOTIVOS: Record<string, [string, string][]> = {
+      entrada: [["IN_PURCHASE", "Compra"], ["IN_PRODUCTION", "Producción"]],
+      salida: [["OUT_SALE", "Venta"], ["OUT_LOSS", "Merma"]],
+      ajuste: [["adjustment", "Ajuste"]],
+    };
+    const TYPE_SEG: Record<string, string> = {
+      purchase: "entrada", production: "entrada",
+      sale: "salida", loss: "salida", sample: "salida",
+      adjustment: "ajuste",
+      IN_PURCHASE: "entrada", IN_PRODUCTION: "entrada",
+      OUT_SALE: "salida", OUT_LOSS: "salida",
+      IN_ADJUSTMENT: "ajuste", OUT_ADJUSTMENT: "ajuste",
+    };
+    const FORM_TYPE: Record<string, string> = {
+      purchase: "IN_PURCHASE",
+      production: "IN_PRODUCTION",
+      sale: "OUT_SALE",
+      loss: "OUT_LOSS",
+      sample: "OUT_LOSS",
+      adjustment: "adjustment",
+      IN_PURCHASE: "IN_PURCHASE",
+      IN_PRODUCTION: "IN_PRODUCTION",
+      OUT_SALE: "OUT_SALE",
+      OUT_LOSS: "OUT_LOSS",
+      IN_ADJUSTMENT: "adjustment",
+      OUT_ADJUSTMENT: "adjustment",
+    };
+
+    let seg = "entrada";
+
+    function paintSeg() {
+      for (const b of segBtns) {
+        const on = b.dataset.seg === seg;
+        b.classList.toggle("bg-surface-card", on);
+        b.classList.toggle("text-text-primary", on);
+        b.classList.toggle("shadow-card", on);
+        b.classList.toggle("text-text-muted", !on);
+      }
+    }
+
+    function setSeg(k: string, keepType?: string) {
+      seg = k;
+      paintSeg();
+      motivoSel.innerHTML = MOTIVOS[k].map(([v, l]) => `<option value="${v}">${l}</option>`).join("");
+      if (keepType) motivoSel.value = FORM_TYPE[keepType] ?? keepType;
+      motivoWrap.classList.toggle("hidden", MOTIVOS[k].length < 2);
+      costWrap.classList.toggle("hidden", k !== "entrada");
+      qty.placeholder = k === "ajuste" ? "-3 o 5" : "1";
+    }
+
+    function resetMsg() { msg.classList.add("hidden"); msg.textContent = ""; }
+
+    function apiMovementType(formType: string, quantity: string) {
+      if (formType !== "adjustment") return formType;
+      return quantity.trim().startsWith("-") ? "OUT_ADJUSTMENT" : "IN_ADJUSTMENT";
+    }
+
+    for (const b of segBtns) {
+      b.addEventListener("click", () => setSeg(b.dataset.seg!));
+    }
+
+    function open(o: OpenOpts) {
+      resetMsg();
+      variantInput.value = o.variantId;
+      idInput.value = o.movementId ?? "";
+      vName.textContent = o.variantName || o.variantSku || "Variante";
+      vSku.textContent = o.variantSku || "";
+      const editing = !!o.movementId;
+      title.textContent = editing ? "Editar movimiento" : "Registrar movimiento";
+      delBtn.classList.toggle("hidden", !editing);
+      delBtn.classList.toggle("flex", editing);
+
+      const startSeg = o.movementType ? (TYPE_SEG[o.movementType] ?? "ajuste") : (o.mode ?? "entrada");
+      setSeg(startSeg, o.movementType);
+      qty.value = o.quantity ? String(o.quantity).replace(/^\+/, "") : "1";
+      cost.value = o.unitCost ?? "";
+      notes.value = o.notes ?? "";
+
+      modal!.classList.remove("hidden");
+      modal!.classList.add("flex");
+    }
+    window.openMovementModal = open;
+
+    function close() {
+      modal!.classList.add("hidden");
+      modal!.classList.remove("flex");
+    }
+    document.getElementById("mv-close")?.addEventListener("click", close);
+    document.getElementById("mv-cancel")?.addEventListener("click", close);
+    modal.addEventListener("click", (e) => { if (e.target === modal) close(); });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const label = submitBtn.querySelector("[data-label]") as HTMLElement;
+      submitBtn.disabled = true;
+      label.textContent = "Guardando…";
+      resetMsg();
+      const fd = new FormData(form);
+      const id = String(fd.get("movement_id") || "");
+      const payload = {
+        business_id: businessId,
+        variant_id: String(fd.get("variant_id") || ""),
+        quantity: String(fd.get("quantity") || "0"),
+        unit_cost: String(fd.get("unit_cost") || ""),
+        notes: String(fd.get("notes") || ""),
+      };
+      Object.assign(payload, {
+        movement_type: apiMovementType(String(fd.get("movement_type") || "adjustment"), payload.quantity),
+      });
+      try {
+        const res = await fetch(id ? `/api/movements/${id}` : "/api/movements", {
+          method: id ? "PATCH" : "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "No se pudo guardar el movimiento.");
+        window.location.reload();
+      } catch (err) {
+        msg.className = "rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger";
+        msg.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        msg.classList.remove("hidden");
+        submitBtn.disabled = false;
+        label.textContent = "Guardar";
+      }
+    });
+
+    delBtn.addEventListener("click", async () => {
+      const id = idInput.value;
+      if (!id || !confirm("¿Eliminar este movimiento? El stock se recalculará.")) return;
+      delBtn.setAttribute("disabled", "true");
+      try {
+        const res = await fetch(`/api/movements/${id}?business_id=${businessId}`, { method: "DELETE" });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || "No se pudo eliminar.");
+        }
+        window.location.reload();
+      } catch (err) {
+        msg.className = "rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger";
+        msg.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        msg.classList.remove("hidden");
+        delBtn.removeAttribute("disabled");
+      }
+    });
+  }
+</script>

@@ -45,8 +45,14 @@ const movementLabel: Record<string, string> = {
   loss: "Merma",
   sample: "Muestra",
   adjustment: "Ajuste",
+  IN_PURCHASE: "Compra",
+  IN_PRODUCTION: "Producción",
+  OUT_SALE: "Venta",
+  OUT_LOSS: "Merma",
+  IN_ADJUSTMENT: "Ajuste",
+  OUT_ADJUSTMENT: "Ajuste",
 };
-const inbound = new Set(["purchase", "production"]);
+const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION", "IN_ADJUSTMENT"]);
 ---
 
 <DashboardLayout active="inicio">
@@ -70,7 +76,7 @@ const inbound = new Set(["purchase", "production"]);
         <div class="ol-card overflow-hidden">
           <div class="flex items-center justify-between border-b border-border px-5 py-3">
             <h2 class="font-heading font-semibold">Movimientos recientes</h2>
-            <a href="/dashboard/inventory/movements" class="text-sm font-medium text-accent hover:underline">Ver todos</a>
+            <a href="/dashboard/inventory" class="text-sm font-medium text-accent hover:underline">Ver todos</a>
           </div>
           {movements.length > 0 ? (
             <ul class="divide-y divide-border">

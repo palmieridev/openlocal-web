@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import { OrganizationSwitcher } from "@clerk/astro/components";
 import Button from "@/components/ui/Button.astro";
 
 interface Props {
@@ -28,6 +29,17 @@ const { reason = "no-business" } = Astro.props;
         Aún no tienes un negocio activo. Créalo para administrar tu catálogo e
         inventario.
       </p>
+      <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-secondary px-4 py-3">
+        <p class="text-xs text-text-secondary">
+          Si ya tienes un negocio, selecciona tu organización para cargarlo en este dispositivo.
+        </p>
+        <OrganizationSwitcher
+          hidePersonal
+          afterSelectOrganizationUrl="/dashboard"
+          afterCreateOrganizationUrl="/dashboard"
+        />
+      </div>
+      <Button variant="secondary" href="/api/session/business" icon="lucide:refresh-cw">Cargar negocio</Button>
       <Button variant="primary" href="/onboarding" icon="lucide:store">Crear negocio</Button>
     </>
   )}
