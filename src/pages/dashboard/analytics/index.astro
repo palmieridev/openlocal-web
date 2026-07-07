@@ -3,6 +3,7 @@ import { Icon } from "astro-icon/components";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import AnalyticsTabs from "@/components/dashboard/AnalyticsTabs.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import Button from "@/components/ui/Button.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { formatPrice } from "@/lib/format";
@@ -40,9 +41,13 @@ const barColor: Record<string, string> = {
   ) : loadError ? (
     <NeedsSetup reason="error" />
   ) : (
-    <div class="mx-auto max-w-5xl px-6 py-8">
-      <h1 class="font-heading text-2xl font-semibold">Analítica</h1>
-      <AnalyticsTabs active="abc" />
+    <>
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-surface-card px-8 py-5">
+        <h1 class="font-heading text-2xl font-semibold">Analítica</h1>
+        <Button variant="secondary" size="sm" icon="lucide:scan-barcode" href="/dashboard/inventory/scan">Escanear</Button>
+      </div>
+      <div class="mx-auto max-w-5xl px-8 py-6">
+        <AnalyticsTabs active="abc" />
 
       {rows.length > 0 ? (
         <div class="ol-card mt-6 overflow-hidden">
@@ -87,6 +92,7 @@ const barColor: Record<string, string> = {
           <p class="mt-3 text-sm text-text-secondary">Necesitas ventas registradas para calcular el ABC.</p>
         </div>
       )}
-    </div>
+      </div>
+    </>
   )}
 </DashboardLayout>

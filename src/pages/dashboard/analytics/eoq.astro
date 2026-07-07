@@ -12,9 +12,13 @@ const { businessId } = await getServerAuth(Astro);
   {!businessId ? (
     <NeedsSetup reason="no-business" />
   ) : (
-    <div class="mx-auto max-w-xl px-6 py-8" data-business-id={businessId}>
-      <h1 class="font-heading text-2xl font-semibold">Analítica</h1>
-      <AnalyticsTabs active="eoq" />
+    <>
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-surface-card px-8 py-5">
+        <h1 class="font-heading text-2xl font-semibold">Analítica</h1>
+        <Button variant="secondary" size="sm" icon="lucide:scan-barcode" href="/dashboard/inventory/scan">Escanear</Button>
+      </div>
+      <div class="mx-auto max-w-xl px-8 py-6" data-business-id={businessId}>
+        <AnalyticsTabs active="eoq" />
 
       <form id="eoq-form" class="ol-card mt-6 flex flex-col gap-4 p-6">
         <h2 class="font-heading font-semibold">Cantidad económica de pedido (EOQ)</h2>
@@ -49,7 +53,8 @@ const { businessId } = await getServerAuth(Astro);
       </form>
 
       <div id="eoq-result" class="mt-4 hidden"></div>
-    </div>
+      </div>
+    </>
   )}
 </DashboardLayout>
 
