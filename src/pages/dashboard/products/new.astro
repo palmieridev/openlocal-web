@@ -21,9 +21,9 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
   {!businessId ? (
     <NeedsSetup reason="no-business" />
   ) : (
-    <div class="mx-auto max-w-6xl px-6 py-8">
+    <>
       {/* Action bar */}
-      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
+      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-surface-card px-8 py-5">
         <div>
           <h1 class="font-heading text-2xl font-semibold">Nuevo producto</h1>
           <p class="mt-1 text-sm text-text-secondary">Crea la ficha · luego agrega variantes y precio</p>
@@ -33,9 +33,10 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
         </Button>
       </div>
 
-      <a href="/dashboard/products" class="mt-5 inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary">
-        <Icon name="lucide:arrow-left" width={15} height={15} /> Productos
-      </a>
+      <div class="mx-auto max-w-6xl px-8 py-6">
+        <a href="/dashboard/products" class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary">
+          <Icon name="lucide:arrow-left" width={15} height={15} /> Productos
+        </a>
 
       <div class="mt-4 grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* Form */}
@@ -113,7 +114,8 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )}
 </DashboardLayout>
 
