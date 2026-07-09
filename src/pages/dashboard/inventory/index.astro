@@ -153,7 +153,7 @@ const nfmt = new Intl.NumberFormat("es-MX");
   ) : (
     <>
       {/* Full-width top bar */}
-      <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface-card px-8 py-5">
+      <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface-card px-4 py-4 sm:px-8 sm:py-5">
         <div>
           <h1 class="font-heading text-2xl font-semibold">Inventario</h1>
           <p class="mt-0.5 text-sm text-text-muted">Existencias y movimientos · entradas, salidas y ajustes</p>
@@ -163,7 +163,7 @@ const nfmt = new Intl.NumberFormat("es-MX");
         </div>
       </div>
 
-      <div class="mx-auto max-w-6xl px-8 py-6">
+      <div class="mx-auto max-w-6xl px-4 py-6 sm:px-8">
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatTile label="Unidades en stock" value={nfmt.format(unitsOnHand)} icon="lucide:boxes" delta={`${levels.length} variantes`} deltaTone="neutral" />
           <StatTile label="Productos activos" value={nfmt.format(levels.length)} icon="lucide:package" delta="Con existencias" deltaTone="neutral" />
@@ -177,12 +177,12 @@ const nfmt = new Intl.NumberFormat("es-MX");
             <button type="button" data-tab="existencias" class="rounded-full bg-surface-secondary px-4 py-1.5 text-text-primary transition-colors">Existencias</button>
             <button type="button" data-tab="movimientos" class="rounded-full px-4 py-1.5 text-text-secondary transition-colors hover:text-text-primary">Movimientos</button>
           </nav>
-          <div class="flex items-center gap-2">
-            <div class="relative">
+          <div class="flex w-full items-center gap-2 sm:w-auto">
+            <div class="relative flex-1 sm:flex-initial">
               <Icon name="lucide:search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" width={16} height={16} />
-              <input id="inv-search" type="search" placeholder="Buscar producto o SKU" class="ol-input w-64 rounded-full pl-9" />
+              <input id="inv-search" type="search" placeholder="Buscar producto o SKU" class="ol-input w-full rounded-full pl-9 sm:w-64" />
             </div>
-            <Button variant="secondary" icon="lucide:download" id="export-csv">Exportar CSV</Button>
+            <Button variant="secondary" icon="lucide:download" id="export-csv" class="shrink-0">Exportar CSV</Button>
           </div>
         </div>
 
