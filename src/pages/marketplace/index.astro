@@ -94,8 +94,8 @@ const filters = [
     </div>
 
     <div class:list={["grid gap-6", mapOpen ? "lg:grid-cols-[1fr_1.1fr]" : "grid-cols-1"]}>
-      {/* Results */}
-      <div>
+      {/* Results — hidden on mobile when the map view is active */}
+      <div class:list={[mapOpen && "hidden lg:block"]}>
         {products.length > 0 ? (
           <div
             class:list={[
@@ -130,7 +130,7 @@ const filters = [
 
       {/* Map */}
       {mapOpen && (
-        <div class="sticky top-20 hidden h-[calc(100vh-7rem)] overflow-hidden rounded-2xl border border-border bg-surface-secondary lg:block">
+        <div class="h-[70vh] overflow-hidden rounded-2xl border border-border bg-surface-secondary lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)]">
           <div id="map" class="h-full w-full"></div>
           <script type="application/json" id="map-data" set:html={JSON.stringify(markers)}></script>
         </div>
@@ -176,6 +176,11 @@ const filters = [
           bounds.push([m.lat, m.lng]);
         }
         if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+
+        // Mobile: the container often finishes layout after init → recompute
+        // size so tiles fill the box instead of rendering gray/half.
+        requestAnimationFrame(() => map.invalidateSize());
+        window.addEventListener("resize", () => map.invalidateSize());
       }
     </script>
 
