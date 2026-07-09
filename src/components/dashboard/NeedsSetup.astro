@@ -4,43 +4,67 @@ import { OrganizationSwitcher } from "@clerk/astro/components";
 import Button from "@/components/ui/Button.astro";
 
 interface Props {
-  /** Distinguish "no business yet" from "data unavailable". */
-  reason?: "no-business" | "error";
+    /** Distinguish "no business yet" from "data unavailable". */
+    reason?: "no-business" | "error";
 }
 const { reason = "no-business" } = Astro.props;
 ---
 
-<div class="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-20 text-center">
-  <span class="flex size-14 items-center justify-center rounded-2xl bg-accent-soft">
-    <Icon name={reason === "error" ? "lucide:cloud-off" : "lucide:store"} class="text-accent" width={28} height={28} />
-  </span>
-  {reason === "error" ? (
-    <>
-      <h2 class="font-heading text-xl font-semibold">No pudimos cargar tus datos</h2>
-      <p class="text-sm text-text-secondary">
-        Revisa que la API esté disponible y que tu organización esté activa.
-      </p>
-      <Button variant="secondary" href="/dashboard">Reintentar</Button>
-    </>
-  ) : (
-    <>
-      <h2 class="font-heading text-xl font-semibold">Configura tu negocio</h2>
-      <p class="text-sm text-text-secondary">
-        Aún no tienes un negocio activo. Créalo para administrar tu catálogo e
-        inventario.
-      </p>
-      <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-secondary px-4 py-3">
-        <p class="text-xs text-text-secondary">
-          Si ya tienes un negocio, selecciona tu organización para cargarlo en este dispositivo.
-        </p>
-        <OrganizationSwitcher
-          hidePersonal
-          afterSelectOrganizationUrl="/dashboard"
-          afterCreateOrganizationUrl="/dashboard"
+<div
+    class="mx-auto flex max-w-md flex-col items-center gap-4 px-6 py-20 text-center"
+>
+    <span
+        class="flex size-14 items-center justify-center rounded-2xl bg-accent-soft"
+    >
+        <Icon
+            name={reason === "error" ? "lucide:cloud-off" : "lucide:store"}
+            class="text-accent"
+            width={28}
+            height={28}
         />
-      </div>
-      <Button variant="secondary" href="/api/session/business" icon="lucide:refresh-cw">Cargar negocio</Button>
-      <Button variant="primary" href="/onboarding" icon="lucide:store">Crear negocio</Button>
-    </>
-  )}
+    </span>
+    {
+        reason === "error" ? (
+            <>
+                <h2 class="font-heading text-xl font-semibold">
+                    No pudimos cargar tus datos
+                </h2>
+                <p class="text-sm text-text-secondary">
+                    Revisa que la API esté disponible y que tu organización esté
+                    activa.
+                </p>
+                <Button variant="secondary" href="/dashboard">
+                    Reintentar
+                </Button>
+            </>
+        ) : (
+            <>
+                <h2 class="font-heading text-xl font-semibold">
+                    Configura tu negocio
+                </h2>
+                <p class="text-sm text-text-secondary">
+                    Aún no tienes un negocio activo. Créalo para administrar tu
+                    catálogo e inventario.
+                </p>
+                <div class="flex flex-col items-center gap-2 rounded-lg border border-border bg-surface-secondary px-4 py-3">
+                    <p class="text-xs text-text-secondary">
+                        Si ya tienes un negocio, selecciona tu organización para
+                        cargarlo en este dispositivo.
+                    </p>
+                    <OrganizationSwitcher
+                        hidePersonal
+                        afterSelectOrganizationUrl="/dashboard"
+                        afterCreateOrganizationUrl="/dashboard"
+                    />
+                </div>
+                <Button
+                    variant="primary"
+                    href="/onboarding"
+                    icon="lucide:store"
+                >
+                    Crear negocio
+                </Button>
+            </>
+        )
+    }
 </div>
