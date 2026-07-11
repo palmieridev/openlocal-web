@@ -42,7 +42,7 @@ const isActive = (href: string) =>
         <Button variant="ghost" size="sm" href="/login" class="hidden sm:inline-flex">
           Iniciar sesión
         </Button>
-        <Button variant="primary" size="sm" href="/register" icon="lucide:store">
+        <Button variant="primary" size="sm" href="/register/business" icon="lucide:store">
           Vender
         </Button>
       </Show>
@@ -52,6 +52,59 @@ const isActive = (href: string) =>
         </Button>
         <UserButton />
       </Show>
+      <button
+        id="ol-menu-btn"
+        type="button"
+        class="flex size-9 items-center justify-center rounded-lg text-text-secondary transition-colors hover:bg-surface-secondary md:hidden"
+        aria-label="Abrir menú"
+        aria-expanded="false"
+        aria-controls="ol-mobile-menu"
+      >
+        <Icon name="lucide:menu" width={20} height={20} data-icon-open />
+        <Icon name="lucide:x" width={20} height={20} data-icon-close class="hidden" />
+      </button>
     </div>
   </div>
+
+  <div id="ol-mobile-menu" hidden class="border-t border-border bg-surface-primary px-4 pb-4 pt-2 md:hidden">
+    <nav class="flex flex-col gap-1">
+      {links.map((l) => (
+        <a
+          href={l.href}
+          class:list={[
+            "rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+            isActive(l.href)
+              ? "bg-surface-secondary text-text-primary"
+              : "text-text-secondary hover:bg-surface-secondary",
+          ]}
+        >
+          {l.label}
+        </a>
+      ))}
+      <Show when="signed-out">
+        <a href="/login" class="rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary sm:hidden">
+          Iniciar sesión
+        </a>
+      </Show>
+      <Show when="signed-in">
+        <a href="/dashboard" class="rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary sm:hidden">
+          Panel
+        </a>
+      </Show>
+    </nav>
+  </div>
 </header>
+
+<script>
+  const btn = document.getElementById("ol-menu-btn");
+  const menu = document.getElementById("ol-mobile-menu");
+  const iconOpen = btn?.querySelector("[data-icon-open]");
+  const iconClose = btn?.querySelector("[data-icon-close]");
+
+  btn?.addEventListener("click", () => {
+    const open = menu?.toggleAttribute("hidden") === false;
+    btn.setAttribute("aria-expanded", String(open));
+    iconOpen?.classList.toggle("hidden", open);
+    iconClose?.classList.toggle("hidden", !open);
+  });
+</script>

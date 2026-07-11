@@ -2,54 +2,130 @@
 import { Icon } from "astro-icon/components";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import StatTile from "@/components/ui/StatTile.astro";
-import Button from "@/components/ui/Button.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import type { LowStockRow, Product, StockLevel, StockMovement } from "@/types/api";
 
-// Inventory data is business-scoped and requires an active Clerk org token.
-// Wired in a later milestone; tiles render placeholders for now.
+const { token, businessId } = await getServerAuth(Astro);
+
+let loadError = false;
+let products: Product[] = [];
+let levels: StockLevel[] = [];
+let low: LowStockRow[] = [];
+let movements: StockMovement[] = [];
+
+if (token && businessId) {
+  const api = authedApi(token, businessId);
+  try {
+    [products, levels, low, movements] = await Promise.all([
+      api.listProducts(200),
+      api.listStockLevels(500),
+      api.lowStock(50),
+      api.listMovements(8),
+    ]);
+  } catch {
+    loadError = true;
+  }
+}
+
+const ready = Boolean(token && businessId) && !loadError;
+
 const stats = [
-  { label: "Valor de inventario", value: "—", icon: "lucide:package" },
-  { label: "Productos activos", value: "—", icon: "lucide:tag" },
-  { label: "Bajo stock", value: "—", icon: "lucide:triangle-alert" },
-  { label: "Movimientos hoy", value: "—", icon: "lucide:arrow-left-right" },
+  { label: "Productos", value: String(products.length), icon: "lucide:package" },
+  { label: "SKUs con stock", value: String(levels.length), icon: "lucide:boxes" },
+  { label: "Bajo stock", value: String(low.length), icon: "lucide:triangle-alert" },
+  { label: "Movimientos recientes", value: String(movements.length), icon: "lucide:arrow-left-right" },
 ];
 
-const soon = [
-  { title: "Productos", desc: "Crea productos, variantes, códigos y precios.", icon: "lucide:package" },
-  { title: "Inventario", desc: "Entradas, salidas y escáner de código de barras.", icon: "lucide:scan-barcode" },
-  { title: "Analítica", desc: "ABC, Pareto, EOQ y punto de reorden.", icon: "lucide:chart-column" },
-];
+const movementLabel: Record<string, string> = {
+  purchase: "Compra",
+  production: "Producción",
+  sale: "Venta",
+  loss: "Merma",
+  sample: "Muestra",
+  adjustment: "Ajuste",
+  IN_PURCHASE: "Compra",
+  IN_PRODUCTION: "Producción",
+  OUT_SALE: "Venta",
+  OUT_LOSS: "Merma",
+  IN_ADJUSTMENT: "Ajuste",
+  OUT_ADJUSTMENT: "Ajuste",
+};
+const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION", "IN_ADJUSTMENT"]);
 ---
 
 <DashboardLayout active="inicio">
-  <div class="mx-auto max-w-6xl px-6 py-8">
-    <div class="flex flex-wrap items-center justify-between gap-3">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : loadError ? (
+    <NeedsSetup reason="error" />
+  ) : (
+    <div class="mx-auto max-w-6xl px-6 py-8">
       <div>
         <h1 class="font-heading text-2xl font-semibold">Hola 👋</h1>
         <p class="mt-1 text-sm text-text-secondary">Resumen de tu negocio.</p>
       </div>
-      <div class="flex gap-2">
-        <Button variant="secondary" size="sm" icon="lucide:scan-barcode">Escanear</Button>
-        <Button variant="primary" size="sm" icon="lucide:plus">Nuevo producto</Button>
+
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.map((s) => <StatTile label={s.label} value={s.value} icon={s.icon} />)}
+      </div>
+
+      <div class="mt-8 grid gap-6 lg:grid-cols-2">
+        {/* Recent movements */}
+        <div class="ol-card overflow-hidden">
+          <div class="flex items-center justify-between border-b border-border px-5 py-3">
+            <h2 class="font-heading font-semibold">Movimientos recientes</h2>
+            <a href="/dashboard/inventory" class="text-sm font-medium text-accent hover:underline">Ver todos</a>
+          </div>
+          {movements.length > 0 ? (
+            <ul class="divide-y divide-border">
+              {movements.map((m) => {
+                const isIn = inbound.has(String(m.movement_type));
+                return (
+                  <li class="flex items-center justify-between px-5 py-3">
+                    <span class="flex items-center gap-2 text-sm">
+                      <Icon
+                        name={isIn ? "lucide:arrow-down-left" : "lucide:arrow-up-right"}
+                        class={isIn ? "text-success" : "text-danger"}
+                        width={16}
+                        height={16}
+                      />
+                      {movementLabel[String(m.movement_type)] ?? m.movement_type}
+                    </span>
+                    <span class="font-data text-sm">{isIn ? "+" : "−"}{m.quantity}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p class="px-5 py-8 text-center text-sm text-text-muted">Sin movimientos todavía.</p>
+          )}
+        </div>
+
+        {/* Low stock */}
+        <div class="ol-card overflow-hidden">
+          <div class="flex items-center justify-between border-b border-border px-5 py-3">
+            <h2 class="font-heading font-semibold">Bajo stock</h2>
+            <a href="/dashboard/analytics/low-stock" class="text-sm font-medium text-accent hover:underline">Ver todos</a>
+          </div>
+          {low.length > 0 ? (
+            <ul class="divide-y divide-border">
+              {low.slice(0, 6).map((r) => (
+                <li class="flex items-center justify-between px-5 py-3">
+                  <span class="truncate text-sm">{r.product_name ?? r.sku ?? r.variant_id}</span>
+                  <span class="flex items-center gap-2">
+                    <span class="font-data text-sm text-danger">{r.quantity_on_hand}</span>
+                    <span class="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-semibold text-warning">≤ {r.reorder_point}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p class="px-5 py-8 text-center text-sm text-text-muted">Todo en orden. Sin alertas.</p>
+          )}
+        </div>
       </div>
     </div>
-
-    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map((s) => <StatTile label={s.label} value={s.value} icon={s.icon} />)}
-    </div>
-
-    <div class="mt-8 grid gap-4 md:grid-cols-3">
-      {soon.map((c) => (
-        <div class="flex flex-col gap-2 rounded-2xl border border-border bg-surface-card p-5">
-          <span class="flex size-9 items-center justify-center rounded-lg bg-accent-soft">
-            <Icon name={c.icon} class="text-accent" width={18} height={18} />
-          </span>
-          <h3 class="mt-1 font-heading font-semibold">{c.title}</h3>
-          <p class="text-[13px] text-text-secondary">{c.desc}</p>
-          <span class="mt-1 inline-flex w-fit rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-semibold text-text-muted">
-            Próximamente
-          </span>
-        </div>
-      ))}
-    </div>
-  </div>
+  )}
 </DashboardLayout>

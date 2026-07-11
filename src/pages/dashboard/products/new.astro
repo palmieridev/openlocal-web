@@ -1,0 +1,181 @@
+---
+import { Icon } from "astro-icon/components";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import ProductCard from "@/components/ui/ProductCard.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import { getServerAuth } from "@/lib/api/server";
+
+const { businessId } = await getServerAuth(Astro);
+
+// product_type must match the API enum (stocked_product | made_to_order_product | unique_item).
+const productTypes = [
+  ["stocked_product", "Producto con inventario"],
+  ["made_to_order_product", "Bajo pedido"],
+  ["unique_item", "Pieza única"],
+];
+const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
+---
+
+<DashboardLayout active="productos">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : (
+    <>
+      {/* Action bar */}
+      <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-surface-card px-4 py-4 sm:px-8 sm:py-5">
+        <div>
+          <h1 class="font-heading text-2xl font-semibold">Nuevo producto</h1>
+          <p class="mt-1 text-sm text-text-secondary">Crea la ficha · luego agrega variantes y precio</p>
+        </div>
+        <Button variant="primary" icon="lucide:check" type="submit" form="product-form">
+          <span data-label>Crear producto</span>
+        </Button>
+      </div>
+
+      <div class="mx-auto max-w-6xl px-4 py-6 sm:px-8">
+        <a href="/dashboard/products" class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary">
+          <Icon name="lucide:arrow-left" width={15} height={15} /> Productos
+        </a>
+
+      <div class="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Form */}
+        <form id="product-form" data-business-id={businessId} class="ol-card flex flex-col gap-4 p-6">
+          <div>
+            <h2 class="font-heading font-semibold">Detalles del producto</h2>
+            <p class="text-sm text-text-secondary">Lo que verán los compradores en tu tienda.</p>
+          </div>
+          <div>
+            <label class="ol-label" for="name">Nombre *</label>
+            <input class="ol-input" id="name" name="name" required placeholder="Bolsa tejida a mano" />
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="ol-label" for="product_type">Tipo</label>
+              <select class="ol-select" id="product_type" name="product_type">
+                {productTypes.map(([v, l]) => <option value={v}>{l}</option>)}
+              </select>
+            </div>
+            <div>
+              <label class="ol-label" for="unit">Unidad</label>
+              <select class="ol-select" id="unit" name="unit">
+                {units.map((u) => <option value={u}>{u}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="ol-label" for="brand">Marca</label>
+            <input class="ol-input" id="brand" name="brand" placeholder="Opcional" />
+          </div>
+          <div>
+            <label class="ol-label" for="description">Descripción</label>
+            <textarea class="ol-textarea" id="description" name="description" rows="3"></textarea>
+          </div>
+          <div class="flex gap-6 border-t border-border pt-4">
+            <label class="flex items-center gap-2 text-sm text-text-secondary">
+              <input type="checkbox" name="is_handmade" /> Hecho a mano
+            </label>
+            <label class="flex items-center gap-2 text-sm text-text-secondary">
+              <input type="checkbox" name="is_public" checked /> Visible en tienda
+            </label>
+          </div>
+
+          <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
+
+          <div class="flex justify-end gap-2">
+            <Button variant="secondary" href="/dashboard/products">Cancelar</Button>
+            <Button type="submit" variant="primary" id="submit-btn">
+              <span data-label>Crear producto</span>
+            </Button>
+          </div>
+        </form>
+
+        {/* Right column */}
+        <div class="flex flex-col gap-6">
+          <div class="ol-card p-5">
+            <div class="mb-4">
+              <h2 class="font-heading font-semibold">Vista en tienda</h2>
+              <p class="text-sm text-text-secondary">Así te ven los compradores</p>
+            </div>
+            <div id="preview">
+              <ProductCard name="Nombre del producto" meta="Tu marca" price="" />
+            </div>
+          </div>
+
+          <div class="rounded-2xl border border-border bg-accent-soft/60 p-4">
+            <div class="flex items-center gap-2">
+              <Icon name="lucide:info" class="text-accent" width={16} height={16} />
+              <h3 class="font-heading text-sm font-semibold">¿Y el precio?</h3>
+            </div>
+            <p class="mt-2 text-[13px] leading-relaxed text-text-secondary">
+              Después de crear la ficha agregarás una variante con SKU y precio. Una variante visible basta para que el
+              producto aparezca en tu tienda.
+            </p>
+          </div>
+        </div>
+      </div>
+      </div>
+    </>
+  )}
+</DashboardLayout>
+
+<script>
+  const form = document.getElementById("product-form") as HTMLFormElement | null;
+  if (form) {
+    const errEl = document.getElementById("form-error") as HTMLElement;
+    const btn = document.getElementById("submit-btn") as HTMLButtonElement;
+    const label = btn.querySelector("[data-label]") as HTMLElement;
+    const businessId = form.dataset.businessId;
+
+    // Live storefront preview
+    const preview = document.getElementById("preview");
+    const previewName = preview?.querySelector("h3") as HTMLElement | null;
+    const previewMeta = preview?.querySelector("p") as HTMLElement | null;
+    const nameEl = form.querySelector<HTMLInputElement>("#name");
+    const brandEl = form.querySelector<HTMLInputElement>("#brand");
+    const descEl = form.querySelector<HTMLTextAreaElement>("#description");
+    function syncPreview() {
+      if (previewName) previewName.textContent = nameEl?.value.trim() || "Nombre del producto";
+      if (previewMeta) {
+        const meta = [brandEl?.value.trim(), descEl?.value.trim()].filter(Boolean).join(" · ");
+        previewMeta.textContent = meta || "Tu marca";
+      }
+    }
+    form.addEventListener("input", syncPreview);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.classList.add("hidden");
+      btn.disabled = true;
+      label.textContent = "Guardando…";
+      const fd = new FormData(form);
+      const payload = {
+        business_id: businessId,
+        name: String(fd.get("name") || ""),
+        product_type: String(fd.get("product_type") || ""),
+        unit: String(fd.get("unit") || ""),
+        brand: String(fd.get("brand") || ""),
+        description: String(fd.get("description") || ""),
+        is_handmade: fd.get("is_handmade") === "on",
+        is_public: fd.get("is_public") === "on",
+        status: "active",
+      };
+      try {
+        const res = await fetch("/api/products", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "No se pudo crear el producto.");
+        window.location.href = `/dashboard/products/${data.id}`;
+      } catch (err) {
+        errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        errEl.classList.remove("hidden");
+        btn.disabled = false;
+        label.textContent = "Crear producto";
+      }
+    });
+  }
+</script>
+</content>

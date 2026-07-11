@@ -28,6 +28,23 @@ const locationLine = business
 
 const waNumber = business?.whatsapp ?? business?.phone ?? null;
 const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : null;
+
+// Directions link — coords when available, else the written address.
+const dirHref = hasCoords
+  ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+  : locationLine
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(locationLine)}`
+    : null;
+
+// Category chips are derived from distinct product brands (the closest facet
+// the public API exposes). Rendered only when there's something to filter by.
+const brands = [...new Set(products.map((p) => text(p.brand)).filter(Boolean))];
+
+// Small header tags from the fulfilment flags we actually have.
+const headerTags = [
+  business?.pickup_available && "Recoge en tienda",
+  business?.delivery_available && "Envío a domicilio",
+].filter(Boolean) as string[];
 ---
 
 {
@@ -47,56 +64,74 @@ const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : nu
       title={`${business.name} — Openlocal`}
       description={business.description || `Productos de ${business.name} en Openlocal.`}
     >
-      {/* Cover */}
-      <div class="relative h-48 w-full overflow-hidden bg-surface-secondary sm:h-60">
-        {business.cover_image_url ? (
-          <div
-            class="absolute inset-0 bg-cover bg-center"
-            style={`background-image:url('${business.cover_image_url}')`}
-          />
-        ) : (
-          <div class="absolute inset-0 bg-gradient-to-br from-accent-soft to-surface-secondary" />
-        )}
-      </div>
-
       <div class="mx-auto max-w-7xl px-4 sm:px-6">
-        {/* Business header */}
-        <div class="-mt-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div class="flex items-end gap-4">
+        {/* Cover */}
+        <div class="relative mt-5 h-44 w-full overflow-hidden rounded-2xl bg-surface-secondary sm:h-60">
+          {business.cover_image_url ? (
             <div
-              class="flex size-20 shrink-0 items-center justify-center rounded-2xl border-4 border-surface-primary bg-surface-secondary shadow-card"
-              style={business.logo_url ? `background-image:url('${business.logo_url}');background-size:cover;background-position:center;` : ""}
-            >
-              {!business.logo_url && <Icon name="lucide:store" class="text-accent" width={32} height={32} />}
-            </div>
-            <div class="pb-1">
-              <h1 class="font-heading text-2xl font-semibold">{business.name}</h1>
-              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-secondary">
-                <span class="flex items-center gap-1">
-                  <Icon name="lucide:tag" width={13} height={13} class="text-accent" />
-                  {humanize(business.business_type)}
-                </span>
-                {locationLine && (
+              class="absolute inset-0 bg-cover bg-center"
+              style={`background-image:url('${business.cover_image_url}')`}
+            />
+          ) : (
+            <div class="absolute inset-0 bg-gradient-to-br from-accent-soft to-surface-secondary" />
+          )}
+          <div class="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/25 to-transparent" />
+        </div>
+
+        {/* Business header — white card, shaded, overlapping the cover */}
+        <div class="relative -mt-12 rounded-2xl border border-border/60 bg-surface-card p-5 shadow-card sm:-mt-14 sm:p-6">
+          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-4">
+              <div
+                class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-accent text-text-inverse shadow-card"
+                style={business.logo_url ? `background-image:url('${business.logo_url}');background-size:cover;background-position:center;` : ""}
+              >
+                {!business.logo_url && <Icon name="lucide:store" width={32} height={32} />}
+              </div>
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <h1 class="font-heading text-2xl font-semibold">{business.name}</h1>
+                  {business.status === "active" && (
+                    <span class="inline-flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
+                      <Icon name="lucide:badge-check" width={13} height={13} class="text-accent" />
+                      Verificado
+                    </span>
+                  )}
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-text-secondary">
                   <span class="flex items-center gap-1">
-                    <Icon name="lucide:map-pin" width={13} height={13} class="text-accent" />
-                    {text(business.neighborhood) || business.city}
+                    <Icon name="lucide:tag" width={13} height={13} class="text-accent" />
+                    {humanize(business.business_type)}
                   </span>
+                  {locationLine && (
+                    <span class="flex items-center gap-1">
+                      <Icon name="lucide:map-pin" width={13} height={13} class="text-accent" />
+                      {text(business.neighborhood) || business.city}
+                    </span>
+                  )}
+                  <span class="flex items-center gap-1">
+                    <Icon name="lucide:package" width={13} height={13} class="text-accent" />
+                    {products.length} productos
+                  </span>
+                </div>
+                {headerTags.length > 0 && (
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    {headerTags.map((t) => (
+                      <span class="rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-medium text-text-secondary">{t}</span>
+                    ))}
+                  </div>
                 )}
-                <span class="flex items-center gap-1">
-                  <Icon name="lucide:package" width={13} height={13} class="text-accent" />
-                  {products.length} productos
-                </span>
               </div>
             </div>
-          </div>
 
-          <div class="flex gap-2 pb-1">
-            {waHref && (
-              <Button variant="whatsapp" href={waHref} icon="lucide:message-circle">
-                WhatsApp
-              </Button>
-            )}
-            <Button variant="secondary" icon="lucide:bookmark">Guardar</Button>
+            <div class="flex gap-2 sm:flex-col sm:items-stretch">
+              {waHref && (
+                <Button variant="whatsapp" href={waHref} icon="lucide:message-circle">
+                  Contactar por WhatsApp
+                </Button>
+              )}
+              <Button variant="secondary" icon="lucide:bookmark">Guardar</Button>
+            </div>
           </div>
         </div>
 
@@ -107,20 +142,60 @@ const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : nu
         {/* Body: products + aside */}
         <div class="mt-8 grid gap-8 pb-4 lg:grid-cols-[1fr_320px]">
           <section>
-            <h2 class="mb-4 font-heading text-lg font-semibold">
-              Productos <span class="text-text-muted">({products.length})</span>
-            </h2>
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <h2 class="font-heading text-lg font-semibold">
+                Productos <span class="text-text-muted">({products.length})</span>
+              </h2>
+              {products.length > 1 && (
+                <div class="relative shrink-0">
+                  <select
+                    id="sort-select"
+                    class="appearance-none rounded-full border border-border bg-surface-card py-2 pl-8 pr-8 text-sm text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                    aria-label="Ordenar productos"
+                  >
+                    <option value="featured">Destacados</option>
+                    <option value="price-asc">Precio: menor a mayor</option>
+                    <option value="price-desc">Precio: mayor a menor</option>
+                    <option value="name">Nombre A–Z</option>
+                  </select>
+                  <Icon name="lucide:arrow-up-down" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" width={14} height={14} />
+                  <Icon name="lucide:chevron-down" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" width={14} height={14} />
+                </div>
+              )}
+            </div>
+
+            {brands.length > 1 && (
+              <div id="chip-bar" class="mb-5 flex flex-wrap gap-2">
+                <button type="button" data-brand="" class="chip rounded-full border border-accent bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-colors">
+                  Todos
+                </button>
+                {brands.map((b) => (
+                  <button type="button" data-brand={b} class="chip rounded-full border border-border bg-surface-card px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary">
+                    {b}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {products.length > 0 ? (
-              <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {products.map((p) => (
-                  <ProductCard
-                    name={p.name}
-                    meta={[text(p.brand), p.variant_name].filter(Boolean).join(" · ")}
-                    price={p.price}
-                    currency={p.currency}
-                    stockStatus={p.public_stock_status}
-                  />
+              <div id="product-grid" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {products.map((p, i) => (
+                  <div
+                    class="product-item"
+                    data-brand={text(p.brand)}
+                    data-price={Number(p.price) || 0}
+                    data-name={p.name}
+                    data-index={i}
+                  >
+                    <ProductCard
+                      name={p.name}
+                      meta={[text(p.brand), p.variant_name].filter(Boolean).join(" · ")}
+                      price={p.price}
+                      currency={p.currency}
+                      stockStatus={p.public_stock_status}
+                      imageUrl={p.image_url}
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
@@ -145,6 +220,19 @@ const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : nu
                 <div class="flex items-start gap-2 px-4 py-3 text-[13px] text-text-secondary">
                   <Icon name="lucide:map-pin" class="mt-0.5 shrink-0 text-accent" width={15} height={15} />
                   {locationLine}
+                </div>
+              )}
+              {dirHref && (
+                <div class="px-4 pb-4 pt-1">
+                  <a
+                    href={dirHref}
+                    target="_blank"
+                    rel="noopener"
+                    class="flex items-center justify-center gap-2 rounded-full border border-border py-2.5 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-secondary"
+                  >
+                    <Icon name="lucide:navigation" width={15} height={15} />
+                    Cómo llegar
+                  </a>
                 </div>
               )}
             </div>
@@ -247,3 +335,44 @@ const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : nu
     </style>
   )
 }
+
+<script>
+  // Storefront catalog: client-side sort + brand-chip filtering.
+  const grid = document.getElementById("product-grid");
+  if (grid) {
+    const items = () => Array.from(grid.querySelectorAll<HTMLElement>(".product-item"));
+
+    const sortSel = document.getElementById("sort-select") as HTMLSelectElement | null;
+    sortSel?.addEventListener("change", () => {
+      const v = sortSel.value;
+      items()
+        .sort((a, b) => {
+          const pa = Number(a.dataset.price) || 0;
+          const pb = Number(b.dataset.price) || 0;
+          if (v === "price-asc") return pa - pb;
+          if (v === "price-desc") return pb - pa;
+          if (v === "name") return (a.dataset.name || "").localeCompare(b.dataset.name || "");
+          return (Number(a.dataset.index) || 0) - (Number(b.dataset.index) || 0);
+        })
+        .forEach((el) => grid.appendChild(el));
+    });
+
+    const chips = Array.from(document.querySelectorAll<HTMLElement>("#chip-bar .chip"));
+    const active = ["border-accent", "bg-accent", "text-text-inverse"];
+    const idle = ["border-border", "bg-surface-card", "text-text-secondary", "hover:bg-surface-secondary"];
+    chips.forEach((chip) => {
+      chip.addEventListener("click", () => {
+        chips.forEach((c) => {
+          c.classList.remove(...active);
+          c.classList.add(...idle);
+        });
+        chip.classList.add(...active);
+        chip.classList.remove(...idle);
+        const brand = chip.dataset.brand || "";
+        items().forEach((el) => {
+          el.style.display = !brand || el.dataset.brand === brand ? "" : "none";
+        });
+      });
+    });
+  }
+</script>

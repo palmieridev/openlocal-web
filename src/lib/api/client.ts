@@ -1,8 +1,14 @@
 import { PUBLIC_API_BASE_URL } from "astro:env/client";
 import type {
+  ABCRow,
   Business,
+  LowStockRow,
   MarketplaceProduct,
+  Product,
   PublicProduct,
+  StockLevel,
+  StockMovement,
+  Variant,
 } from "@/types/api";
 
 export class ApiError extends Error {
@@ -137,3 +143,37 @@ export const publicApi = {
     );
   },
 };
+
+/**
+ * Business-scoped reads for the owner dashboard. Requires a Clerk org token and
+ * the business id. Methods throw ApiError; callers (SSR pages) handle failures.
+ */
+/** API caps list endpoints at limit=100; clamp so callers can't trigger a 400. */
+const MAX_LIMIT = 100;
+const clampLimit = (n: number) => Math.min(Math.max(Math.trunc(n), 1), MAX_LIMIT);
+
+export function authedApi(token: string, businessId: string) {
+  const scoped = <T>(path: string, extra?: Query) =>
+    apiFetch<T>(path, { token, query: { business_id: businessId, ...extra } });
+
+  return {
+    getBusiness: () => apiFetch<Business>(`/api/v1/businesses/${businessId}`, { token }),
+    listProducts: (limit = 100, offset = 0) =>
+      scoped<Product[]>("/api/v1/products", { limit: clampLimit(limit), offset }),
+    getProduct: (id: string) =>
+      apiFetch<Product>(`/api/v1/products/${id}`, { token, query: { business_id: businessId } }),
+    listProductVariants: (productId: string) =>
+      apiFetch<Variant[]>(`/api/v1/products/${productId}/variants`, {
+        token,
+        query: { business_id: businessId },
+      }),
+    listStockLevels: (limit = 100, offset = 0) =>
+      scoped<StockLevel[]>("/api/v1/inventory/stock-levels", { limit: clampLimit(limit), offset }),
+    listMovements: (limit = 50, offset = 0) =>
+      scoped<StockMovement[]>("/api/v1/inventory/movements", { limit: clampLimit(limit), offset }),
+    abc: (limit = 100, offset = 0) =>
+      scoped<ABCRow[]>("/api/v1/analytics/abc", { limit: clampLimit(limit), offset }),
+    lowStock: (limit = 100, offset = 0) =>
+      scoped<LowStockRow[]>("/api/v1/analytics/low-stock", { limit: clampLimit(limit), offset }),
+  };
+}

@@ -1,0 +1,44 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  /** Active step, 1-indexed. */
+  current: 1 | 2 | 3;
+}
+const { current } = Astro.props;
+const steps = ["Perfil y ubicación", "Productos", "Publicar"];
+---
+
+<div class="flex flex-wrap items-center justify-center gap-x-2 gap-y-3">
+  {steps.map((label, i) => {
+    const n = i + 1;
+    const done = n < current;
+    const active = n === current;
+    return (
+      <Fragment>
+        <div class="flex items-center gap-2.5">
+          <span
+            class:list={[
+              "flex size-7 items-center justify-center rounded-full font-data text-xs font-semibold",
+              done || active ? "bg-accent text-text-inverse" : "bg-surface-secondary text-text-muted",
+              active && "ring-2 ring-accent ring-offset-2 ring-offset-surface-primary",
+            ]}
+          >
+            {done ? <Icon name="lucide:check" width={14} height={14} /> : n}
+          </span>
+          <span
+            class:list={[
+              "text-sm",
+              active ? "font-semibold text-text-primary" : "font-normal text-text-muted",
+            ]}
+          >
+            {label}
+          </span>
+        </div>
+        {n < steps.length && (
+          <span class:list={["h-0.5 w-10 rounded-full", done ? "bg-accent" : "bg-border"]} />
+        )}
+      </Fragment>
+    );
+  })}
+</div>

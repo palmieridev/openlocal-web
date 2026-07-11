@@ -1,8 +1,56 @@
 ---
-import { SignUp } from "@clerk/astro/components";
+import { Icon } from "astro-icon/components";
 import AuthLayout from "@/layouts/AuthLayout.astro";
+
+// Two distinct signup flows: shoppers get a plain account (no organization),
+// businesses continue to onboarding where the API creates their Clerk org.
+const paths = [
+  {
+    href: "/register/shopper",
+    icon: "lucide:shopping-bag",
+    title: "Quiero comprar",
+    desc: "Descubre productos y negocios locales cerca de ti.",
+    cta: "Crear cuenta de comprador",
+  },
+  {
+    href: "/register/business",
+    icon: "lucide:store",
+    title: "Tengo un negocio",
+    desc: "Publica tu catálogo, controla inventario y vende.",
+    cta: "Registrar mi negocio",
+  },
+];
 ---
 
 <AuthLayout title="Crear cuenta — Openlocal">
-  <SignUp />
+  <div class="w-full max-w-2xl">
+    <div class="text-center">
+      <h1 class="font-heading text-2xl font-semibold">Crea tu cuenta</h1>
+      <p class="mt-1 text-sm text-text-secondary">¿Cómo quieres usar Openlocal?</p>
+    </div>
+
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+      {paths.map((p) => (
+        <a
+          href={p.href}
+          class="group flex flex-col gap-3 rounded-2xl border border-border bg-surface-card p-6 transition-colors hover:border-accent"
+        >
+          <span class="flex size-12 items-center justify-center rounded-xl bg-accent-soft">
+            <Icon name={p.icon} class="text-accent" width={24} height={24} />
+          </span>
+          <h2 class="font-heading text-lg font-semibold">{p.title}</h2>
+          <p class="flex-1 text-sm text-text-secondary">{p.desc}</p>
+          <span class="flex items-center gap-1 text-sm font-medium text-accent">
+            {p.cta}
+            <Icon name="lucide:arrow-right" width={16} height={16} class="transition-transform group-hover:translate-x-0.5" />
+          </span>
+        </a>
+      ))}
+    </div>
+
+    <p class="mt-6 text-center text-sm text-text-muted">
+      ¿Ya tienes cuenta?
+      <a href="/login" class="font-medium text-accent hover:underline">Inicia sesión</a>
+    </p>
+  </div>
 </AuthLayout>

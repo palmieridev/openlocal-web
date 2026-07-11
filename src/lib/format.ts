@@ -48,6 +48,7 @@ export interface StockMeta {
 export function stockMeta(status: PublicStockStatus | string | undefined): StockMeta {
   switch (status) {
     case "in_stock":
+    case "available":
       return { label: "En stock", bg: "bg-success-soft", fg: "text-success", dot: "bg-success" };
     case "low_stock":
       return { label: "Pocas piezas", bg: "bg-warning-soft", fg: "text-warning", dot: "bg-warning" };

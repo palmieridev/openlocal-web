@@ -1,0 +1,146 @@
+---
+import { Icon } from "astro-icon/components";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import type { Product, Variant } from "@/types/api";
+
+const { token, businessId } = await getServerAuth(Astro);
+
+// Build the full variant list (there is no cross-product variant endpoint, so
+// fan out products → variants) and merge current on-hand from stock levels.
+interface Item { id: string; name: string; sku: string; barcode: string; qty: string | null; }
+let items: Item[] = [];
+if (token && businessId) {
+  try {
+    const api = authedApi(token, businessId);
+    const [products, levels] = await Promise.all([api.listProducts(200), api.listStockLevels(500)]);
+    const qtyMap = new Map(levels.map((l) => [l.variant_id, l.quantity_on_hand]));
+    const lists = await Promise.all(
+      products.map((p: Product) =>
+        api.listProductVariants(p.id)
+          .then((vs: Variant[]) => vs.map((v) => ({ v, product: p })))
+          .catch(() => [] as { v: Variant; product: Product }[]),
+      ),
+    );
+    for (const list of lists) {
+      for (const { v, product } of list) {
+        if (v.track_inventory === false) continue;
+        items.push({
+          id: v.id,
+          name: v.name?.trim() || product.name,
+          sku: v.sku ?? "",
+          barcode: v.barcode ?? "",
+          qty: qtyMap.get(v.id) ?? null,
+        });
+      }
+    }
+    items.sort((a, b) => a.name.localeCompare(b.name, "es"));
+  } catch {
+    /* tolerate — modal renders its empty state */
+  }
+}
+---
+
+<div id="mp-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+  <div class="ol-card flex max-h-[80vh] w-full max-w-md flex-col gap-3.5 p-5 shadow-xl">
+    <div class="flex items-start justify-between">
+      <div>
+        <h2 class="font-heading font-semibold">Registrar movimiento</h2>
+        <p class="text-sm text-text-muted">Elige una variante</p>
+      </div>
+      <button type="button" id="mp-close" class="text-text-muted hover:text-text-secondary" aria-label="Cerrar">
+        <Icon name="lucide:x" width={18} height={18} />
+      </button>
+    </div>
+
+    <label class="flex items-center gap-2 rounded-lg border border-border bg-surface-primary px-3.5 py-3">
+      <Icon name="lucide:search" class="text-text-muted" width={16} height={16} />
+      <input id="mp-search" type="search" placeholder="Buscar por nombre, SKU o código…" class="w-full bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none" />
+    </label>
+
+    {items.length > 0 ? (
+      <div id="mp-list" class="-mx-1 flex-1 overflow-y-auto">
+        {items.map((it) => (
+          <button
+            type="button"
+            class="mp-row flex w-full items-center justify-between gap-3 border-t border-border px-1 py-3 text-left first:border-t-0 hover:bg-surface-primary/60"
+            data-variant-id={it.id}
+            data-name={it.name}
+            data-sku={it.sku}
+            data-search={`${it.name} ${it.sku} ${it.barcode}`.toLowerCase()}
+          >
+            <span class="min-w-0">
+              <span class="block truncate font-medium text-text-primary">{it.name}</span>
+              {it.sku && <span class="block font-data text-[11px] text-text-muted">{it.sku}</span>}
+            </span>
+            {it.qty == null ? (
+              <span class="shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-semibold text-text-muted">Sin movimientos</span>
+            ) : (
+              <span class="shrink-0 whitespace-nowrap text-text-muted">
+                <span class="font-data text-sm font-semibold text-text-primary">{it.qty}</span> en mano
+              </span>
+            )}
+          </button>
+        ))}
+        <p id="mp-empty" class="hidden py-8 text-center text-sm text-text-muted">Sin resultados.</p>
+      </div>
+    ) : (
+      <div class="py-8 text-center">
+        <Icon name="lucide:tags" class="mx-auto text-text-muted" width={28} height={28} />
+        <p class="mt-2 text-sm text-text-secondary">No hay variantes con seguimiento de inventario.</p>
+        <a href="/dashboard/products" class="mt-1 inline-block text-sm font-medium text-accent hover:underline">Ir a productos</a>
+      </div>
+    )}
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById("mp-modal");
+  if (modal && !(window as any).__mpInit) {
+    (window as any).__mpInit = true;
+    const search = document.getElementById("mp-search") as HTMLInputElement | null;
+    const rows = Array.from(document.querySelectorAll<HTMLButtonElement>(".mp-row"));
+    const empty = document.getElementById("mp-empty");
+
+    function openPicker() {
+      modal!.classList.remove("hidden");
+      modal!.classList.add("flex");
+      if (search) { search.value = ""; filter(); search.focus(); }
+    }
+    function closePicker() {
+      modal!.classList.add("hidden");
+      modal!.classList.remove("flex");
+    }
+    (window as any).openVariantPicker = openPicker;
+
+    document.querySelectorAll<HTMLElement>("[data-open-picker]").forEach((el) => {
+      el.addEventListener("click", openPicker);
+    });
+    document.getElementById("mp-close")?.addEventListener("click", closePicker);
+    modal.addEventListener("click", (e) => { if (e.target === modal) closePicker(); });
+
+    function filter() {
+      const q = (search?.value ?? "").trim().toLowerCase();
+      let shown = 0;
+      for (const row of rows) {
+        const ok = !q || (row.dataset.search ?? "").includes(q);
+        row.classList.toggle("hidden", !ok);
+        if (ok) shown++;
+      }
+      empty?.classList.toggle("hidden", shown !== 0);
+    }
+    search?.addEventListener("input", filter);
+
+    for (const row of rows) {
+      row.addEventListener("click", () => {
+        closePicker();
+        (window as any).openMovementModal?.({
+          variantId: row.dataset.variantId!,
+          variantName: row.dataset.name!,
+          variantSku: row.dataset.sku!,
+          mode: "entrada",
+        });
+      });
+    }
+  }
+</script>

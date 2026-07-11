@@ -69,3 +69,44 @@
     outline-offset: 2px;
   }
 }
+
+@layer components {
+  .ol-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+  }
+
+  .ol-input,
+  .ol-select,
+  .ol-textarea {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-card);
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-text-primary);
+  }
+
+  .ol-input::placeholder,
+  .ol-textarea::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .ol-input:focus,
+  .ol-select:focus,
+  .ol-textarea:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-soft);
+  }
+
+  .ol-card {
+    border-radius: 1rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-card);
+  }
+}
