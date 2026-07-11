@@ -1,0 +1,28 @@
+---
+import PublicLayout from "@/layouts/PublicLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import { Icon } from "astro-icon/components";
+---
+
+<PublicLayout
+  title="Página no encontrada — Openlocal"
+  description="La página que buscas no existe o fue movida."
+>
+  <section class="mx-auto flex max-w-xl flex-col items-center px-4 py-24 text-center sm:py-32">
+    <div class="mb-6 flex size-16 items-center justify-center rounded-full bg-accent-soft">
+      <Icon name="lucide:map-pin-off" width={28} height={28} class="text-accent" />
+    </div>
+    <p class="font-mono text-sm text-text-muted">404</p>
+    <h1 class="mt-2 text-2xl font-semibold text-text-primary sm:text-3xl">
+      Página no encontrada
+    </h1>
+    <p class="mt-3 text-sm text-text-secondary sm:text-base">
+      La página que buscas no existe o fue movida. Explora el marketplace para
+      descubrir negocios locales cerca de ti.
+    </p>
+    <div class="mt-8 flex flex-wrap justify-center gap-3">
+      <Button href="/marketplace" icon="lucide:store">Ir al marketplace</Button>
+      <Button href="/" variant="secondary">Volver al inicio</Button>
+    </div>
+  </section>
+</PublicLayout>

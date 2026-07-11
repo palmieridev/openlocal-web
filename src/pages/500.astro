@@ -1,0 +1,28 @@
+---
+import PublicLayout from "@/layouts/PublicLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import { Icon } from "astro-icon/components";
+---
+
+<PublicLayout
+  title="Algo salió mal — Openlocal"
+  description="Ocurrió un error inesperado. Intenta de nuevo en unos momentos."
+>
+  <section class="mx-auto flex max-w-xl flex-col items-center px-4 py-24 text-center sm:py-32">
+    <div class="mb-6 flex size-16 items-center justify-center rounded-full bg-danger-soft">
+      <Icon name="lucide:server-crash" width={28} height={28} class="text-danger" />
+    </div>
+    <p class="font-mono text-sm text-text-muted">500</p>
+    <h1 class="mt-2 text-2xl font-semibold text-text-primary sm:text-3xl">
+      Algo salió mal
+    </h1>
+    <p class="mt-3 text-sm text-text-secondary sm:text-base">
+      Ocurrió un error inesperado de nuestro lado. Ya estamos en ello — intenta
+      de nuevo en unos momentos.
+    </p>
+    <div class="mt-8 flex flex-wrap justify-center gap-3">
+      <Button href="/marketplace" icon="lucide:store">Ir al marketplace</Button>
+      <Button href="/" variant="secondary">Volver al inicio</Button>
+    </div>
+  </section>
+</PublicLayout>
