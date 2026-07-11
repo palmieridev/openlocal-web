@@ -1,9 +1,17 @@
+# Native deps allowed to run install/build scripts.
+# esbuild:      downloads/links its platform binary (won't run without it).
+# sharp:        links libvips bindings for image optimization.
+# @sentry/cli:  postinstall downloads the sentry-cli binary — only needed for
+#               source-map upload in CI, so keep it off locally.
 allowBuilds:
+  '@sentry/cli': false
   esbuild: true
   sharp: true
-# Native deps allowed to run install/build scripts.
-# esbuild: downloads/links its platform binary (won't run without it).
-# sharp:   links libvips bindings for image optimization.
 onlyBuiltDependencies:
   - esbuild
   - sharp
+
+# Astro 6 ships vite 7; without this @tailwindcss/vite and vitest resolve
+# vite 8, and the duplicate breaks plugin types in astro.config (pnpm check).
+overrides:
+  vite: ^7.3.5
