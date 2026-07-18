@@ -1,0 +1,17 @@
+node_modules
+dist
+.output
+.astro
+.vercel
+.git
+.github
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+.vscode
+.idea
+.agents
+.claude
+coverage
