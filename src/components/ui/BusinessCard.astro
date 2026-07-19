@@ -1,7 +1,9 @@
 ---
 import { Icon } from "astro-icon/components";
 import Badge from "./Badge.astro";
+import OpenBadge from "./OpenBadge.astro";
 import { formatDistance } from "@/lib/format";
+import type { BusinessHour } from "@/types/api";
 
 interface Props {
   name: string;
@@ -14,6 +16,8 @@ interface Props {
   whatsapp?: string | null;
   logoUrl?: string | null;
   href?: string;
+  hours?: BusinessHour[] | null;
+  timezone?: string | null;
 }
 
 const {
@@ -27,6 +31,8 @@ const {
   whatsapp,
   logoUrl,
   href,
+  hours,
+  timezone,
 } = Astro.props;
 
 const typeLine = [type, neighborhood].filter(Boolean).join(" · ");
@@ -62,7 +68,10 @@ const waHref = whatsapp ? `https://wa.me/${whatsapp.replace(/[^\d]/g, "")}` : nu
       )}
     </div>
 
-    {typeLine && <p class="text-[13px] text-text-secondary">{typeLine}</p>}
+    <div class="flex flex-wrap items-center gap-2">
+      {typeLine && <p class="text-[13px] text-text-secondary">{typeLine}</p>}
+      <OpenBadge hours={hours} timezone={timezone} />
+    </div>
 
     {tags.length > 0 && (
       <div class="mt-0.5 flex flex-wrap gap-1.5">

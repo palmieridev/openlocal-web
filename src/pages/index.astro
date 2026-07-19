@@ -113,6 +113,8 @@ const stats = [
                 b.delivery_available ? "Envío" : null,
               ].filter(Boolean) as string[]}
               href={`/business/${b.slug}`}
+              hours={b.hours}
+              timezone={b.timezone}
             />
           ))}
         </div>

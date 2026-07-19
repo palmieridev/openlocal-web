@@ -4,8 +4,10 @@ import PublicLayout from "@/layouts/PublicLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
+import OpenBadge from "@/components/ui/OpenBadge.astro";
 import { publicApi } from "@/lib/api/client";
 import { text, humanize } from "@/lib/format";
+import { groupedSchedule, zonedNow } from "@/lib/hours";
 
 const { slug } = Astro.params;
 const business = slug ? await publicApi.getBusiness(slug) : null;
@@ -41,6 +43,11 @@ const dirHref = hasCoords
 const brands = [...new Set(products.map((p) => text(p.brand)).filter(Boolean))];
 
 // Small header tags from the fulfilment flags we actually have.
+// Weekly schedule is static data, so it renders server-side. Only the
+// open/closed badge is client-computed (it would go stale in a cached page).
+const schedule = business?.hours?.length ? groupedSchedule(business.hours) : [];
+const todayIndex = business?.timezone ? (zonedNow(business.timezone)?.day ?? -1) : -1;
+
 const headerTags = [
   business?.pickup_available && "Recoge en tienda",
   business?.delivery_available && "Envío a domicilio",
@@ -91,6 +98,7 @@ const headerTags = [
               <div>
                 <div class="flex flex-wrap items-center gap-2">
                   <h1 class="font-heading text-2xl font-semibold">{business.name}</h1>
+                  <OpenBadge hours={business.hours} timezone={business.timezone} />
                   {business.status === "active" && (
                     <span class="inline-flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
                       <Icon name="lucide:badge-check" width={13} height={13} class="text-accent" />
@@ -207,6 +215,30 @@ const headerTags = [
 
           {/* Aside */}
           <aside class="flex flex-col gap-4">
+            {schedule.length > 0 && (
+              <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
+                <div class="flex items-center justify-between border-b border-border px-4 py-3">
+                  <span class="text-sm font-semibold">Horario</span>
+                  <OpenBadge hours={business.hours} timezone={business.timezone} />
+                </div>
+                <dl class="px-4 py-3 text-[13px]">
+                  {schedule.map(({ label, range, days }) => (
+                    <div
+                      class:list={[
+                        "flex items-baseline justify-between gap-3 py-1",
+                        days.includes(todayIndex)
+                          ? "font-semibold text-text-primary"
+                          : "text-text-secondary",
+                      ]}
+                    >
+                      <dt>{label}</dt>
+                      <dd class="font-data whitespace-nowrap">{range}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
             <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
               <div class="border-b border-border px-4 py-3 text-sm font-semibold">Ubicación</div>
               {hasCoords ? (

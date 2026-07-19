@@ -6,19 +6,33 @@ import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { text } from "@/lib/format";
-import type { Business } from "@/types/api";
+import { weekSchedule } from "@/lib/hours";
+import type { Business, BusinessHours } from "@/types/api";
 
 const { token, businessId } = await getServerAuth(Astro);
 
 let business: Business | null = null;
+let hours: BusinessHours | null = null;
 let loadError = false;
 if (token && businessId) {
+  const api = authedApi(token, businessId);
   try {
-    business = await authedApi(token, businessId).getBusiness();
+    business = await api.getBusiness();
   } catch {
     loadError = true;
   }
+  try {
+    hours = await api.getHours();
+  } catch {
+    // Hours are optional: a business that never set them still renders the
+    // editor, just empty. Don't fail the whole settings page over it.
+    hours = null;
+  }
 }
+
+// Seven Monday-first rows, pre-filled with whatever is stored.
+const schedule = weekSchedule(hours?.hours);
+const timezone = hours?.timezone || business?.timezone || "America/Mexico_City";
 
 // Same catalog as onboarding; if the stored type predates the list (or came
 // from the API seed) keep it selectable instead of silently remapping it.
@@ -168,6 +182,62 @@ const lng = text(business?.longitude);
             <input type="hidden" name="country" value={business.country || "MX"} />
           </section>
 
+          {/* Opening hours */}
+          <section class="ol-card p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="font-heading font-semibold">Horario de atención</h2>
+              <span class="text-xs text-text-muted">
+                Zona horaria: <span class="font-data">{timezone}</span>
+              </span>
+            </div>
+            <p class="mt-1 text-sm text-text-secondary">
+              Opcional. Si lo defines, los clientes verán si estás abierto ahora. Para un horario
+              nocturno, usa una hora de cierre menor a la de apertura (ej. 22:00 – 02:00).
+            </p>
+            <p class="mt-1 text-sm text-text-muted">
+              Deja los días en blanco si trabajas por pedido o sin horario fijo: no se mostrará
+              ningún horario en tu tienda. Vacía todos los días para quitar un horario que ya
+              habías guardado.
+            </p>
+
+            <div class="mt-4 flex flex-col gap-2" id="hours-rows">
+              {schedule.map(({ day, label, hour }) => (
+                <div
+                  class="flex flex-wrap items-center gap-3 rounded-xl border border-border px-3 py-2"
+                  data-hours-row
+                  data-day={day}
+                >
+                  <span class="w-24 shrink-0 text-sm font-medium">{label}</span>
+                  <div class="flex items-center gap-2">
+                    <input
+                      class="ol-input w-32"
+                      type="time"
+                      data-opens
+                      value={hour?.is_closed ? "" : (hour?.opens_at ?? "")}
+                      disabled={hour?.is_closed ?? false}
+                      aria-label={`Hora de apertura: ${label}`}
+                    />
+                    <span class="text-text-muted">–</span>
+                    <input
+                      class="ol-input w-32"
+                      type="time"
+                      data-closes
+                      value={hour?.is_closed ? "" : (hour?.closes_at ?? "")}
+                      disabled={hour?.is_closed ?? false}
+                      aria-label={`Hora de cierre: ${label}`}
+                    />
+                  </div>
+                  <label class="ml-auto flex items-center gap-2 text-sm text-text-secondary">
+                    <input type="checkbox" data-closed checked={hour?.is_closed ?? false} />
+                    Cerrado
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <p id="hours-msg" class="mt-3 hidden rounded-xl px-3 py-2 text-sm"></p>
+          </section>
+
           <p id="settings-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
           <div class="flex justify-center border-t border-border pt-2 pb-1">
             <Button type="submit" variant="primary" id="settings-btn" class="w-80"><span data-label>Guardar cambios</span></Button>
@@ -256,6 +326,7 @@ const lng = text(business?.longitude);
 <script>
   import L from "leaflet";
   import "leaflet/dist/leaflet.css";
+  import { buildHoursPayload, validateHoursRows, type HoursFormRow } from "@/lib/hours";
 
   const root = document.querySelector("[data-business-id]") as HTMLElement | null;
   if (root) {
@@ -351,6 +422,62 @@ const lng = text(business?.longitude);
       msgEl.className = `rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
     }
 
+    // ── Opening hours ───────────────────────────────────────────────────────
+    const hoursMsgEl = document.getElementById("hours-msg") as HTMLElement | null;
+
+    function flashHours(ok: boolean, msg: string) {
+      if (!hoursMsgEl) return;
+      hoursMsgEl.textContent = msg;
+      hoursMsgEl.className = `mt-3 rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
+    }
+
+    /** Read the seven rows out of the DOM. */
+    function readHoursRows(): HoursFormRow[] {
+      return [...document.querySelectorAll<HTMLElement>("[data-hours-row]")].map((row) => ({
+        day_of_week: Number(row.dataset.day),
+        opens_at: (row.querySelector("[data-opens]") as HTMLInputElement).value,
+        closes_at: (row.querySelector("[data-closes]") as HTMLInputElement).value,
+        is_closed: (row.querySelector("[data-closed]") as HTMLInputElement).checked,
+      }));
+    }
+
+    // A closed day has no times — mirror that in the UI so the form can't
+    // express a state the API would reject.
+    document.querySelectorAll<HTMLElement>("[data-hours-row]").forEach((row) => {
+      const closedEl = row.querySelector("[data-closed]") as HTMLInputElement;
+      const timeEls = [
+        row.querySelector("[data-opens]") as HTMLInputElement,
+        row.querySelector("[data-closes]") as HTMLInputElement,
+      ];
+      closedEl.addEventListener("change", () => {
+        timeEls.forEach((el) => {
+          el.disabled = closedEl.checked;
+          if (closedEl.checked) el.value = "";
+        });
+      });
+    });
+
+    async function saveHours(): Promise<boolean> {
+      const rows = readHoursRows();
+      const problem = validateHoursRows(rows);
+      if (problem) {
+        flashHours(false, problem);
+        return false;
+      }
+      const res = await fetch(`/api/businesses/${businessId}/hours`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(buildHoursPayload(rows)),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        flashHours(false, data?.error || "No se pudo guardar el horario.");
+        return false;
+      }
+      flashHours(true, "Horario guardado.");
+      return true;
+    }
+
     async function save(statusOverride?: string): Promise<boolean> {
       const fd = new FormData(form);
       const str = (k: string) => String(fd.get(k) || "").trim();
@@ -395,7 +522,11 @@ const lng = text(business?.longitude);
       btn.disabled = true;
       const original = label.textContent;
       label.textContent = "Guardando…";
-      if (await save()) flash(true, "Cambios guardados.");
+      // Profile and hours are separate API resources; save both from the one
+      // button so pending schedule edits aren't silently dropped.
+      const savedProfile = await save();
+      const savedHours = await saveHours();
+      if (savedProfile && savedHours) flash(true, "Cambios guardados.");
       btn.disabled = false;
       label.textContent = original;
     });
