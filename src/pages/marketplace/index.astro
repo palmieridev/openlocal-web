@@ -22,6 +22,10 @@ const markers = businesses
     lat: Number(b.latitude),
     lng: Number(b.longitude),
     label: b.name,
+    // Open/closed is resolved in the island so it can't be baked into a
+    // cached page; businesses without hours are always shown.
+    hours: b.hours ?? [],
+    timezone: b.timezone ?? "",
   }));
 
 const filters = [
@@ -130,9 +134,16 @@ const filters = [
 
       {/* Map */}
       {mapOpen && (
-        <div class="h-[70vh] overflow-hidden rounded-2xl border border-border bg-surface-secondary lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)]">
-          <div id="map" class="h-full w-full"></div>
-          <script type="application/json" id="map-data" set:html={JSON.stringify(markers)}></script>
+        <div class="flex h-[70vh] flex-col overflow-hidden rounded-2xl border border-border bg-surface-secondary lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)]">
+          <label
+            class="flex items-center gap-2 border-b border-border bg-surface-primary px-3 py-2 text-sm text-text-secondary"
+          >
+            <input type="checkbox" id="open-now-filter" />
+            Abiertos ahora
+            <span id="open-now-count" class="ml-auto text-xs text-text-muted"></span>
+          </label>
+          <div id="map" class="w-full flex-1"></div>
+          <script is:inline type="application/json" id="map-data" set:html={JSON.stringify(markers)}></script>
         </div>
       )}
     </div>
@@ -144,11 +155,21 @@ const filters = [
     <script>
       import L from "leaflet";
       import "leaflet/dist/leaflet.css";
+      import { isOpenNow, openMeta } from "@/lib/hours";
+      import type { BusinessHour } from "@/types/api";
 
       const el = document.getElementById("map");
       const dataEl = document.getElementById("map-data");
       if (el && dataEl) {
-        type Marker = { slug: string; name: string; lat: number; lng: number; label: string };
+        type Marker = {
+          slug: string;
+          name: string;
+          lat: number;
+          lng: number;
+          label: string;
+          hours: BusinessHour[];
+          timezone: string;
+        };
         const markers: Marker[] = JSON.parse(dataEl.textContent || "[]");
         // Default to Mexico City when no points are available yet.
         const center: [number, number] = markers.length
@@ -163,19 +184,55 @@ const filters = [
           maxZoom: 19,
         }).addTo(map);
 
-        const bounds: [number, number][] = [];
-        for (const m of markers) {
+        const layers = markers.map((m) => {
           const pin = L.divIcon({
             className: "",
             html: `<span class="map-pin">${m.label}</span>`,
             iconSize: [0, 0],
           });
-          L.marker([m.lat, m.lng], { icon: pin })
-            .addTo(map)
-            .bindPopup(`<strong>${m.name}</strong><br/><a href="/business/${m.slug}">Ver tienda</a>`);
-          bounds.push([m.lat, m.lng]);
+          const meta = openMeta(isOpenNow(m.hours, m.timezone));
+          const status = meta ? `<br/><small>${meta.label}</small>` : "";
+          const layer = L.marker([m.lat, m.lng], { icon: pin }).bindPopup(
+            `<strong>${m.name}</strong>${status}<br/><a href="/business/${m.slug}">Ver tienda</a>`,
+          );
+          return { marker: m, layer };
+        });
+
+        const filterEl = document.getElementById("open-now-filter") as HTMLInputElement | null;
+        const countEl = document.getElementById("open-now-count");
+
+        /**
+         * Show every business by default. When filtering, keep those that are
+         * open AND those whose hours are unknown — hiding unknowns would punish
+         * businesses that simply haven't filled in a schedule yet.
+         */
+        function render() {
+          const onlyOpen = filterEl?.checked ?? false;
+          const bounds: [number, number][] = [];
+          let shown = 0;
+
+          for (const { marker, layer } of layers) {
+            const open = isOpenNow(marker.hours, marker.timezone);
+            const visible = !onlyOpen || open !== false;
+            if (visible) {
+              layer.addTo(map);
+              bounds.push([marker.lat, marker.lng]);
+              shown++;
+            } else {
+              layer.remove();
+            }
+          }
+
+          if (countEl) {
+            countEl.textContent = onlyOpen ? `${shown} de ${layers.length}` : "";
+          }
+          if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
         }
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+
+        render();
+        filterEl?.addEventListener("change", render);
+        // Re-evaluate as opening/closing times pass on a long-lived tab.
+        setInterval(render, 60_000);
 
         // Mobile: the container often finishes layout after init → recompute
         // size so tiles fill the box instead of rendering gray/half.

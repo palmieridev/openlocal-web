@@ -1,0 +1,63 @@
+---
+import type { BusinessHour } from "@/types/api";
+
+interface Props {
+  hours?: BusinessHour[] | null;
+  timezone?: string | null;
+  class?: string;
+}
+
+const { hours, timezone, class: extra = "" } = Astro.props;
+
+// Rendered empty and filled in by the script below. Open/closed is deliberately
+// NOT computed during SSR: the answer would be baked into a cached page and go
+// stale the moment the business opens or closes.
+const hasHours = Array.isArray(hours) && hours.length > 0 && Boolean(timezone);
+---
+
+{
+  hasHours && (
+    <span
+      data-open-badge
+      data-hours={JSON.stringify(hours)}
+      data-timezone={timezone}
+      class:list={[
+        "hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold",
+        extra,
+      ]}
+    >
+      <span data-open-dot class="size-1.5 rounded-full"></span>
+      <span data-open-label></span>
+    </span>
+  )
+}
+
+<script>
+  import { isOpenNow, openMeta } from "@/lib/hours";
+  import type { BusinessHour } from "@/types/api";
+
+  // One pass for every badge on the page; Astro dedupes this module script.
+  function paintOpenBadges() {
+    document.querySelectorAll<HTMLElement>("[data-open-badge]").forEach((badge) => {
+      let hours: BusinessHour[];
+      try {
+        hours = JSON.parse(badge.dataset.hours || "[]");
+      } catch {
+        return;
+      }
+      const meta = openMeta(isOpenNow(hours, badge.dataset.timezone));
+      if (!meta) return; // unknown → stay hidden rather than claim "cerrado"
+
+      badge.classList.remove("hidden");
+      badge.classList.add("inline-flex", meta.bg, meta.fg);
+      const dot = badge.querySelector("[data-open-dot]");
+      const label = badge.querySelector("[data-open-label]");
+      if (dot) dot.classList.add(meta.dot);
+      if (label) label.textContent = meta.label;
+    });
+  }
+
+  paintOpenBadges();
+  // Keep it honest on long-lived tabs (opening/closing time passes).
+  setInterval(paintOpenBadges, 60_000);
+</script>

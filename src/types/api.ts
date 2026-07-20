@@ -46,8 +46,32 @@ export interface Business {
   longitude?: string;
   pickup_available: boolean;
   delivery_available: boolean;
+  /** IANA zone the opening hours are expressed in (e.g. "America/Mexico_City"). */
+  timezone?: string;
+  /** Present on public payloads. Empty array means "no hours set" (unknown). */
+  hours?: BusinessHour[];
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * One day of a business's weekly schedule.
+ *
+ * `day_of_week` is **0 = Monday … 6 = Sunday**. Times are "HH:MM" strings in the
+ * business's own timezone, and are null when `is_closed`. An overnight span
+ * (opens_at 22:00 → closes_at 02:00) is legal and must be handled by callers.
+ */
+export interface BusinessHour {
+  day_of_week: number;
+  opens_at: string | null;
+  closes_at: string | null;
+  is_closed: boolean;
+}
+
+/** Owner-facing hours payload (GET/PUT /businesses/:id/hours). */
+export interface BusinessHours {
+  timezone: string;
+  hours: BusinessHour[];
 }
 
 /** Private catalog product. */

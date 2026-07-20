@@ -2,6 +2,7 @@ import { PUBLIC_API_BASE_URL } from "astro:env/client";
 import type {
   ABCRow,
   Business,
+  BusinessHours,
   LowStockRow,
   MarketplaceProduct,
   Product,
@@ -158,6 +159,7 @@ export function authedApi(token: string, businessId: string) {
 
   return {
     getBusiness: () => apiFetch<Business>(`/api/v1/businesses/${businessId}`, { token }),
+    getHours: () => apiFetch<BusinessHours>(`/api/v1/businesses/${businessId}/hours`, { token }),
     listProducts: (limit = 100, offset = 0) =>
       scoped<Product[]>("/api/v1/products", { limit: clampLimit(limit), offset }),
     getProduct: (id: string) =>
