@@ -291,14 +291,46 @@ const lng = text(business?.longitude);
             </div>
             <div class="mt-4">
               <p class="mb-1.5 text-sm font-medium">Portada</p>
-              {coverUrl ? (
-                <img src={coverUrl} alt="Portada" class="h-28 w-full rounded-xl border border-border object-cover" />
-              ) : (
-                <div class="flex h-28 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface-secondary/50 text-text-muted">
+              {/* Value persisted with the profile save. logo_url is echoed back
+                  (managed by Clerk) so a profile PATCH doesn't wipe it. */}
+              <input type="hidden" id="cover-url" value={coverUrl} />
+              <input type="hidden" id="logo-url" value={logoUrl} />
+              <label
+                id="cover-drop"
+                class="group relative flex h-28 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-dashed border-border bg-surface-secondary/50 text-text-muted transition-colors hover:border-accent hover:text-accent"
+              >
+                <img
+                  id="cover-preview"
+                  src={coverUrl || undefined}
+                  alt="Portada"
+                  class:list={["absolute inset-0 size-full object-cover", { hidden: !coverUrl }]}
+                />
+                <div
+                  id="cover-placeholder"
+                  class:list={["flex flex-col items-center gap-1.5", { hidden: !!coverUrl }]}
+                >
                   <Icon name="lucide:image-plus" width={22} height={22} />
-                  <span class="text-xs">Subir portada · próximamente</span>
+                  <span class="text-xs">Subir portada</span>
                 </div>
-              )}
+                <span
+                  id="cover-uploading"
+                  class="absolute inset-0 hidden items-center justify-center bg-surface-card/80 text-xs font-medium text-text-secondary"
+                >
+                  Subiendo…
+                </span>
+                <input id="cover-input" type="file" accept="image/png,image/jpeg,image/webp,image/avif" class="sr-only" />
+              </label>
+              <div class="mt-2 flex items-center justify-between">
+                <p class="text-xs text-text-muted">JPG, PNG, WebP o AVIF · máx 5 MB</p>
+                <button
+                  type="button"
+                  id="cover-remove"
+                  class:list={["text-xs font-medium text-danger hover:underline", { hidden: !coverUrl }]}
+                >
+                  Quitar portada
+                </button>
+              </div>
+              <p id="cover-msg" class="mt-2 hidden rounded-xl px-3 py-2 text-sm"></p>
             </div>
           </div>
 
@@ -415,6 +447,66 @@ const lng = text(business?.longitude);
     }
     // ────────────────────────────────────────────────────────────────────────
 
+    // ── Cover image upload ────────────────────────────────────────────────────
+    // Uploads to Vercel Blob via /api/upload and stashes the URL in a hidden
+    // field; it is persisted when the owner saves the profile.
+    const coverInput = document.getElementById("cover-input") as HTMLInputElement | null;
+    const coverUrlEl = document.getElementById("cover-url") as HTMLInputElement | null;
+    const coverPreview = document.getElementById("cover-preview") as HTMLImageElement | null;
+    const coverPlaceholder = document.getElementById("cover-placeholder");
+    const coverUploading = document.getElementById("cover-uploading");
+    const coverRemove = document.getElementById("cover-remove");
+    const coverMsg = document.getElementById("cover-msg") as HTMLElement | null;
+
+    function showCoverMsg(ok: boolean, text: string) {
+      if (!coverMsg) return;
+      coverMsg.textContent = text;
+      coverMsg.className = `mt-2 rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
+    }
+
+    function setCover(url: string) {
+      if (coverUrlEl) coverUrlEl.value = url;
+      if (coverPreview) {
+        coverPreview.src = url;
+        coverPreview.classList.toggle("hidden", !url);
+      }
+      coverPlaceholder?.classList.toggle("hidden", !!url);
+      coverRemove?.classList.toggle("hidden", !url);
+    }
+
+    coverInput?.addEventListener("change", async () => {
+      const file = coverInput.files?.[0];
+      if (!file) return;
+      coverMsg?.classList.add("hidden");
+      coverPlaceholder?.classList.add("hidden");
+      coverUploading?.classList.remove("hidden");
+      coverUploading?.classList.add("flex");
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("kind", "cover");
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "No se pudo subir la imagen.");
+        setCover(data.url);
+        showCoverMsg(true, "Portada lista. Guarda los cambios para publicarla.");
+      } catch (err) {
+        // Restore the placeholder if there was no previous image.
+        coverPlaceholder?.classList.toggle("hidden", Boolean(coverUrlEl?.value));
+        showCoverMsg(false, err instanceof Error ? err.message : "Error al subir la imagen.");
+      } finally {
+        coverUploading?.classList.add("hidden");
+        coverUploading?.classList.remove("flex");
+        coverInput.value = "";
+      }
+    });
+
+    coverRemove?.addEventListener("click", () => {
+      setCover("");
+      showCoverMsg(true, "Se quitará al guardar los cambios.");
+    });
+    // ────────────────────────────────────────────────────────────────────────
+
     document.getElementById("slug")?.addEventListener("input", (e) => {
       const echo = document.getElementById("slug-echo");
       if (echo) echo.textContent = (e.target as HTMLInputElement).value;
@@ -508,6 +600,12 @@ const lng = text(business?.longitude);
         payload.latitude = str("latitude");
         payload.longitude = str("longitude");
       }
+      // Images. The API validates these as `uri` (nullable), so send null — not
+      // "" — when absent. logo_url is echoed to preserve the Clerk-managed value.
+      const coverVal = (document.getElementById("cover-url") as HTMLInputElement | null)?.value.trim();
+      payload.cover_image_url = coverVal || null;
+      const logoVal = (document.getElementById("logo-url") as HTMLInputElement | null)?.value.trim();
+      payload.logo_url = logoVal || null;
       // Always send the current status. The API's update defaults an omitted
       // status to "draft", so a plain profile save would otherwise un-publish
       // the store. Publish/pause passes an explicit override.
