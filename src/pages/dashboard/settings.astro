@@ -63,7 +63,7 @@ const lng = text(business?.longitude);
   ) : loadError || !business ? (
     <NeedsSetup reason="error" />
   ) : (
-    <div class="mx-auto max-w-6xl px-6 py-8" data-business-id={businessId} data-lat={lat} data-lng={lng}>
+    <div class="mx-auto max-w-6xl px-6 py-8" data-business-id={businessId} data-status={business.status} data-lat={lat} data-lng={lng}>
       {/* Action bar */}
       <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
         <div>
@@ -331,6 +331,9 @@ const lng = text(business?.longitude);
   const root = document.querySelector("[data-business-id]") as HTMLElement | null;
   if (root) {
     const businessId = root.dataset.businessId!;
+    // Current published state, sent on every save so a profile edit doesn't
+    // reset it (the API defaults an omitted status to "draft").
+    const currentStatus = root.dataset.status || "draft";
     const form = document.getElementById("settings-form") as HTMLFormElement;
     const msgEl = document.getElementById("settings-msg") as HTMLElement;
     const btn = document.getElementById("settings-btn") as HTMLButtonElement;
@@ -505,7 +508,10 @@ const lng = text(business?.longitude);
         payload.latitude = str("latitude");
         payload.longitude = str("longitude");
       }
-      if (statusOverride) payload.status = statusOverride;
+      // Always send the current status. The API's update defaults an omitted
+      // status to "draft", so a plain profile save would otherwise un-publish
+      // the store. Publish/pause passes an explicit override.
+      payload.status = statusOverride || currentStatus;
 
       const res = await fetch(`/api/businesses/${businessId}`, {
         method: "PATCH",
