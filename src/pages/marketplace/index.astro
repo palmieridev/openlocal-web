@@ -8,9 +8,23 @@ const url = Astro.url;
 const q = url.searchParams.get("q") ?? "";
 const mapOpen = url.searchParams.get("map") === "1";
 
+// Map opens at street level (~zoom 16) so pins are readable. The initial data
+// window is a street-radius bbox around the default center; the island
+// re-centers on the user's geolocation client-side once it resolves.
+const DEFAULT_CENTER: [number, number] = [19.4326, -99.1332]; // Mexico City
+const DEFAULT_ZOOM = 16;
+// ~0.02° ≈ a couple of streets at zoom 16 — matches the initial viewport.
+const STREET_HALF_SPAN = 0.02;
+const initialBbox = {
+  min_lat: DEFAULT_CENTER[0] - STREET_HALF_SPAN,
+  max_lat: DEFAULT_CENTER[0] + STREET_HALF_SPAN,
+  min_lng: DEFAULT_CENTER[1] - STREET_HALF_SPAN,
+  max_lng: DEFAULT_CENTER[1] + STREET_HALF_SPAN,
+};
+
 const [products, businesses] = await Promise.all([
   publicApi.searchProducts({ q, limit: 40 }),
-  publicApi.listBusinesses({ limit: 100 }),
+  publicApi.listBusinesses({ limit: 100, bbox: initialBbox }),
 ]);
 
 // Marker payload for the Leaflet island: businesses with coordinates.
@@ -142,7 +156,12 @@ const filters = [
             Abiertos ahora
             <span id="open-now-count" class="ml-auto text-xs text-text-muted"></span>
           </label>
-          <div id="map" class="w-full flex-1"></div>
+          <div
+            id="map"
+            class="w-full flex-1"
+            data-center={JSON.stringify(DEFAULT_CENTER)}
+            data-zoom={DEFAULT_ZOOM}
+          ></div>
           <script is:inline type="application/json" id="map-data" set:html={JSON.stringify(markers)}></script>
         </div>
       )}
@@ -171,14 +190,17 @@ const filters = [
           timezone: string;
         };
         const markers: Marker[] = JSON.parse(dataEl.textContent || "[]");
-        // Default to Mexico City when no points are available yet.
-        const center: [number, number] = markers.length
-          ? [markers[0].lat, markers[0].lng]
-          : [19.4326, -99.1332];
+        // Street-level defaults come from the SSR frontmatter via data attrs so
+        // the center/zoom stay in sync with the initial bbox fetch.
+        const fallbackCenter = JSON.parse(el.dataset.center || "[19.4326,-99.1332]") as [
+          number,
+          number,
+        ];
+        const streetZoom = Number(el.dataset.zoom) || 16;
 
         const map = L.map(el, { zoomControl: true, attributionControl: false }).setView(
-          center,
-          markers.length ? 13 : 12,
+          fallbackCenter,
+          streetZoom,
         );
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
@@ -206,6 +228,10 @@ const filters = [
          * open AND those whose hours are unknown — hiding unknowns would punish
          * businesses that simply haven't filled in a schedule yet.
          */
+        // Once geolocation resolves we keep the user's street-level view instead
+        // of auto-fitting to all markers (which would zoom back out to the city).
+        let userLocated = false;
+
         function render() {
           const onlyOpen = filterEl?.checked ?? false;
           const bounds: [number, number][] = [];
@@ -226,10 +252,22 @@ const filters = [
           if (countEl) {
             countEl.textContent = onlyOpen ? `${shown} de ${layers.length}` : "";
           }
-          if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+          if (bounds.length > 1 && !userLocated) map.fitBounds(bounds, { padding: [40, 40] });
         }
 
         render();
+
+        // Center on the user's location at street zoom; the city-center fallback
+        // set above stays put when permission is denied or unavailable.
+        navigator.geolocation?.getCurrentPosition(
+          (pos) => {
+            userLocated = true;
+            map.setView([pos.coords.latitude, pos.coords.longitude], streetZoom);
+          },
+          undefined,
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 600_000 },
+        );
+
         filterEl?.addEventListener("change", render);
         // Re-evaluate as opening/closing times pass on a long-lived tab.
         setInterval(render, 60_000);
