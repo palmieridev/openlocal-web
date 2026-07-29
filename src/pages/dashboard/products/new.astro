@@ -4,6 +4,7 @@ import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import ImageUploader from "@/components/dashboard/ImageUploader.astro";
 import { getServerAuth } from "@/lib/api/server";
 
 const { businessId } = await getServerAuth(Astro);
@@ -70,6 +71,10 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
           <div>
             <label class="ol-label" for="description">Descripción</label>
             <textarea class="ol-textarea" id="description" name="description" rows="3"></textarea>
+          </div>
+          <div>
+            <span class="ol-label">Imagen</span>
+            <ImageUploader id="product-image" kind="product" />
           </div>
           <div class="flex gap-6 border-t border-border pt-4">
             <label class="flex items-center gap-2 text-sm text-text-secondary">
@@ -143,6 +148,15 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
     }
     form.addEventListener("input", syncPreview);
 
+    // Mirror the uploaded image into the storefront preview card.
+    const previewImage = preview?.querySelector<HTMLElement>("[data-card-image]");
+    document.addEventListener("image-change", (e) => {
+      if (!previewImage) return;
+      const url = (e as CustomEvent<string>).detail;
+      previewImage.style.backgroundImage = url ? `url('${url}')` : "";
+      previewImage.querySelector("[data-card-fallback]")?.classList.toggle("hidden", !!url);
+    });
+
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       errEl.classList.add("hidden");
@@ -159,6 +173,9 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
         is_handmade: fd.get("is_handmade") === "on",
         is_public: fd.get("is_public") === "on",
         status: "active",
+        image_url: String(
+          (document.getElementById("product-image-url") as HTMLInputElement | null)?.value ?? "",
+        ).trim(),
       };
       try {
         const res = await fetch("/api/products", {

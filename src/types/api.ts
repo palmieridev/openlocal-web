@@ -83,6 +83,12 @@ export interface Product {
   slug: string;
   description: string;
   brand?: string;
+  /**
+   * Storefront image. On writes: omit (or send null) to leave the current image
+   * alone, send "" to remove it — the API can't tell an omitted field from an
+   * explicit null, so it treats both as "unchanged".
+   */
+  image_url?: string | null;
   unit: string;
   product_type: string;
   is_handmade?: boolean;
