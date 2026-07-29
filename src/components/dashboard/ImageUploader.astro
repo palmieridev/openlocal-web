@@ -1,0 +1,131 @@
+---
+import { Icon } from "astro-icon/components";
+
+/**
+ * Image upload control backed by Vercel Blob (POST /api/upload).
+ *
+ * Uploading happens immediately on pick; the resulting URL lands in a hidden
+ * input so the owning form persists it on save. That keeps the blob write and
+ * the API write independent — a failed save never leaves a half-written record.
+ */
+interface Props {
+  /** Unique id; the hidden field is exposed as `${id}-url`. */
+  id: string;
+  /** Blob path label (a-z only), e.g. "cover" or "product". */
+  kind: string;
+  /** Current image URL, if any. */
+  value?: string | null;
+  /** Height class for the drop zone. */
+  heightClass?: string;
+  label?: string;
+}
+
+const { id, kind, value, heightClass = "h-40", label } = Astro.props;
+const url = value ?? "";
+---
+
+<div data-image-uploader data-id={id} data-kind={kind}>
+  {label && <p class="mb-1.5 text-sm font-medium">{label}</p>}
+  <input type="hidden" id={`${id}-url`} data-url value={url} />
+  <label
+    class:list={[
+      "group relative flex cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-dashed border-border bg-surface-secondary/50 text-text-muted transition-colors hover:border-accent hover:text-accent",
+      heightClass,
+    ]}
+  >
+    <img
+      data-preview
+      src={url || undefined}
+      alt=""
+      class:list={["absolute inset-0 size-full object-cover", { hidden: !url }]}
+    />
+    <div data-placeholder class:list={["flex flex-col items-center gap-1.5", { hidden: !!url }]}>
+      <Icon name="lucide:image-plus" width={22} height={22} />
+      <span class="text-xs">Subir imagen</span>
+    </div>
+    <span
+      data-uploading
+      class="absolute inset-0 hidden items-center justify-center bg-surface-card/80 text-xs font-medium text-text-secondary"
+    >
+      Subiendo…
+    </span>
+    <input
+      data-input
+      type="file"
+      accept="image/png,image/jpeg,image/webp,image/avif"
+      class="sr-only"
+    />
+  </label>
+  <div class="mt-2 flex items-center justify-between gap-2">
+    <p class="text-xs text-text-muted">JPG, PNG, WebP o AVIF · máx 5 MB</p>
+    <button
+      type="button"
+      data-remove
+      class:list={["text-xs font-medium text-danger hover:underline", { hidden: !url }]}
+    >
+      Quitar imagen
+    </button>
+  </div>
+  <p data-msg class="mt-2 hidden rounded-xl px-3 py-2 text-sm"></p>
+</div>
+
+<script>
+  // One listener set per uploader on the page — Astro hoists this module once.
+  document.querySelectorAll<HTMLElement>("[data-image-uploader]").forEach((root) => {
+    const kind = root.dataset.kind || "image";
+    const urlEl = root.querySelector<HTMLInputElement>("[data-url]")!;
+    const input = root.querySelector<HTMLInputElement>("[data-input]")!;
+    const preview = root.querySelector<HTMLImageElement>("[data-preview]")!;
+    const placeholder = root.querySelector<HTMLElement>("[data-placeholder]")!;
+    const uploading = root.querySelector<HTMLElement>("[data-uploading]")!;
+    const removeBtn = root.querySelector<HTMLElement>("[data-remove]")!;
+    const msg = root.querySelector<HTMLElement>("[data-msg]")!;
+
+    function flash(ok: boolean, text: string) {
+      msg.textContent = text;
+      msg.className = `mt-2 rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
+    }
+
+    /** Update the stored URL and every dependent bit of UI. */
+    function setUrl(next: string) {
+      urlEl.value = next;
+      preview.src = next;
+      preview.classList.toggle("hidden", !next);
+      placeholder.classList.toggle("hidden", !!next);
+      removeBtn.classList.toggle("hidden", !next);
+      // Let the host page mirror the value (storefront preview, etc.).
+      root.dispatchEvent(new CustomEvent("image-change", { detail: next, bubbles: true }));
+    }
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      msg.classList.add("hidden");
+      placeholder.classList.add("hidden");
+      uploading.classList.remove("hidden");
+      uploading.classList.add("flex");
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("kind", kind);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || "No se pudo subir la imagen.");
+        setUrl(data.url);
+        flash(true, "Imagen lista. Guarda los cambios para publicarla.");
+      } catch (err) {
+        placeholder.classList.toggle("hidden", Boolean(urlEl.value));
+        flash(false, err instanceof Error ? err.message : "Error al subir la imagen.");
+      } finally {
+        uploading.classList.add("hidden");
+        uploading.classList.remove("flex");
+        input.value = "";
+      }
+    });
+
+    removeBtn.addEventListener("click", () => {
+      setUrl("");
+      flash(true, "Se quitará al guardar los cambios.");
+    });
+  });
+</script>

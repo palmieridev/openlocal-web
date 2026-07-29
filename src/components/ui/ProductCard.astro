@@ -36,17 +36,18 @@ const Tag = href ? "a" : "div";
   {...href ? { href } : {}}
 >
   <div
-    class="relative flex h-44 items-start justify-end bg-accent-soft p-3"
-    style={imageUrl ? `background-image:url('${imageUrl}');background-size:cover;background-position:center;` : ""}
+    data-card-image
+    class="relative flex h-44 items-start justify-end bg-accent-soft bg-cover bg-center p-3"
+    style={imageUrl ? `background-image:url('${imageUrl}');` : ""}
   >
-    {!imageUrl && (
-      <Icon
-        name="lucide:image"
-        class="absolute inset-0 m-auto text-accent/30"
-        width={40}
-        height={40}
-      />
-    )}
+    {/* Always rendered so the dashboard preview can toggle it as the image changes. */}
+    <Icon
+      name="lucide:image"
+      data-card-fallback
+      class:list={["absolute inset-0 m-auto text-accent/30", { hidden: !!imageUrl }]}
+      width={40}
+      height={40}
+    />
     {stockStatus && (
       <Badge tone="stock" bg={stock.bg} fg={stock.fg} dot={stock.dot}>{stock.label}</Badge>
     )}
