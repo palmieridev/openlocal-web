@@ -280,10 +280,21 @@ const businessTypes = [
       }
 
       // Store the logo on the Clerk organization (best-effort; never block).
+      // The storefront reads business.logo_url, and no webhook syncs the org
+      // image back, so mirror the resulting URL onto the business too —
+      // otherwise the logo exists in Clerk but never renders.
       const logoFile = logoInput?.files?.[0];
       if (logoFile && clerk?.organization?.setLogo) {
         try {
-          await clerk.organization.setLogo({ file: logoFile });
+          const org = await clerk.organization.setLogo({ file: logoFile });
+          const imageUrl = org?.imageUrl || clerk.organization.imageUrl;
+          if (imageUrl && data.id) {
+            await fetch(`/api/businesses/${data.id}`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ ...payload, logo_url: imageUrl }),
+            });
+          }
         } catch {
           /* logo upload is non-critical; the owner can set it later */
         }

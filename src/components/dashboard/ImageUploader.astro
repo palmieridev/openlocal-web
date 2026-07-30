@@ -10,6 +10,11 @@ import { Icon } from "astro-icon/components";
  * whose viewport matches the display aspect: the owner pans/zooms, and only the
  * visible region is encoded and uploaded. That also normalises EXIF rotation
  * and shrinks multi-MB camera files.
+ *
+ * `target` picks where the bytes go: "blob" posts to /api/upload (Vercel Blob),
+ * "clerk-logo" calls Clerk's organization.setLogo — the org image is owned by
+ * Clerk, not by our storage. Either way the resulting URL lands in a hidden
+ * field so the owning form persists it on save.
  */
 interface Props {
     /** Unique id; the hidden field is exposed as `${id}-url`. */
@@ -22,12 +27,15 @@ interface Props {
     aspect?: number;
     /** Encoded width in px; height follows from `aspect`. */
     outputWidth?: number;
-    outputType?: "image/jpeg";
+    /** Encoded MIME type — PNG keeps logo transparency. */
+    outputType?: "image/jpeg" | "image/png";
     /** Height class for the drop zone. */
     heightClass?: string;
+    /** Render the drop zone as a square tile (logos). */
+    square?: boolean;
     label?: string;
     hint?: string;
-    target?: "blob";
+    target?: "blob" | "clerk-logo";
     /**
      * Narrowest / widest aspect this image is displayed at across breakpoints.
      * The storefront cover is ~2:1 on a phone but ~5:1 on a desktop, so no single
@@ -452,6 +460,20 @@ const url = value ?? "";
 
             /** Persist the bytes and return the public URL. */
             async function store(file: File): Promise<string> {
+                if (target === "clerk-logo") {
+                    const clerk = (window as any).Clerk;
+                    const organization = clerk?.organization;
+                    if (!organization?.setLogo) {
+                        throw new Error(
+                            "No se pudo acceder a tu organización. Recarga la página.",
+                        );
+                    }
+                    const updated = await organization.setLogo({ file });
+                    const imageUrl = updated?.imageUrl || organization.imageUrl;
+                    if (!imageUrl)
+                        throw new Error("Clerk no devolvió la URL del logo.");
+                    return imageUrl;
+                }
                 const fd = new FormData();
                 fd.append("file", file);
                 fd.append("kind", kind);
