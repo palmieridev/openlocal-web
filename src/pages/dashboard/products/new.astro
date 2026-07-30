@@ -74,7 +74,7 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
           </div>
           <div>
             <span class="ol-label">Imagen</span>
-            <ImageUploader id="product-image" kind="product" />
+            <ImageUploader id="product-image" kind="product" aspect={1.5} outputWidth={1200} hint="Se recorta en 3:2 · máx 5 MB" />
           </div>
           <div class="flex gap-6 border-t border-border pt-4">
             <label class="flex items-center gap-2 text-sm text-text-secondary">
