@@ -119,10 +119,6 @@ const previewMeta = product
               <label class="ol-label" for="description">Descripción</label>
               <textarea class="ol-textarea" id="description" name="description" rows="3">{product.description}</textarea>
             </div>
-            <div>
-              <span class="ol-label">Imagen</span>
-              <ImageUploader id="product-image" kind="product" value={product.image_url} aspect={1.5} outputWidth={1200} hint="Se recorta en 3:2 · máx 5 MB" />
-            </div>
             <div class="flex gap-6 border-t border-border pt-4">
               <label class="flex items-center gap-2 text-sm text-text-secondary">
                 <input type="checkbox" name="is_handmade" checked={product.is_handmade} /> Hecho a mano
@@ -223,7 +219,7 @@ const previewMeta = product
               price={firstVariant?.price ?? ""}
               currency={firstVariant?.currency ?? "MXN"}
               stockStatus={firstVariant?.public_stock_status}
-              imageUrl={product.image_url}
+              imageUrl={firstVariant?.image_url}
             />
             </div>
           </div>
@@ -318,15 +314,6 @@ const previewMeta = product
       el.className = `rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
     }
 
-    // Mirror the uploaded image into the storefront preview card.
-    const previewImage = document.querySelector<HTMLElement>("#preview-card [data-card-image]");
-    document.addEventListener("image-change", (e) => {
-      if (!previewImage) return;
-      const url = (e as CustomEvent<string>).detail;
-      previewImage.style.backgroundImage = url ? `url('${url}')` : "";
-      previewImage.querySelector("[data-card-fallback]")?.classList.toggle("hidden", !!url);
-    });
-
     const editForm = document.getElementById("edit-form") as HTMLFormElement;
     const editMsg = document.getElementById("edit-msg") as HTMLElement;
     editForm?.addEventListener("submit", async (e) => {
@@ -341,11 +328,6 @@ const previewMeta = product
         is_handmade: fd.get("is_handmade") === "on",
         is_public: fd.get("is_public") === "on",
         status: "active",
-        // Always sent: "" tells the API to remove the image. Omitting it would
-        // mean "leave unchanged", which can't express a removal.
-        image_url: String(
-          (document.getElementById("product-image-url") as HTMLInputElement | null)?.value ?? "",
-        ).trim(),
       };
       const res = await fetch(`/api/products/${productId}`, {
         method: "PATCH",
