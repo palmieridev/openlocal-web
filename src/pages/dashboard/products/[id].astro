@@ -241,6 +241,18 @@ const previewMeta = product
             </button>
           </div>
           <div>
+            <span class="ol-label">Imagen</span>
+            {/* One shared control for the modal; openModal() loads the selected
+                variant's URL into it via the "image-set" event. */}
+            <ImageUploader
+              id="variant-image"
+              kind="product"
+              aspect={1.5}
+              outputWidth={1200}
+              hint="Se recorta en 3:2 · máx 5 MB"
+            />
+          </div>
+          <div>
             <label class="ol-label" for="vname">Nombre de la variante</label>
             <input class="ol-input" id="vname" name="vname" placeholder="Color natural" />
           </div>
@@ -341,9 +353,17 @@ const previewMeta = product
       if (el) el.value = value;
     };
 
+    // The uploader is rendered once and reused, so its value has to be loaded
+    // (or cleared) every time the modal opens for a different variant.
+    const imageUploader = document.querySelector<HTMLElement>('[data-image-uploader][data-id="variant-image"]');
+    const imageUrlEl = document.getElementById("variant-image-url") as HTMLInputElement | null;
+    const loadImage = (url: string) =>
+      imageUploader?.dispatchEvent(new CustomEvent("image-set", { detail: url }));
+
     function openModal(variant?: Record<string, any>) {
       vMsg.className = "hidden";
       vForm.reset();
+      loadImage(variant?.image_url ?? "");
       if (variant) {
         vTitle.textContent = "Editar variante";
         vBtnLabel.textContent = "Guardar cambios";
@@ -407,6 +427,9 @@ const previewMeta = product
         track_inventory: fd.get("track_inventory") === "on",
         currency: "MXN",
         status: "active",
+        // Always sent: "" tells the API to remove the image. Omitting it would
+        // mean "leave unchanged", which can't express a removal.
+        image_url: String(imageUrlEl?.value ?? "").trim(),
       };
       const barcode = str("barcode");
       if (barcode) payload.barcode = barcode;

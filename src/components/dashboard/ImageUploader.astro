@@ -493,5 +493,13 @@ const url = value ?? "";
                 setUrl("");
                 flash(true, "Se quitará al guardar los cambios.");
             });
+
+            // Lets a host page load a value in — needed when one uploader is
+            // reused by a shared modal (the variant editor switches between
+            // variants without re-rendering the control).
+            root.addEventListener("image-set", (e) => {
+                msg.classList.add("hidden");
+                setUrl((e as CustomEvent<string>).detail || "");
+            });
         });
 </script>
