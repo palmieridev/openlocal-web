@@ -501,5 +501,29 @@ const url = value ?? "";
                 msg.classList.add("hidden");
                 setUrl((e as CustomEvent<string>).detail || "");
             });
+
+            // Store a file the host produced elsewhere (a generated logo
+            // preset), skipping the crop step since it is already square.
+            root.addEventListener("image-file", async (e) => {
+                const file = (e as CustomEvent<File>).detail;
+                if (!file) return;
+                msg.classList.add("hidden");
+                placeholder.classList.add("hidden");
+                uploading.classList.remove("hidden");
+                uploading.classList.add("flex");
+                try {
+                    setUrl(await store(file));
+                    flash(true, "Logo listo. Guarda los cambios para publicarlo.");
+                } catch (err) {
+                    placeholder.classList.toggle("hidden", Boolean(urlEl.value));
+                    flash(
+                        false,
+                        err instanceof Error ? err.message : "Error al subir la imagen.",
+                    );
+                } finally {
+                    uploading.classList.add("hidden");
+                    uploading.classList.remove("flex");
+                }
+            });
         });
 </script>

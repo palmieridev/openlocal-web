@@ -4,6 +4,7 @@ import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import ImageUploader from "@/components/dashboard/ImageUploader.astro";
+import LogoPresets from "@/components/dashboard/LogoPresets.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { text } from "@/lib/format";
@@ -293,6 +294,13 @@ const lng = text(business?.longitude);
                 label="Logo"
                 hint="Cuadrado · se recorta en círculo en algunas vistas"
               />
+              <div class="mt-3">
+                <LogoPresets
+                  businessType={business.business_type}
+                  name={business.name}
+                  label="¿Aún no tienes logo? Elige uno"
+                />
+              </div>
             </div>
             <div class="mt-5">
               <ImageUploader
@@ -423,6 +431,30 @@ const lng = text(business?.longitude);
     }
     // ────────────────────────────────────────────────────────────────────────
 
+
+    // ── Logo presets ────────────────────────────────────────────────────────
+    // A generated mark takes the same route as an uploaded photo: hand the file
+    // to the logo uploader, which stores it on the Clerk organization.
+    const logoUploader = document.querySelector<HTMLElement>('[data-image-uploader][data-id="logo"]');
+    const presetsRoot = document.querySelector<HTMLElement>("[data-logo-presets]");
+
+    document.addEventListener("logo-preset", (e) => {
+      const { file } = (e as CustomEvent<{ file: File }>).detail;
+      logoUploader?.dispatchEvent(new CustomEvent("image-file", { detail: file }));
+    });
+
+    // Keep the tiles in step with the fields they are derived from.
+    document.getElementById("name")?.addEventListener("input", (e) => {
+      presetsRoot?.dispatchEvent(
+        new CustomEvent("presets-name", { detail: (e.target as HTMLInputElement).value }),
+      );
+    });
+    document.getElementById("business_type")?.addEventListener("change", (e) => {
+      presetsRoot?.dispatchEvent(
+        new CustomEvent("presets-type", { detail: (e.target as HTMLSelectElement).value }),
+      );
+    });
+    // ────────────────────────────────────────────────────────────────────────
 
     document.getElementById("slug")?.addEventListener("input", (e) => {
       const echo = document.getElementById("slug-echo");

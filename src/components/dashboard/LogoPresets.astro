@@ -1,0 +1,191 @@
+---
+import { Icon } from "astro-icon/components";
+import { BUSINESS_TYPE_ICONS, presetsFor } from "@/lib/logo-presets";
+
+/**
+ * Picker of generated logo marks for owners who don't have a logo yet.
+ *
+ * Each tile is drawn to a canvas on click and handed to the host as a PNG
+ * `File` via a bubbling `logo-preset` event, so it can travel the same path as
+ * an uploaded photo (Clerk `setLogo`). Nothing is stored or hosted for these.
+ */
+interface Props {
+  /** Chooses the icon; unknown values fall back to a storefront mark. */
+  businessType?: string | null;
+  /** Seeds the monogram tiles; can be refreshed live via the `presets-name` event. */
+  name?: string;
+  label?: string;
+}
+
+const { businessType, name = "", label = "O elige uno de estos" } = Astro.props;
+const presets = presetsFor(businessType, name);
+// Every type's icon is rendered up front and toggled client-side, so the tiles
+// can follow the business-type select while the owner is still filling it in.
+const iconChoices = Object.entries(BUSINESS_TYPE_ICONS);
+// Key on the type itself, not its icon: several types share a mark (retail and
+// otro are both the storefront), which would otherwise reveal two at once.
+const normalisedType = (businessType ?? "").trim().toLowerCase();
+const activeType = normalisedType in BUSINESS_TYPE_ICONS ? normalisedType : "retail";
+---
+
+<div data-logo-presets>
+  <p class="mb-2 text-xs text-text-muted">{label}</p>
+  <div class="flex flex-wrap gap-2">
+    {presets.map((preset) => (
+      <button
+        type="button"
+        data-preset
+        data-kind={preset.kind}
+        data-bg={preset.palette.bg}
+        data-fg={preset.palette.fg}
+        aria-pressed="false"
+        title={preset.kind === "icon" ? "Usar este símbolo" : "Usar estas iniciales"}
+        class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border transition-[outline] outline-2 outline-offset-2 outline-transparent hover:outline-accent aria-pressed:outline-accent"
+        style={`background-color:${preset.palette.bg};color:${preset.palette.fg}`}
+      >
+        {preset.kind === "icon" ? (
+          iconChoices.map(([type, icon]) => (
+            <span
+              data-type-icon={type}
+              class:list={["items-center justify-center", type === activeType ? "flex" : "hidden"]}
+            >
+              <Icon name={icon} width={26} height={26} />
+            </span>
+          ))
+        ) : (
+          <span data-initials class="font-heading text-lg font-semibold">{preset.initials}</span>
+        )}
+      </button>
+    ))}
+  </div>
+</div>
+
+<script>
+  import { LOGO_PRESET_SIZE, initialsFor } from "@/lib/logo-presets";
+
+  document.querySelectorAll<HTMLElement>("[data-logo-presets]").forEach((root) => {
+    const buttons = [...root.querySelectorAll<HTMLButtonElement>("[data-preset]")];
+
+    /**
+     * astro-icon inlines each `<symbol id>` on its first use and emits a bare
+     * `<use href="#id">` everywhere after, so a tile may carry the definition
+     * or only a reference to one elsewhere in the document. Find the real
+     * geometry either way.
+     */
+    function resolveSymbol(svg: SVGElement): SVGSymbolElement | null {
+      const local = svg.querySelector("symbol");
+      if (local) return local as SVGSymbolElement;
+      const use = svg.querySelector("use");
+      const href = use?.getAttribute("href") ?? use?.getAttribute("xlink:href") ?? "";
+      if (!href.startsWith("#")) return null;
+      const target = document.getElementById(href.slice(1));
+      return target instanceof SVGSymbolElement ? target : null;
+    }
+
+    /**
+     * Rasterise a lucide icon so it can be composited onto the canvas.
+     *
+     * The `<use>` fragment reference does not resolve once the markup is
+     * serialised into a data: URL and loaded through an <img> — it yields a
+     * blank image — so lift the symbol's own children into a standalone SVG.
+     * Lucide declares its strokes on the root, so restate them here.
+     */
+    function iconImage(svg: SVGElement, color: string): Promise<HTMLImageElement> {
+      const symbol = resolveSymbol(svg);
+      const viewBox = symbol?.getAttribute("viewBox") ?? svg.getAttribute("viewBox") ?? "0 0 24 24";
+      const body = symbol ? symbol.innerHTML : svg.innerHTML;
+      const markup =
+        `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="${viewBox}" ` +
+        `fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" ` +
+        `stroke-linejoin="round">${body}</svg>`;
+      const encoded = window.btoa(String.fromCharCode(...new TextEncoder().encode(markup)));
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("icon render failed"));
+        img.src = `data:image/svg+xml;base64,${encoded}`;
+      });
+    }
+
+    async function render(button: HTMLButtonElement): Promise<Blob | null> {
+      const size = LOGO_PRESET_SIZE;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+
+      const bg = button.dataset.bg || "#7d6b3d";
+      const fg = button.dataset.fg || "#f5f2e9";
+      const radius = size * 0.1875;
+      ctx.fillStyle = bg;
+      if (typeof ctx.roundRect === "function") {
+        ctx.beginPath();
+        ctx.roundRect(0, 0, size, size, radius);
+        ctx.fill();
+      } else {
+        ctx.fillRect(0, 0, size, size);
+      }
+
+      if (button.dataset.kind === "icon") {
+        // Only the active business type's icon is visible; the rest are staged.
+        const svg =
+          button.querySelector<SVGElement>("[data-type-icon]:not(.hidden) svg") ??
+          button.querySelector("svg");
+        if (svg) {
+          const img = await iconImage(svg, fg);
+          const inset = (size - 256) / 2;
+          ctx.drawImage(img, inset, inset, 256, 256);
+        }
+      } else {
+        const initials = button.querySelector("[data-initials]")?.textContent?.trim() || "OL";
+        ctx.fillStyle = fg;
+        ctx.font = `600 ${initials.length > 1 ? 200 : 260}px Geist, Inter, system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        // Optical centring: text baselines sit low inside the em box.
+        ctx.fillText(initials, size / 2, size / 2 + size * 0.02);
+      }
+
+      return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const blob = await render(button);
+        if (!blob) return;
+        buttons.forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+        const file = new File([blob], "logo.png", { type: "image/png" });
+        root.dispatchEvent(
+          new CustomEvent("logo-preset", {
+            detail: { file, previewUrl: URL.createObjectURL(blob) },
+            bubbles: true,
+          }),
+        );
+      });
+    });
+
+    // The monogram follows the business name while it is still being typed.
+    root.addEventListener("presets-name", (e) => {
+      const initials = initialsFor((e as CustomEvent<string>).detail || "");
+      root.querySelectorAll("[data-initials]").forEach((el) => {
+        el.textContent = initials;
+      });
+    });
+
+    /** Follow the business-type select so the symbol matches the trade. */
+    root.addEventListener("presets-type", (e) => {
+      const type = (e as CustomEvent<string>).detail;
+      root.querySelectorAll<HTMLElement>("[data-type-icon]").forEach((el) => {
+        const active = el.dataset.typeIcon === type;
+        el.classList.toggle("hidden", !active);
+        el.classList.toggle("flex", active);
+      });
+    });
+
+    /** Clear the selection when the owner picks a photo instead. */
+    root.addEventListener("presets-clear", () => {
+      buttons.forEach((b) => b.setAttribute("aria-pressed", "false"));
+    });
+  });
+</script>
