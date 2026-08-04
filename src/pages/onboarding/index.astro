@@ -3,6 +3,7 @@ import { Icon } from "astro-icon/components";
 import AuthLayout from "@/layouts/AuthLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import Stepper from "@/components/onboarding/Stepper.astro";
+import LogoPresets from "@/components/dashboard/LogoPresets.astro";
 
 // Step 1 of onboarding. POST /api/businesses creates the Clerk org + business
 // and sets the business cookie; we then activate the org client-side and move on
@@ -57,6 +58,11 @@ const businessTypes = [
                 <Button type="button" variant="secondary" size="sm" icon="lucide:upload" id="logo-btn" class="self-start">Subir logo</Button>
                 <p class="text-xs text-text-muted">PNG, JPG o WebP · máx 5 MB.</p>
               </div>
+            </div>
+            {/* Owners without a logo yet can start with a generated mark; the
+                monogram follows the name field as it is typed. */}
+            <div class="mt-4">
+              <LogoPresets label="¿Aún no tienes logo? Elige uno" />
             </div>
           </div>
         </section>
@@ -209,9 +215,19 @@ const businessTypes = [
   // ─────────────────────────────────────────────────────────────────────────
 
   // ── Logo picker (stored on the Clerk organization after creation) ─────────
+  // The org does not exist until the business is created, so whichever logo the
+  // owner chooses — their own photo or a generated preset — is held here and
+  // applied once setActive() has run.
   const logoInput = document.getElementById("logo") as HTMLInputElement | null;
   const logoPreview = document.getElementById("logo-preview") as HTMLElement | null;
+  const presetsRoot = document.querySelector<HTMLElement>("[data-logo-presets]");
   const MAX_LOGO = 5 * 1024 * 1024;
+  let pendingLogo: File | null = null;
+
+  function showLogoPreview(url: string) {
+    if (!logoPreview) return;
+    logoPreview.innerHTML = `<img src="${url}" alt="Logo" class="size-full object-cover" />`;
+  }
 
   document.getElementById("logo-btn")?.addEventListener("click", () => logoInput?.click());
   logoInput?.addEventListener("change", () => {
@@ -224,10 +240,30 @@ const businessTypes = [
       return;
     }
     errEl.classList.add("hidden");
-    if (logoPreview) {
-      const url = URL.createObjectURL(file);
-      logoPreview.innerHTML = `<img src="${url}" alt="Logo" class="size-full object-cover" />`;
-    }
+    pendingLogo = file;
+    // A real photo wins over a preset the owner may have clicked first.
+    presetsRoot?.dispatchEvent(new CustomEvent("presets-clear"));
+    showLogoPreview(URL.createObjectURL(file));
+  });
+
+  document.addEventListener("logo-preset", (e) => {
+    const { file, previewUrl } = (e as CustomEvent<{ file: File; previewUrl: string }>).detail;
+    errEl.classList.add("hidden");
+    pendingLogo = file;
+    if (logoInput) logoInput.value = "";
+    showLogoPreview(previewUrl);
+  });
+
+  // Keep the tiles in step with the fields they are derived from.
+  document.getElementById("name")?.addEventListener("input", (e) => {
+    presetsRoot?.dispatchEvent(
+      new CustomEvent("presets-name", { detail: (e.target as HTMLInputElement).value }),
+    );
+  });
+  document.getElementById("business_type")?.addEventListener("change", (e) => {
+    presetsRoot?.dispatchEvent(
+      new CustomEvent("presets-type", { detail: (e.target as HTMLSelectElement).value }),
+    );
   });
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -280,10 +316,21 @@ const businessTypes = [
       }
 
       // Store the logo on the Clerk organization (best-effort; never block).
-      const logoFile = logoInput?.files?.[0];
+      // The storefront reads business.logo_url, and no webhook syncs the org
+      // image back, so mirror the resulting URL onto the business too —
+      // otherwise the logo exists in Clerk but never renders.
+      const logoFile = pendingLogo;
       if (logoFile && clerk?.organization?.setLogo) {
         try {
-          await clerk.organization.setLogo({ file: logoFile });
+          const org = await clerk.organization.setLogo({ file: logoFile });
+          const imageUrl = org?.imageUrl || clerk.organization.imageUrl;
+          if (imageUrl && data.id) {
+            await fetch(`/api/businesses/${data.id}`, {
+              method: "PATCH",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ ...payload, logo_url: imageUrl }),
+            });
+          }
         } catch {
           /* logo upload is non-critical; the owner can set it later */
         }

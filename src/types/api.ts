@@ -83,12 +83,6 @@ export interface Product {
   slug: string;
   description: string;
   brand?: string;
-  /**
-   * Storefront image. On writes: omit (or send null) to leave the current image
-   * alone, send "" to remove it — the API can't tell an omitted field from an
-   * explicit null, so it treats both as "unchanged".
-   */
-  image_url?: string | null;
   unit: string;
   product_type: string;
   is_handmade?: boolean;
@@ -108,6 +102,12 @@ export interface Variant {
   internal_code?: string;
   name: string;
   attributes?: Record<string, unknown>;
+  /**
+   * Storefront image, owned by the variant. On writes: omit (or send null) to
+   * leave the current image alone, send "" to remove it — the API can't tell an
+   * omitted field from an explicit null, so it treats both as "unchanged".
+   */
+  image_url?: string | null;
   price: string;
   cost?: string;
   currency: string;

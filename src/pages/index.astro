@@ -108,6 +108,7 @@ const stats = [
               name={b.name}
               type={humanize(b.business_type)}
               neighborhood={b.neighborhood ?? b.city}
+              logoUrl={b.logo_url}
               tags={[
                 b.pickup_available ? "Recoge en tienda" : null,
                 b.delivery_available ? "Envío" : null,
