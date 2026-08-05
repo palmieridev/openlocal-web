@@ -94,6 +94,7 @@ export interface ServiceAreaFormRow {
 
 /** Mexico-first: the owner forms only ever ask for the narrower fields. */
 export const DEFAULT_COUNTRY = "MX";
+export const MAX_SERVICE_AREAS = 20;
 
 export function emptyServiceAreaRow(country = DEFAULT_COUNTRY): ServiceAreaFormRow {
   return {
@@ -157,11 +158,23 @@ export function serviceAreaRows(areas: ServiceArea[] | null | undefined): Servic
   return rows.length > 0 ? rows : [emptyServiceAreaRow()];
 }
 
-/** Identity of an area for de-duplication (country+state+…, case-insensitive). */
+/** Match the API's accent-insensitive search-key normalization. */
+function searchKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Identity of an area for de-duplication (country+state+…, API-normalized). */
 function areaKey(row: ServiceAreaFormRow): string {
-  return [row.country, row.state, row.municipality, row.city, row.neighborhood, row.postal_code]
-    .map((value) => value.toLowerCase())
-    .join("|");
+  const geography = [row.country, row.state, row.municipality, row.city, row.neighborhood]
+    .map(searchKey);
+  const postalCode = row.postal_code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  return [...geography, postalCode].join("|");
 }
 
 /** Drop repeated geographies, keeping the first (and its name). */
@@ -195,6 +208,9 @@ export function validateServiceAreas(
 
   if (filled.length === 0) {
     return "Agrega al menos una zona de servicio (estado y, si aplica, municipio o colonia).";
+  }
+  if (filled.length > MAX_SERVICE_AREAS) {
+    return `Puedes agregar hasta ${MAX_SERVICE_AREAS} zonas de servicio.`;
   }
 
   for (const [index, row] of filled.entries()) {

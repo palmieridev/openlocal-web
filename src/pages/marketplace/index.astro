@@ -14,6 +14,7 @@ import {
   emptyShopperArea,
   isShopperAreaEmpty,
   parseShopperArea,
+  SHOPPER_AREA_KEYS,
   shopperAreaLabel,
   shopperAreaQuery,
   shopperAreaSearchParams,
@@ -88,11 +89,17 @@ const markers = mapBusinesses
   }));
 
 const filters = [
-  { label: "Hecho a mano", q: "handmade" },
+  { label: "Hecho a mano", href: contextualSearchHref("handmade") },
   { label: "Recoge en tienda", icon: "lucide:shopping-bag" },
   { label: "En stock", icon: "lucide:check" },
   { label: "Envío", icon: "lucide:truck" },
 ];
+
+function contextualSearchHref(nextQuery: string): string {
+  const params = shopperAreaSearchParams(area, new URLSearchParams({ q: nextQuery }));
+  if (mapOpen) params.set("map", "1");
+  return `/marketplace?${params}`;
+}
 
 /** The fields of the area form, narrowest last so the labels read in order. */
 const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: string }> = [
@@ -119,6 +126,9 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
             class="w-full bg-transparent text-sm outline-none placeholder:text-text-muted"
           />
         </div>
+        {areaActive && SHOPPER_AREA_KEYS.map((key) => (
+          area[key] && <input type="hidden" name={key} value={area[key]} />
+        ))}
         {mapOpen && <input type="hidden" name="map" value="1" />}
         <button
           type="submit"
@@ -151,7 +161,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
         )}
         {filters.map((f) => (
           <a
-            href={f.q ? `/marketplace?q=${f.q}` : "#"}
+            href={f.href ?? "#"}
             class="flex items-center gap-1.5 rounded-full border border-border bg-surface-card px-3 py-1.5 text-[13px] font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
           >
             {f.icon && <Icon name={f.icon} width={14} height={14} class="text-accent" />}
@@ -358,7 +368,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
   function fill(area: Record<string, string>) {
     for (const key of SHOPPER_AREA_KEYS) {
       const input = document.getElementById(`area-${key}`) as HTMLInputElement | null;
-      if (input && area[key]) input.value = area[key];
+      if (input) input.value = area[key] || "";
     }
   }
 

@@ -111,10 +111,10 @@ describe("serviceAreaRows", () => {
 
   it("maps null geographies back to empty strings", () => {
     const areas: ServiceArea[] = [
-      { name: null, country: "MX", state: "CDMX", municipality: null, city: null, neighborhood: "Roma Norte", postal_code: null },
+      { name: "Zona Roma", country: "MX", state: "CDMX", municipality: null, city: null, neighborhood: "Roma Norte", postal_code: null },
     ];
     expect(serviceAreaRows(areas)).toEqual([
-      row({ country: "MX", state: "CDMX", neighborhood: "Roma Norte" }),
+      row({ name: "Zona Roma", country: "MX", state: "CDMX", neighborhood: "Roma Norte" }),
     ]);
   });
 });
@@ -164,6 +164,13 @@ describe("validateServiceAreas", () => {
     // leftover must not block an unrelated profile save.
     expect(validateServiceAreas([row({ city: "Toluca" })], "fixed")).toBeNull();
   });
+
+  it("enforces the API's 20-area limit", () => {
+    const rows = Array.from({ length: 21 }, (_, index) =>
+      row({ name: `Zona ${index + 1}`, state: "CDMX", municipality: `Alcaldía ${index + 1}` }),
+    );
+    expect(validateServiceAreas(rows, "mobile")).toMatch(/hasta 20 zonas/i);
+  });
 });
 
 describe("dedupeServiceAreaRows", () => {
@@ -175,6 +182,14 @@ describe("dedupeServiceAreaRows", () => {
     expect(dedupeServiceAreaRows(rows)).toEqual([
       row({ name: "Centro", state: "CDMX", city: "Ciudad de México" }),
     ]);
+  });
+
+  it("uses the API's accent and postal-code normalization", () => {
+    const rows = [
+      row({ name: "Primera", state: "México", municipality: "Coyoacán", postal_code: "04 000" }),
+      row({ name: "Segunda", state: "mexico", municipality: "coyoacan", postal_code: "04000" }),
+    ];
+    expect(dedupeServiceAreaRows(rows)).toEqual([rows[0]]);
   });
 });
 
@@ -258,6 +273,7 @@ describe("serviceAreaRowName", () => {
 
 describe("serviceAreaLabel", () => {
   const area = (partial: Partial<ServiceArea>): ServiceArea => ({
+    name: "",
     country: "MX",
     state: "CDMX",
     ...partial,
@@ -279,7 +295,7 @@ describe("serviceAreaLabel", () => {
   });
 
   it("falls back to the postal code alone", () => {
-    expect(serviceAreaLabel({ country: "MX", state: "", postal_code: "06700" })).toBe("CP 06700");
+    expect(serviceAreaLabel({ name: "", country: "MX", state: "", postal_code: "06700" })).toBe("CP 06700");
   });
 
   it("appends the postal code to a named geography", () => {
@@ -291,9 +307,9 @@ describe("serviceAreaLabel", () => {
 
 describe("formatServiceAreas", () => {
   const areas: ServiceArea[] = [
-    { country: "MX", state: "CDMX", neighborhood: "Roma Norte" },
-    { country: "MX", state: "CDMX", neighborhood: "Condesa" },
-    { country: "MX", state: "CDMX", neighborhood: "Del Valle" },
+    { name: "", country: "MX", state: "CDMX", neighborhood: "Roma Norte" },
+    { name: "", country: "MX", state: "CDMX", neighborhood: "Condesa" },
+    { name: "", country: "MX", state: "CDMX", neighborhood: "Del Valle" },
   ];
 
   it("summarises with an overflow counter", () => {

@@ -40,18 +40,14 @@ export type LocationMode = "fixed" | "mobile" | "hybrid";
  * as narrow as one neighborhood.
  */
 export interface ServiceArea {
-  id?: string;
-  business_id?: string;
-  /** Owner-facing label ("Zona centro"). Null when the owner didn't name it. */
-  name?: string | null;
+  /** Owner-facing label ("Zona centro"); required by the API. */
+  name: string;
   country: string;
   state: string;
   municipality?: string | null;
   city?: string | null;
   neighborhood?: string | null;
   postal_code?: string | null;
-  created_at?: string;
-  updated_at?: string;
 }
 
 /** A business profile. Private fields are only present on authorized reads. */
