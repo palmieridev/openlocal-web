@@ -18,8 +18,8 @@ importers:
         specifier: ^10.0.8
         version: 10.0.8(astro@6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0))(rollup@4.62.2)
       '@clerk/astro':
-        specifier: ^3.4.7
-        version: 3.4.7(astro@6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0))
+        specifier: ^3.4.20
+        version: 3.4.20(astro@6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0))
       '@fontsource-variable/geist':
         specifier: ^5.2.9
         version: 5.2.9
@@ -222,18 +222,18 @@ packages:
     resolution: {integrity: sha512-EYlRokl8szrP9Z25qT5aepMdBjzBvHF9ZEhzIiUBc9guz/T31EqRgvD0QSgZcpE93xiwrr+OkB4nz0BZyF6fSA==}
     engines: {node: '>= 20.12.0'}
 
-  '@clerk/astro@3.4.7':
-    resolution: {integrity: sha512-7W4g8m5x3Pn/hypHhHFL1MUsO3faxlz/ECJXr8ElPOXPT8BO52YmZK4ouhal//IaC0w1tOGosWtiDePNoViodw==}
+  '@clerk/astro@3.4.20':
+    resolution: {integrity: sha512-HKhMVWKsX2wvQSwoPJfIZ6NO24GMU0JiGvpihvsxPAHg0huExtjCsS2+K4t7qn7A0beiVrYxkuOuSYfO4KqBow==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       astro: ^4.15.0 || ^5.0.0 || ^6.0.0
 
-  '@clerk/backend@3.8.3':
-    resolution: {integrity: sha512-kVL32qvH3jB3JeXr/nimcUTzKADly4NhBhwaKBGsEHANaHFBbpNhu8TEirHiEiOPhUINql34P7bvNEdrvPBr+Q==}
+  '@clerk/backend@3.15.1':
+    resolution: {integrity: sha512-/haECiKneGkRXkedhNHYp8tK9kjDpWIf6vtWhd+zeJ+HE6a7A9UOcajLUipvbqe834iAJAewhzUretCSrhAglg==}
     engines: {node: '>=20.9.0'}
 
-  '@clerk/shared@4.21.0':
-    resolution: {integrity: sha512-/Ac4+aA6rNsDxk3UOYlzstR1WNSB32sbnwdKQZbzShp8c1bInvYGp9gxj7Y3V8CZXRWdGTvg///AsZ2qhSL4nQ==}
+  '@clerk/shared@4.26.0':
+    resolution: {integrity: sha512-CYPOxpvKuKidy4ReSf3XU3YF28kr3QlmdJuFtwlrChK/GnLJxKp54GmUYtgoh1p61IHqirWfc8MerxlUhwWLFQ==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       react: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
@@ -3397,10 +3397,10 @@ snapshots:
       fast-wrap-ansi: 0.2.2
       sisteransi: 1.0.5
 
-  '@clerk/astro@3.4.7(astro@6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0))':
+  '@clerk/astro@3.4.20(astro@6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0))':
     dependencies:
-      '@clerk/backend': 3.8.3
-      '@clerk/shared': 4.21.0
+      '@clerk/backend': 3.15.1
+      '@clerk/shared': 4.26.0
       astro: 6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0)
       nanoid: 5.1.6
       nanostores: 1.0.1
@@ -3408,16 +3408,16 @@ snapshots:
       - react
       - react-dom
 
-  '@clerk/backend@3.8.3':
+  '@clerk/backend@3.15.1':
     dependencies:
-      '@clerk/shared': 4.21.0
+      '@clerk/shared': 4.26.0
       standardwebhooks: 1.0.0
       tslib: 2.8.1
     transitivePeerDependencies:
       - react
       - react-dom
 
-  '@clerk/shared@4.21.0':
+  '@clerk/shared@4.26.0':
     dependencies:
       '@tanstack/query-core': 5.101.1
       dequal: 2.0.3
