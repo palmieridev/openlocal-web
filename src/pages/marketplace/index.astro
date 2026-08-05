@@ -41,25 +41,18 @@ const mapHref = `/marketplace?${mapParams}`;
 const clearAreaParams = shopperAreaSearchParams(emptyShopperArea(), url.searchParams);
 const clearAreaHref = `/marketplace${clearAreaParams.toString() ? `?${clearAreaParams}` : ""}`;
 
-// Map opens at street level (~zoom 16) so pins are readable. The initial data
-// window is a street-radius bbox around the default center; the island
-// re-centers on the user's geolocation client-side once it resolves.
+// Map opens at street level (~zoom 16) so pins are readable. Fetch all eligible
+// marker businesses initially: the Leaflet island fits them before geolocation
+// resolves, and it does not issue another API request when the viewport moves.
 const DEFAULT_CENTER: [number, number] = [19.4326, -99.1332]; // Mexico City
 const DEFAULT_ZOOM = 16;
-// ~0.02° ≈ a couple of streets at zoom 16 — matches the initial viewport.
-const STREET_HALF_SPAN = 0.02;
-const initialBbox = {
-  min_lat: DEFAULT_CENTER[0] - STREET_HALF_SPAN,
-  max_lat: DEFAULT_CENTER[0] + STREET_HALF_SPAN,
-  min_lng: DEFAULT_CENTER[1] - STREET_HALF_SPAN,
-  max_lng: DEFAULT_CENTER[1] + STREET_HALF_SPAN,
-};
 
 const [products, mapBusinesses, areaBusinesses] = await Promise.all([
   publicApi.searchProducts({ q, limit: 40, ...areaParams }),
-  // The map window is a bbox query; only fetch it when the map is showing.
+  // Only fetch marker candidates when the map is showing. A mobile business
+  // may be returned by an area filter, but hasMapPin excludes it below.
   mapOpen
-    ? publicApi.listBusinesses({ limit: 100, bbox: initialBbox, ...areaParams })
+    ? publicApi.listBusinesses({ limit: 100, ...areaParams })
     : Promise.resolve([]),
   // Reach list: no bbox — a mobile business has no coordinates to fall inside
   // one, so a bbox query would silently drop exactly the businesses this
@@ -419,8 +412,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           timezone: string;
         };
         const markers: Marker[] = JSON.parse(dataEl.textContent || "[]");
-        // Street-level defaults come from the SSR frontmatter via data attrs so
-        // the center/zoom stay in sync with the initial bbox fetch.
+        // Street-level defaults come from the SSR frontmatter via data attrs.
         const fallbackCenter = JSON.parse(el.dataset.center || "[19.4326,-99.1332]") as [
           number,
           number,
