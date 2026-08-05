@@ -13,7 +13,9 @@ import {
   normalizeServiceAreaRow,
   serviceAreaLabel,
   serviceAreaLabels,
+  serviceAreaRowName,
   serviceAreaRows,
+  serviceAreasFor,
   servesAtCustomerLocation,
   validateServiceAreas,
   type ServiceAreaFormRow,
@@ -139,6 +141,15 @@ describe("validateServiceAreas", () => {
     expect(validateServiceAreas([row({ city: "Toluca" })], "mobile")).toBe("Zona 1: falta el estado.");
   });
 
+  it("mirrors the API's bounds on the optional name", () => {
+    // The API answers `service_areas.name must be between 2 and 120 characters`
+    // whenever the key is present, so a one-letter name is caught here first.
+    expect(validateServiceAreas([row({ name: "A", state: "CDMX" })], "mobile")).toMatch(
+      /entre 2 y 120/,
+    );
+    expect(validateServiceAreas([row({ name: "AB", state: "CDMX" })], "mobile")).toBeNull();
+  });
+
   it("ignores blank rows around a valid one", () => {
     expect(
       validateServiceAreas(
@@ -148,8 +159,10 @@ describe("validateServiceAreas", () => {
     ).toBeNull();
   });
 
-  it("still validates stray rows left on a fixed business", () => {
-    expect(validateServiceAreas([row({ city: "Toluca" })], "fixed")).toMatch(/estado/i);
+  it("ignores stray rows left on a fixed business", () => {
+    // Those rows are never sent (serviceAreasFor returns []), so a half-filled
+    // leftover must not block an unrelated profile save.
+    expect(validateServiceAreas([row({ city: "Toluca" })], "fixed")).toBeNull();
   });
 });
 
@@ -176,7 +189,7 @@ describe("buildServiceAreasPayload", () => {
       ]),
     ).toEqual([
       {
-        name: null,
+        name: "Roma Norte, CDMX",
         country: "MX",
         state: "CDMX",
         municipality: null,
@@ -187,12 +200,59 @@ describe("buildServiceAreasPayload", () => {
     ]);
   });
 
+  it("keeps the owner's name when they gave one", () => {
+    expect(buildServiceAreasPayload([row({ name: "Zona centro", state: "CDMX" })])[0].name).toBe(
+      "Zona centro",
+    );
+  });
+
   it("keeps the country when a row omitted it", () => {
     expect(buildServiceAreasPayload([row({ country: "", state: "CDMX" })])[0].country).toBe("MX");
   });
 
   it("returns an empty array when nothing was filled in", () => {
     expect(buildServiceAreasPayload([emptyServiceAreaRow(), emptyServiceAreaRow()])).toEqual([]);
+  });
+});
+
+describe("serviceAreasFor", () => {
+  it("sends nothing for a fixed business, whatever rows linger", () => {
+    // Switching back to fixed must stop advertising a reach the business no
+    // longer offers.
+    expect(serviceAreasFor([row({ state: "CDMX", city: "Toluca" })], "fixed")).toEqual([]);
+  });
+
+  it("sends the built payload for mobile and hybrid", () => {
+    const rows = [row({ name: "Zona centro", state: "CDMX" })];
+    expect(serviceAreasFor(rows, "mobile")).toEqual(buildServiceAreasPayload(rows));
+    expect(serviceAreasFor(rows, "hybrid")).toEqual(buildServiceAreasPayload(rows));
+  });
+});
+
+describe("serviceAreaRowName", () => {
+  it("labels an unnamed row from its geography", () => {
+    // The API rejects a missing name, so naming the zone stays optional for the
+    // owner but never optional on the wire.
+    expect(serviceAreaRowName(row({ state: "CDMX", city: "Toluca", neighborhood: "Centro" }))).toBe(
+      "Centro, Toluca, CDMX",
+    );
+    expect(serviceAreaRowName(row({ state: "CDMX", municipality: "Cuauhtémoc" }))).toBe(
+      "Cuauhtémoc, CDMX",
+    );
+    expect(serviceAreaRowName(row({ state: "", postal_code: "06700" }))).toBe("CP 06700");
+  });
+
+  it("keeps a name the owner typed", () => {
+    expect(serviceAreaRowName(row({ name: "Zona centro", state: "CDMX" }))).toBe("Zona centro");
+  });
+
+  it("clamps to the API's 120-character ceiling", () => {
+    const long = "x".repeat(200);
+    expect(serviceAreaRowName(row({ name: long, state: "CDMX" }))).toHaveLength(120);
+  });
+
+  it("falls back when the geography yields nothing usable", () => {
+    expect(serviceAreaRowName(row({ state: "A" }))).toBe("Zona de servicio");
   });
 });
 

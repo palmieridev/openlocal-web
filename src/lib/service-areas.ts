@@ -187,9 +187,13 @@ export function validateServiceAreas(
   rows: ServiceAreaFormRow[],
   mode: LocationMode,
 ): string | null {
+  // A fixed business never sends its rows (see `serviceAreasFor`), so rows the
+  // owner left behind when switching back must not block the save.
+  if (!servesAtCustomerLocation(mode)) return null;
+
   const filled = rows.filter((row) => !isBlankServiceAreaRow(row)).map(normalizeServiceAreaRow);
 
-  if (servesAtCustomerLocation(mode) && filled.length === 0) {
+  if (filled.length === 0) {
     return "Agrega al menos una zona de servicio (estado y, si aplica, municipio o colonia).";
   }
 
@@ -197,20 +201,54 @@ export function validateServiceAreas(
     const label = row.name || `Zona ${index + 1}`;
     if (!row.country) return `${label}: falta el país.`;
     if (!row.state) return `${label}: falta el estado.`;
+    // Mirrors the API's own bounds; an unnamed row is labelled from its
+    // geography before it is sent, so only a name the owner typed can fail.
+    if (row.name && (row.name.length < AREA_NAME_MIN || row.name.length > AREA_NAME_MAX)) {
+      return `${label}: el nombre de la zona debe tener entre ${AREA_NAME_MIN} y ${AREA_NAME_MAX} caracteres.`;
+    }
   }
   return null;
 }
 
+/** API bounds on `service_areas.name`. */
+export const AREA_NAME_MIN = 2;
+export const AREA_NAME_MAX = 120;
+
+/**
+ * Every area needs a name the API will accept — it answers
+ * `service_areas.name must be between 2 and 120 characters` for a missing,
+ * null or one-character name. Naming a zone is optional for the owner, so an
+ * unnamed row is labelled from the geography it covers.
+ */
+export function serviceAreaRowName(row: ServiceAreaFormRow): string {
+  const derived =
+    row.name ||
+    [row.neighborhood, row.city || row.municipality, row.state].filter(Boolean).join(", ") ||
+    (row.postal_code ? `CP ${row.postal_code}` : "");
+  const name = derived.slice(0, AREA_NAME_MAX);
+  return name.length >= AREA_NAME_MIN ? name : "Zona de servicio";
+}
+
 /**
  * Editor rows → the `service_areas` array sent with POST/PATCH /businesses.
+ *
  * Blank rows are dropped and duplicates collapsed; every optional geography
  * that was left empty is sent as `null`, never `""`, because the API stores
  * these as nullable text and an empty string would read as "covers the area
- * whose city is the empty string".
+ * whose city is the empty string". `name` is always sent — see above.
  */
+/**
+ * The `service_areas` a save should carry for a mode. A fixed business has no
+ * coverage, so it always sends `[]` — otherwise rows left over from a previous
+ * mobile spell would keep advertising a reach the business no longer offers.
+ */
+export function serviceAreasFor(rows: ServiceAreaFormRow[], mode: LocationMode): ServiceArea[] {
+  return servesAtCustomerLocation(mode) ? buildServiceAreasPayload(rows) : [];
+}
+
 export function buildServiceAreasPayload(rows: ServiceAreaFormRow[]): ServiceArea[] {
   return dedupeServiceAreaRows(rows.filter((row) => !isBlankServiceAreaRow(row))).map((row) => ({
-    name: row.name || null,
+    name: serviceAreaRowName(row),
     country: row.country || DEFAULT_COUNTRY,
     state: row.state,
     municipality: row.municipality || null,

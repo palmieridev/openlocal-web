@@ -152,7 +152,7 @@ const businessTypes = [
   import "leaflet/dist/leaflet.css";
   import {
     allowsPickup,
-    buildServiceAreasPayload,
+    serviceAreasFor,
     hasFixedLocation,
     normalizeLocationMode,
     validateServiceAreas,
@@ -361,23 +361,24 @@ const businessTypes = [
     label.textContent = "Creando…";
 
     const fixed = hasFixedLocation(mode);
+    const str = (key: string) => String(fd.get(key) || "").trim();
     // A mobile business has no premises: every fixed-location field is sent as
     // null rather than as an empty string, which the API stores as a real (and
     // wrong) value. Its reach lives in service_areas instead.
     const payload: Record<string, unknown> = {
-      name: String(fd.get("name") || ""),
-      business_type: String(fd.get("business_type") || ""),
-      description: String(fd.get("description") || ""),
+      name: str("name"),
+      business_type: str("business_type"),
+      description: str("description"),
       location_mode: mode,
-      service_areas: buildServiceAreasPayload(areaRows),
-      address: fixed ? String(fd.get("address") || "") : null,
-      neighborhood: fixed ? String(fd.get("neighborhood") || "") : null,
-      city: fixed ? String(fd.get("city") || "") : null,
-      state: fixed ? String(fd.get("state") || "") : null,
+      service_areas: serviceAreasFor(areaRows, mode),
+      address: (fixed && str("address")) || null,
+      neighborhood: (fixed && str("neighborhood")) || null,
+      city: (fixed && str("city")) || null,
+      state: (fixed && str("state")) || null,
       country: fixed ? "MX" : null,
-      postal_code: fixed ? String(fd.get("postal_code") || "") : null,
-      latitude: fixed ? String(fd.get("latitude") || "") : null,
-      longitude: fixed ? String(fd.get("longitude") || "") : null,
+      postal_code: (fixed && str("postal_code")) || null,
+      latitude: (fixed && str("latitude")) || null,
+      longitude: (fixed && str("longitude")) || null,
       whatsapp: String(fd.get("whatsapp") || ""),
       pickup_available: allowsPickup(mode) && fd.get("pickup_available") === "on",
       delivery_available: fd.get("delivery_available") === "on",

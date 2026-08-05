@@ -370,7 +370,7 @@ const lng = text(business?.longitude);
   import { buildHoursPayload, validateHoursRows, type HoursFormRow } from "@/lib/hours";
   import {
     allowsPickup,
-    buildServiceAreasPayload,
+    serviceAreasFor,
     hasFixedLocation,
     normalizeLocationMode,
     validateServiceAreas,
@@ -622,16 +622,18 @@ const lng = text(business?.longitude);
         email: str("email"),
         website: str("website"),
         location_mode: mode,
-        service_areas: buildServiceAreasPayload(areaRows),
+        service_areas: serviceAreasFor(areaRows, mode),
         // Switching to mobile clears the premises: send explicit nulls so the
         // old address and pin stop being served, rather than lingering as
-        // stale data behind a mode that says there is no location.
-        address: fixed ? str("address") : null,
-        neighborhood: fixed ? str("neighborhood") : null,
-        city: fixed ? str("city") : null,
-        state: fixed ? str("state") : null,
+        // stale data behind a mode that says there is no location. A blank
+        // field is null too — the API stores these as nullable text, and an
+        // empty string would read as a real (empty) value.
+        address: (fixed && str("address")) || null,
+        neighborhood: (fixed && str("neighborhood")) || null,
+        city: (fixed && str("city")) || null,
+        state: (fixed && str("state")) || null,
         country: fixed ? str("country") || "MX" : null,
-        postal_code: fixed ? str("postal_code") : null,
+        postal_code: (fixed && str("postal_code")) || null,
         pickup_available: allowsPickup(mode) && fd.get("pickup_available") === "on",
         delivery_available: fd.get("delivery_available") === "on",
       };
