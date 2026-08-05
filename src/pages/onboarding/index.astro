@@ -4,6 +4,7 @@ import AuthLayout from "@/layouts/AuthLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import Stepper from "@/components/onboarding/Stepper.astro";
 import LogoPresets from "@/components/dashboard/LogoPresets.astro";
+import ServiceAreaEditor from "@/components/dashboard/ServiceAreaEditor.astro";
 
 // Step 1 of onboarding. POST /api/businesses creates the Clerk org + business
 // and sets the business cookie; we then activate the org client-side and move on
@@ -67,7 +68,10 @@ const businessTypes = [
           </div>
         </section>
 
-        <section class="flex flex-col gap-4">
+        {/* Location mode + service areas. Drives which fields below apply. */}
+        <ServiceAreaEditor mode="fixed" />
+
+        <section class="flex flex-col gap-4" data-fixed-only>
           <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Ubicación</h2>
           <p class="-mt-2 text-sm text-text-secondary">
             Arrastra el marcador a la ubicación de tu negocio. Así apareces en el mapa del marketplace.
@@ -116,13 +120,19 @@ const businessTypes = [
             <label class="ol-label" for="whatsapp">WhatsApp</label>
             <input class="ol-input" id="whatsapp" name="whatsapp" inputmode="tel" placeholder="+52 55 1234 5678" />
           </div>
-          <div class="flex gap-6">
-            <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="pickup_available" checked /> Recoge en tienda
+          <div class="flex flex-col gap-2">
+            {/* Pickup needs premises — the script disables it for a mobile
+                business. Delivery stays available in every mode: shipping a
+                package is not the same as working at the customer's address. */}
+            <label class="flex items-center gap-2 text-sm text-text-secondary" data-pickup-label>
+              <input type="checkbox" name="pickup_available" id="pickup_available" checked /> Recoge en tienda
             </label>
             <label class="flex items-center gap-2 text-sm text-text-secondary">
               <input type="checkbox" name="delivery_available" /> Envío a domicilio
             </label>
+            <p class="hidden text-xs text-text-muted" data-pickup-note>
+              Un negocio móvil no tiene local, así que no se ofrece recoger en tienda.
+            </p>
           </div>
         </section>
       </div>
@@ -140,11 +150,65 @@ const businessTypes = [
 <script>
   import L from "leaflet";
   import "leaflet/dist/leaflet.css";
+  import {
+    allowsPickup,
+    buildServiceAreasPayload,
+    hasFixedLocation,
+    normalizeLocationMode,
+    validateServiceAreas,
+    type ServiceAreaFormRow,
+  } from "@/lib/service-areas";
+  import type { LocationMode } from "@/types/api";
 
   const form = document.getElementById("biz-form") as HTMLFormElement;
   const errEl = document.getElementById("biz-error") as HTMLElement;
   const btn = document.getElementById("biz-submit") as HTMLButtonElement;
   const label = btn?.querySelector("[data-label]") as HTMLElement;
+
+  // ── Location mode ────────────────────────────────────────────────────────
+  // The editor component owns the radios and the service-area rows; the page
+  // reacts by hiding the address picker and disabling pickup when there is no
+  // physical location to pick up from.
+  let locationMode: LocationMode = "fixed";
+  const pickupEl = document.getElementById("pickup_available") as HTMLInputElement | null;
+  const pickupLabel = document.querySelector<HTMLElement>("[data-pickup-label]");
+  const pickupNote = document.querySelector<HTMLElement>("[data-pickup-note]");
+
+  function applyLocationMode(mode: LocationMode) {
+    locationMode = mode;
+    const fixed = hasFixedLocation(mode);
+    document.querySelectorAll<HTMLElement>("[data-fixed-only]").forEach((el) => {
+      el.hidden = !fixed;
+    });
+    if (pickupEl) {
+      pickupEl.disabled = !allowsPickup(mode);
+      if (pickupEl.disabled) pickupEl.checked = false;
+    }
+    pickupLabel?.classList.toggle("opacity-50", !allowsPickup(mode));
+    pickupNote?.classList.toggle("hidden", allowsPickup(mode));
+  }
+
+  document.addEventListener("location-mode-change", (event) => {
+    applyLocationMode((event as CustomEvent<{ mode: LocationMode }>).detail.mode);
+  });
+
+  // The editor's own startup event may fire before this listener exists, so
+  // take the initial mode straight off its root element.
+  applyLocationMode(
+    normalizeLocationMode(
+      document.querySelector<HTMLElement>("[data-location-editor]")?.dataset.mode,
+    ),
+  );
+
+  /** Rows the service-area editor serialized into the hidden field. */
+  function readServiceAreaRows(fd: FormData): ServiceAreaFormRow[] {
+    try {
+      const parsed = JSON.parse(String(fd.get("service_areas") || "[]"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
 
   // ── Location picker ──────────────────────────────────────────────────────
   const latEl = document.getElementById("latitude") as HTMLInputElement;
@@ -271,10 +335,24 @@ const businessTypes = [
     e.preventDefault();
     errEl.classList.add("hidden");
 
-    if (!latEl.value || !lngEl.value) {
-      errEl.textContent = "Marca la ubicación de tu negocio en el mapa.";
+    const fd = new FormData(form);
+    const mode = normalizeLocationMode(fd.get("location_mode") ?? locationMode);
+    const areaRows = readServiceAreaRows(fd);
+
+    const fail = (message: string, scrollTo?: Element | null) => {
+      errEl.textContent = message;
       errEl.classList.remove("hidden");
-      mapEl?.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollTo?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
+    // A fixed or hybrid business is placed on the map, so it needs a pin.
+    if (hasFixedLocation(mode) && (!latEl.value || !lngEl.value)) {
+      fail("Marca la ubicación de tu negocio en el mapa.", mapEl);
+      return;
+    }
+    const areaProblem = validateServiceAreas(areaRows, mode);
+    if (areaProblem) {
+      fail(areaProblem, document.querySelector("[data-location-editor]"));
       return;
     }
 
@@ -282,20 +360,26 @@ const businessTypes = [
     const original = label.textContent;
     label.textContent = "Creando…";
 
-    const fd = new FormData(form);
-    const payload = {
+    const fixed = hasFixedLocation(mode);
+    // A mobile business has no premises: every fixed-location field is sent as
+    // null rather than as an empty string, which the API stores as a real (and
+    // wrong) value. Its reach lives in service_areas instead.
+    const payload: Record<string, unknown> = {
       name: String(fd.get("name") || ""),
       business_type: String(fd.get("business_type") || ""),
       description: String(fd.get("description") || ""),
-      address: String(fd.get("address") || ""),
-      neighborhood: String(fd.get("neighborhood") || ""),
-      city: String(fd.get("city") || ""),
-      state: String(fd.get("state") || ""),
-      postal_code: String(fd.get("postal_code") || ""),
-      latitude: String(fd.get("latitude") || ""),
-      longitude: String(fd.get("longitude") || ""),
+      location_mode: mode,
+      service_areas: buildServiceAreasPayload(areaRows),
+      address: fixed ? String(fd.get("address") || "") : null,
+      neighborhood: fixed ? String(fd.get("neighborhood") || "") : null,
+      city: fixed ? String(fd.get("city") || "") : null,
+      state: fixed ? String(fd.get("state") || "") : null,
+      country: fixed ? "MX" : null,
+      postal_code: fixed ? String(fd.get("postal_code") || "") : null,
+      latitude: fixed ? String(fd.get("latitude") || "") : null,
+      longitude: fixed ? String(fd.get("longitude") || "") : null,
       whatsapp: String(fd.get("whatsapp") || ""),
-      pickup_available: fd.get("pickup_available") === "on",
+      pickup_available: allowsPickup(mode) && fd.get("pickup_available") === "on",
       delivery_available: fd.get("delivery_available") === "on",
       status: "active",
     };

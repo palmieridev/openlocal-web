@@ -1,0 +1,246 @@
+---
+import { Icon } from "astro-icon/components";
+import {
+  DEFAULT_COUNTRY,
+  LOCATION_MODES,
+  LOCATION_MODE_META,
+  normalizeLocationMode,
+  serviceAreaRows,
+  servesAtCustomerLocation,
+} from "@/lib/service-areas";
+import type { LocationMode, ServiceArea } from "@/types/api";
+
+/**
+ * Location mode + service areas, shared by onboarding and dashboard settings.
+ *
+ * The component owns two form values:
+ *   - `location_mode` (radio group)
+ *   - `service_areas` (hidden input, JSON array of editor rows)
+ *
+ * The host page reads both off its own FormData and validates them with
+ * `validateServiceAreas` / `buildServiceAreasPayload`. Mode changes are also
+ * announced as a `location-mode-change` event on `document`, so the page can
+ * show or hide its address picker and disable pickup for a mobile business.
+ */
+interface Props {
+  mode?: LocationMode | string | null;
+  areas?: ServiceArea[] | null;
+  /** Rendered inside the host's <form>; no id juggling needed. */
+  class?: string;
+}
+
+const { mode: rawMode, areas, class: extra = "" } = Astro.props;
+const mode = normalizeLocationMode(rawMode);
+const rows = serviceAreaRows(areas);
+const areasVisible = servesAtCustomerLocation(mode);
+---
+
+<section
+  class:list={["flex flex-col gap-4", extra]}
+  data-location-editor
+  data-mode={mode}
+  data-default-country={DEFAULT_COUNTRY}
+>
+  <div class="flex flex-col gap-1">
+    <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">
+      ¿Cómo atiendes a tus clientes?
+    </h2>
+    <p class="text-sm text-text-secondary">
+      Elige cómo llegas a tus clientes. Los negocios móviles no aparecen con un pin en el mapa:
+      se muestran por las zonas donde dan servicio.
+    </p>
+  </div>
+
+  <div class="grid gap-2 sm:grid-cols-3">
+    {LOCATION_MODES.map((value) => {
+      const meta = LOCATION_MODE_META[value];
+      return (
+        <label
+          class="flex cursor-pointer flex-col gap-1 rounded-xl border border-border bg-surface-card p-3 transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent-soft"
+          data-mode-option={value}
+        >
+          <span class="flex items-center gap-2 text-sm font-semibold">
+            <input
+              type="radio"
+              name="location_mode"
+              value={value}
+              checked={value === mode}
+              data-mode-input
+              class="sr-only"
+            />
+            <Icon name={meta.icon} width={16} height={16} class="text-accent" />
+            {meta.label}
+          </span>
+          <span class="text-xs text-text-secondary">{meta.description}</span>
+        </label>
+      );
+    })}
+  </div>
+
+  <div
+    class="flex flex-col gap-3"
+    data-areas-panel
+    hidden={!areasVisible}
+  >
+    <div class="flex flex-col gap-1">
+      <h3 class="text-sm font-semibold">Zonas de servicio</h3>
+      <p class="text-sm text-text-secondary">
+        Dónde puedes dar servicio. El estado es obligatorio; municipio, ciudad, colonia y CP son
+        opcionales — déjalos vacíos para cubrir un área más amplia.
+      </p>
+    </div>
+
+    <div class="flex flex-col gap-3" data-area-rows>
+      {rows.map((row, index) => (
+        <div class="flex flex-col gap-3 rounded-xl border border-border bg-surface-card p-3" data-area-row>
+          <div class="flex items-center gap-2">
+            <input
+              class="ol-input flex-1"
+              data-area-field="name"
+              value={row.name}
+              placeholder={`Nombre de la zona (opcional) — ej. Zona ${index + 1}`}
+              aria-label="Nombre de la zona"
+            />
+            <input type="hidden" data-area-field="country" value={row.country || DEFAULT_COUNTRY} />
+            <button
+              type="button"
+              class="shrink-0 rounded-lg border border-border p-2 text-text-muted transition-colors hover:border-danger hover:text-danger"
+              data-area-remove
+              aria-label="Quitar zona"
+            >
+              <Icon name="lucide:trash-2" width={15} height={15} />
+            </button>
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label class="ol-label">Estado *</label>
+              <input class="ol-input" data-area-field="state" value={row.state} placeholder="CDMX" />
+            </div>
+            <div>
+              <label class="ol-label">Municipio / alcaldía</label>
+              <input class="ol-input" data-area-field="municipality" value={row.municipality} placeholder="Cuauhtémoc" />
+            </div>
+            <div>
+              <label class="ol-label">Ciudad</label>
+              <input class="ol-input" data-area-field="city" value={row.city} placeholder="Ciudad de México" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="ol-label">Colonia</label>
+                <input class="ol-input" data-area-field="neighborhood" value={row.neighborhood} placeholder="Roma Norte" />
+              </div>
+              <div>
+                <label class="ol-label">CP</label>
+                <input class="ol-input" data-area-field="postal_code" value={row.postal_code} inputmode="numeric" placeholder="06700" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    <button
+      type="button"
+      class="self-start text-sm font-medium text-accent hover:underline"
+      data-area-add
+    >
+      + Agregar otra zona
+    </button>
+  </div>
+
+  {/* Serialized rows, read by the host page from its own FormData. */}
+  <input type="hidden" name="service_areas" data-areas-json value="[]" />
+</section>
+
+<script>
+  import { emptyServiceAreaRow, normalizeLocationMode, servesAtCustomerLocation } from "@/lib/service-areas";
+
+  const root = document.querySelector<HTMLElement>("[data-location-editor]");
+  if (root) {
+    const AREA_FIELDS = [
+      "name",
+      "country",
+      "state",
+      "municipality",
+      "city",
+      "neighborhood",
+      "postal_code",
+    ] as const;
+
+    const rowsEl = root.querySelector<HTMLElement>("[data-area-rows]")!;
+    const panel = root.querySelector<HTMLElement>("[data-areas-panel]")!;
+    const jsonEl = root.querySelector<HTMLInputElement>("[data-areas-json]")!;
+    const defaultCountry = root.dataset.defaultCountry || "MX";
+
+    const rowEls = () => [...rowsEl.querySelectorAll<HTMLElement>("[data-area-row]")];
+
+    /** DOM rows → the JSON the host page validates and sends. */
+    function serialize() {
+      const rows = rowEls().map((row) => {
+        const values = { ...emptyServiceAreaRow(defaultCountry) };
+        for (const field of AREA_FIELDS) {
+          const input = row.querySelector<HTMLInputElement>(`[data-area-field="${field}"]`);
+          if (input) values[field] = input.value;
+        }
+        return values;
+      });
+      jsonEl.value = JSON.stringify(rows);
+    }
+
+    function currentMode() {
+      const checked = root!.querySelector<HTMLInputElement>("[data-mode-input]:checked");
+      return normalizeLocationMode(checked?.value);
+    }
+
+    /**
+     * Keep the panel, the root's data-mode and the page in step. The page uses
+     * the event to hide its address picker and to disable pickup, which a
+     * business without premises can't offer.
+     */
+    function applyMode() {
+      const mode = currentMode();
+      root!.dataset.mode = mode;
+      panel.hidden = !servesAtCustomerLocation(mode);
+      document.dispatchEvent(new CustomEvent("location-mode-change", { detail: { mode } }));
+    }
+
+    root.querySelectorAll<HTMLInputElement>("[data-mode-input]").forEach((input) => {
+      input.addEventListener("change", applyMode);
+    });
+
+    // Any edit inside a row re-serializes; delegation keeps added rows working.
+    rowsEl.addEventListener("input", serialize);
+    rowsEl.addEventListener("change", serialize);
+
+    rowsEl.addEventListener("click", (event) => {
+      const button = (event.target as HTMLElement).closest("[data-area-remove]");
+      if (!button) return;
+      const rows = rowEls();
+      // Always leave one row standing: an empty editor gives owners nothing to
+      // type into, and a blank row is dropped from the payload anyway.
+      if (rows.length === 1) {
+        rows[0]
+          .querySelectorAll<HTMLInputElement>("[data-area-field]")
+          .forEach((input) => {
+            if (input.dataset.areaField !== "country") input.value = "";
+          });
+      } else {
+        button.closest("[data-area-row]")?.remove();
+      }
+      serialize();
+    });
+
+    root.querySelector("[data-area-add]")?.addEventListener("click", () => {
+      const clone = rowEls()[0].cloneNode(true) as HTMLElement;
+      clone.querySelectorAll<HTMLInputElement>("[data-area-field]").forEach((input) => {
+        input.value = input.dataset.areaField === "country" ? defaultCountry : "";
+      });
+      rowsEl.appendChild(clone);
+      clone.querySelector<HTMLInputElement>('[data-area-field="state"]')?.focus();
+      serialize();
+    });
+
+    serialize();
+    applyMode();
+  }
+</script>
