@@ -2,6 +2,7 @@ import { PUBLIC_API_BASE_URL } from "astro:env/client";
 import type {
   ABCRow,
   Business,
+  BusinessHours,
   LowStockRow,
   MarketplaceProduct,
   Product,
@@ -79,17 +80,43 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   }
 }
 
-export interface ListBusinessesParams {
+/**
+ * Geography filter shared by the marketplace endpoints. Every field is
+ * optional and narrows the result: a mobile business matches when one of its
+ * service areas covers the requested geography, a fixed one when its own
+ * address does.
+ */
+export interface AreaParams {
+  country?: string;
+  state?: string;
+  municipality?: string;
   city?: string;
+  neighborhood?: string;
+  postal_code?: string;
+}
+
+export interface ListBusinessesParams extends AreaParams {
   bbox?: { min_lat: number; max_lat: number; min_lng: number; max_lng: number };
   limit?: number;
   offset?: number;
 }
 
-export interface SearchProductsParams {
+export interface SearchProductsParams extends AreaParams {
   q?: string;
   limit?: number;
   offset?: number;
+}
+
+/** Pick just the geography keys, so callers can spread a wider params object. */
+function areaQuery(params: AreaParams): AreaParams {
+  return {
+    country: params.country,
+    state: params.state,
+    municipality: params.municipality,
+    city: params.city,
+    neighborhood: params.neighborhood,
+    postal_code: params.postal_code,
+  };
 }
 
 /**
@@ -102,7 +129,7 @@ export const publicApi = {
       () =>
         apiFetch<Business[]>("/api/v1/marketplace/businesses", {
           query: {
-            city: params.city,
+            ...areaQuery(params),
             limit: params.limit ?? 25,
             offset: params.offset ?? 0,
             ...params.bbox,
@@ -118,6 +145,7 @@ export const publicApi = {
         apiFetch<MarketplaceProduct[]>("/api/v1/marketplace/search", {
           query: {
             q: params.q,
+            ...areaQuery(params),
             limit: params.limit ?? 25,
             offset: params.offset ?? 0,
           },
@@ -158,6 +186,7 @@ export function authedApi(token: string, businessId: string) {
 
   return {
     getBusiness: () => apiFetch<Business>(`/api/v1/businesses/${businessId}`, { token }),
+    getHours: () => apiFetch<BusinessHours>(`/api/v1/businesses/${businessId}/hours`, { token }),
     listProducts: (limit = 100, offset = 0) =>
       scoped<Product[]>("/api/v1/products", { limit: clampLimit(limit), offset }),
     getProduct: (id: string) =>

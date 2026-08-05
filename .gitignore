@@ -26,3 +26,11 @@ pnpm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Agents
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+.claude/
+.agents/
+openlocal.pen

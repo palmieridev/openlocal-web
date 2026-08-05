@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+
+# One run per branch/PR; new pushes cancel the stale run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: check · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Reads the pnpm version from package.json "packageManager".
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (astro check)
+        run: pnpm check
+
+      - name: Unit tests (vitest)
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  # Build + push the homelab dev image after CI passes on dev pushes only.
+  # Prod is served by Vercel from source, so this never runs for main or PRs.
+  docker:
+    name: build & push :dev
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/openlocal-web
+      # Baked into the client bundle. Both are public by design:
+      # the API host is a LAN name and pk_test is a publishable Clerk key.
+      PUBLIC_API_BASE_URL: http://api.openlocal-dev.home
+      PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZGV2b3RlZC1iYWRnZXItMjUuY2xlcmsuYWNjb3VudHMuZGV2JA
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            PUBLIC_API_BASE_URL=${{ env.PUBLIC_API_BASE_URL }}
+            PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          tags: |
+            ${{ env.IMAGE }}:dev
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

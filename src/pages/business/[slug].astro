@@ -4,8 +4,19 @@ import PublicLayout from "@/layouts/PublicLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
+import OpenBadge from "@/components/ui/OpenBadge.astro";
 import { publicApi } from "@/lib/api/client";
 import { text, humanize } from "@/lib/format";
+import { groupedSchedule, zonedNow } from "@/lib/hours";
+import {
+  allowsPickup,
+  businessLocationMode,
+  hasFixedLocation,
+  hasMapPin,
+  locationModeLabel,
+  serviceAreaLabels,
+  servesAtCustomerLocation,
+} from "@/lib/service-areas";
 
 const { slug } = Astro.params;
 const business = slug ? await publicApi.getBusiness(slug) : null;
@@ -16,15 +27,28 @@ if (!business) {
 
 const products = business ? await publicApi.getBusinessProducts(business.slug) : [];
 
-const hasCoords = business?.latitude && business?.longitude;
+// A mobile business has no premises: no address line, no map pin, no
+// directions. Its reach is described by its service areas instead.
+const locationMode = businessLocationMode(business);
+const showsAddress = hasFixedLocation(locationMode);
+const travels = servesAtCustomerLocation(locationMode);
+const areaLabels = travels ? serviceAreaLabels(business?.service_areas) : [];
+
+const hasCoords = hasMapPin(business);
 const lat = hasCoords ? Number(business!.latitude) : null;
 const lng = hasCoords ? Number(business!.longitude) : null;
 
-const locationLine = business
-  ? [text(business.address), text(business.neighborhood), business.city, business.state]
-      .filter(Boolean)
-      .join(", ")
-  : "";
+const locationLine =
+  business && showsAddress
+    ? [
+        text(business.address),
+        text(business.neighborhood),
+        text(business.city),
+        text(business.state),
+      ]
+        .filter(Boolean)
+        .join(", ")
+    : "";
 
 const waNumber = business?.whatsapp ?? business?.phone ?? null;
 const waHref = waNumber ? `https://wa.me/${waNumber.replace(/[^\d]/g, "")}` : null;
@@ -41,8 +65,14 @@ const dirHref = hasCoords
 const brands = [...new Set(products.map((p) => text(p.brand)).filter(Boolean))];
 
 // Small header tags from the fulfilment flags we actually have.
+// Weekly schedule is static data, so it renders server-side. Only the
+// open/closed badge is client-computed (it would go stale in a cached page).
+const schedule = business?.hours?.length ? groupedSchedule(business.hours) : [];
+const todayIndex = business?.timezone ? (zonedNow(business.timezone)?.day ?? -1) : -1;
+
 const headerTags = [
-  business?.pickup_available && "Recoge en tienda",
+  travels && locationModeLabel(locationMode),
+  business?.pickup_available && allowsPickup(locationMode) && "Recoge en tienda",
   business?.delivery_available && "Envío a domicilio",
 ].filter(Boolean) as string[];
 ---
@@ -91,6 +121,7 @@ const headerTags = [
               <div>
                 <div class="flex flex-wrap items-center gap-2">
                   <h1 class="font-heading text-2xl font-semibold">{business.name}</h1>
+                  <OpenBadge hours={business.hours} timezone={business.timezone} />
                   {business.status === "active" && (
                     <span class="inline-flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
                       <Icon name="lucide:badge-check" width={13} height={13} class="text-accent" />
@@ -103,11 +134,19 @@ const headerTags = [
                     <Icon name="lucide:tag" width={13} height={13} class="text-accent" />
                     {humanize(business.business_type)}
                   </span>
-                  {locationLine && (
+                  {locationLine ? (
                     <span class="flex items-center gap-1">
                       <Icon name="lucide:map-pin" width={13} height={13} class="text-accent" />
-                      {text(business.neighborhood) || business.city}
+                      {text(business.neighborhood) || text(business.city)}
                     </span>
+                  ) : (
+                    areaLabels.length > 0 && (
+                      <span class="flex items-center gap-1">
+                        <Icon name="lucide:truck" width={13} height={13} class="text-accent" />
+                        {areaLabels[0]}
+                        {areaLabels.length > 1 && ` +${areaLabels.length - 1}`}
+                      </span>
+                    )
                   )}
                   <span class="flex items-center gap-1">
                     <Icon name="lucide:package" width={13} height={13} class="text-accent" />
@@ -207,48 +246,120 @@ const headerTags = [
 
           {/* Aside */}
           <aside class="flex flex-col gap-4">
-            <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
-              <div class="border-b border-border px-4 py-3 text-sm font-semibold">Ubicación</div>
-              {hasCoords ? (
-                <div id="biz-map" class="h-40 w-full" data-lat={lat} data-lng={lng}></div>
-              ) : (
-                <div class="flex h-40 items-center justify-center bg-surface-secondary">
-                  <Icon name="lucide:map-pinned" class="text-accent/30" width={40} height={40} />
+            {schedule.length > 0 && (
+              <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
+                <div class="flex items-center justify-between border-b border-border px-4 py-3">
+                  <span class="text-sm font-semibold">
+                    {locationMode === "mobile" ? "Horario de atención" : "Horario"}
+                  </span>
+                  <OpenBadge hours={business.hours} timezone={business.timezone} />
                 </div>
-              )}
-              {locationLine && (
-                <div class="flex items-start gap-2 px-4 py-3 text-[13px] text-text-secondary">
-                  <Icon name="lucide:map-pin" class="mt-0.5 shrink-0 text-accent" width={15} height={15} />
-                  {locationLine}
+                <dl class="px-4 py-3 text-[13px]">
+                  {schedule.map(({ label, range, days }) => (
+                    <div
+                      class:list={[
+                        "flex items-baseline justify-between gap-3 py-1",
+                        days.includes(todayIndex)
+                          ? "font-semibold text-text-primary"
+                          : "text-text-secondary",
+                      ]}
+                    >
+                      <dt>{label}</dt>
+                      <dd class="font-data whitespace-nowrap">{range}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
+
+            {/* Address and map only for a business that has premises — a
+                mobile one would otherwise get a pin at a place that does not
+                exist. */}
+            {showsAddress && (
+              <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
+                <div class="border-b border-border px-4 py-3 text-sm font-semibold">Ubicación</div>
+                {hasCoords ? (
+                  <div id="biz-map" class="h-40 w-full" data-lat={lat} data-lng={lng}></div>
+                ) : (
+                  <div class="flex h-40 items-center justify-center bg-surface-secondary">
+                    <Icon name="lucide:map-pinned" class="text-accent/30" width={40} height={40} />
+                  </div>
+                )}
+                {locationLine && (
+                  <div class="flex items-start gap-2 px-4 py-3 text-[13px] text-text-secondary">
+                    <Icon name="lucide:map-pin" class="mt-0.5 shrink-0 text-accent" width={15} height={15} />
+                    {locationLine}
+                  </div>
+                )}
+                {dirHref && (
+                  <div class="px-4 pb-4 pt-1">
+                    <a
+                      href={dirHref}
+                      target="_blank"
+                      rel="noopener"
+                      class="flex items-center justify-center gap-2 rounded-full border border-border py-2.5 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-secondary"
+                    >
+                      <Icon name="lucide:navigation" width={15} height={15} />
+                      Cómo llegar
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {travels && (
+              <div class="rounded-2xl border border-border bg-surface-card">
+                <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+                  <span class="text-sm font-semibold">Zonas de servicio</span>
+                  <span class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent">
+                    <Icon name="lucide:truck" width={13} height={13} />
+                    {locationModeLabel(locationMode)}
+                  </span>
                 </div>
-              )}
-              {dirHref && (
-                <div class="px-4 pb-4 pt-1">
-                  <a
-                    href={dirHref}
-                    target="_blank"
-                    rel="noopener"
-                    class="flex items-center justify-center gap-2 rounded-full border border-border py-2.5 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-secondary"
-                  >
-                    <Icon name="lucide:navigation" width={15} height={15} />
-                    Cómo llegar
-                  </a>
+                <div class="px-4 py-3 text-[13px] text-text-secondary">
+                  <p>
+                    {locationMode === "mobile"
+                      ? "Este negocio no tiene local: va a la ubicación del cliente."
+                      : "Además de su local, este negocio da servicio en la ubicación del cliente."}
+                  </p>
+                  {areaLabels.length > 0 ? (
+                    <ul class="mt-2 flex flex-col gap-1.5">
+                      {areaLabels.map((area) => (
+                        <li class="flex items-start gap-2">
+                          <Icon name="lucide:map-pin" class="mt-0.5 shrink-0 text-accent" width={14} height={14} />
+                          {area}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p class="mt-2 text-text-muted">
+                      Consulta por WhatsApp si llega a tu zona.
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div class="rounded-2xl border border-border bg-surface-card">
               <div class="border-b border-border px-4 py-3 text-sm font-semibold">Entrega y pago</div>
               <ul class="flex flex-col gap-2 px-4 py-3 text-[13px] text-text-secondary">
-                <li class="flex items-center gap-2">
-                  <Icon
-                    name={business.pickup_available ? "lucide:check" : "lucide:x"}
-                    class={business.pickup_available ? "text-success" : "text-text-muted"}
-                    width={15}
-                    height={15}
-                  />
-                  Recoge en tienda
-                </li>
+                {allowsPickup(locationMode) && (
+                  <li class="flex items-center gap-2">
+                    <Icon
+                      name={business.pickup_available ? "lucide:check" : "lucide:x"}
+                      class={business.pickup_available ? "text-success" : "text-text-muted"}
+                      width={15}
+                      height={15}
+                    />
+                    Recoge en tienda
+                  </li>
+                )}
+                {travels && (
+                  <li class="flex items-center gap-2">
+                    <Icon name="lucide:check" class="text-success" width={15} height={15} />
+                    Servicio en tu ubicación
+                  </li>
+                )}
                 <li class="flex items-center gap-2">
                   <Icon
                     name={business.delivery_available ? "lucide:check" : "lucide:x"}

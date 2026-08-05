@@ -54,6 +54,14 @@ export default defineConfig({
         access: "public",
         default: "http://localhost:8080",
       }),
+      // Vercel Blob token for image uploads. Optional so builds/local dev work
+      // without it; the upload route returns 503 when unset. Read at runtime, so
+      // the k8s dev image can supply it via a Secret (not baked at build time).
+      BLOB_READ_WRITE_TOKEN: envField.string({
+        context: "server",
+        access: "secret",
+        optional: true,
+      }),
     },
   },
 });

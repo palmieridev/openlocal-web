@@ -2,34 +2,105 @@
 import { Icon } from "astro-icon/components";
 import PublicLayout from "@/layouts/PublicLayout.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
+import BusinessCard from "@/components/ui/BusinessCard.astro";
 import { publicApi } from "@/lib/api/client";
+import { humanize, text } from "@/lib/format";
+import {
+  businessLocationMode,
+  hasMapPin,
+  servesAtCustomerLocation,
+} from "@/lib/service-areas";
+import {
+  emptyShopperArea,
+  isShopperAreaEmpty,
+  parseShopperArea,
+  SHOPPER_AREA_KEYS,
+  shopperAreaLabel,
+  shopperAreaQuery,
+  shopperAreaSearchParams,
+} from "@/lib/shopper-area";
 
 const url = Astro.url;
 const q = url.searchParams.get("q") ?? "";
 const mapOpen = url.searchParams.get("map") === "1";
 
-const [products, businesses] = await Promise.all([
-  publicApi.searchProducts({ q, limit: 40 }),
-  publicApi.listBusinesses({ limit: 100 }),
+// The shopper's area lives in the URL, so a filtered marketplace is linkable
+// and survives a reload. It is filled by geolocation or by hand — the fields
+// stay editable so a wrong reverse lookup never traps anyone.
+const area = parseShopperArea(url.searchParams);
+const areaActive = !isShopperAreaEmpty(area);
+const areaLabel = shopperAreaLabel(area);
+const areaParams = shopperAreaQuery(area);
+
+// Links that must keep the current search + area.
+const keep = shopperAreaSearchParams(area, new URLSearchParams(q ? { q } : {}));
+const listHref = `/marketplace${keep.toString() ? `?${keep}` : ""}`;
+const mapParams = new URLSearchParams(keep);
+mapParams.set("map", "1");
+const mapHref = `/marketplace?${mapParams}`;
+const clearAreaParams = shopperAreaSearchParams(emptyShopperArea(), url.searchParams);
+const clearAreaHref = `/marketplace${clearAreaParams.toString() ? `?${clearAreaParams}` : ""}`;
+
+// Map opens at street level (~zoom 16) so pins are readable. Fetch all eligible
+// marker businesses initially: the Leaflet island fits them before geolocation
+// resolves, and it does not issue another API request when the viewport moves.
+const DEFAULT_CENTER: [number, number] = [19.4326, -99.1332]; // Mexico City
+const DEFAULT_ZOOM = 16;
+
+const [products, mapBusinesses, areaBusinesses] = await Promise.all([
+  publicApi.searchProducts({ q, limit: 40, ...areaParams }),
+  // Only fetch marker candidates when the map is showing. A mobile business
+  // may be returned by an area filter, but hasMapPin excludes it below.
+  mapOpen
+    ? publicApi.listBusinesses({ limit: 100, ...areaParams })
+    : Promise.resolve([]),
+  // Reach list: no bbox — a mobile business has no coordinates to fall inside
+  // one, so a bbox query would silently drop exactly the businesses this
+  // section is about.
+  publicApi.listBusinesses({ limit: 50, ...areaParams }),
 ]);
 
-// Marker payload for the Leaflet island: businesses with coordinates.
-const markers = businesses
-  .filter((b) => b.latitude && b.longitude)
+// Businesses that travel to the customer. They get cards, never map pins.
+const reachBusinesses = areaBusinesses.filter((b) =>
+  servesAtCustomerLocation(businessLocationMode(b)),
+);
+
+// Marker payload for the Leaflet island. `hasMapPin` keeps mobile businesses
+// off the map even if a stale coordinate pair lingers on the row.
+const markers = mapBusinesses
+  .filter(hasMapPin)
   .map((b) => ({
     slug: b.slug,
     name: b.name,
     lat: Number(b.latitude),
     lng: Number(b.longitude),
     label: b.name,
+    // Open/closed is resolved in the island so it can't be baked into a
+    // cached page; businesses without hours are always shown.
+    hours: b.hours ?? [],
+    timezone: b.timezone ?? "",
   }));
 
 const filters = [
-  { label: "Cerca de mí", icon: "lucide:locate" },
-  { label: "Hecho a mano", q: "handmade" },
+  { label: "Hecho a mano", href: contextualSearchHref("handmade") },
   { label: "Recoge en tienda", icon: "lucide:shopping-bag" },
   { label: "En stock", icon: "lucide:check" },
   { label: "Envío", icon: "lucide:truck" },
+];
+
+function contextualSearchHref(nextQuery: string): string {
+  const params = shopperAreaSearchParams(area, new URLSearchParams({ q: nextQuery }));
+  if (mapOpen) params.set("map", "1");
+  return `/marketplace?${params}`;
+}
+
+/** The fields of the area form, narrowest last so the labels read in order. */
+const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: string }> = [
+  { name: "state", label: "Estado", placeholder: "CDMX" },
+  { name: "municipality", label: "Municipio / alcaldía", placeholder: "Cuauhtémoc" },
+  { name: "city", label: "Ciudad", placeholder: "Ciudad de México" },
+  { name: "neighborhood", label: "Colonia", placeholder: "Roma Norte" },
+  { name: "postal_code", label: "CP", placeholder: "06700" },
 ];
 ---
 
@@ -48,6 +119,9 @@ const filters = [
             class="w-full bg-transparent text-sm outline-none placeholder:text-text-muted"
           />
         </div>
+        {areaActive && SHOPPER_AREA_KEYS.map((key) => (
+          area[key] && <input type="hidden" name={key} value={area[key]} />
+        ))}
         {mapOpen && <input type="hidden" name="map" value="1" />}
         <button
           type="submit"
@@ -58,9 +132,29 @@ const filters = [
       </form>
 
       <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          id="area-toggle"
+          class:list={[
+            "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium transition-colors",
+            areaActive
+              ? "border-accent bg-accent-soft text-accent"
+              : "border-border bg-surface-card text-text-secondary hover:border-accent hover:text-text-primary",
+          ]}
+          aria-expanded={areaActive}
+          aria-controls="area-panel"
+        >
+          <Icon name="lucide:locate" width={14} height={14} class="text-accent" />
+          {areaActive ? areaLabel : "Cerca de mí"}
+        </button>
+        {areaActive && (
+          <a href={clearAreaHref} class="text-[13px] font-medium text-text-muted hover:underline">
+            Quitar zona
+          </a>
+        )}
         {filters.map((f) => (
           <a
-            href={f.q ? `/marketplace?q=${f.q}` : "#"}
+            href={f.href ?? "#"}
             class="flex items-center gap-1.5 rounded-full border border-border bg-surface-card px-3 py-1.5 text-[13px] font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
           >
             {f.icon && <Icon name={f.icon} width={14} height={14} class="text-accent" />}
@@ -69,19 +163,75 @@ const filters = [
         ))}
         <div class="ml-auto flex items-center gap-1 rounded-full border border-border bg-surface-card p-1 text-[13px] font-medium">
           <a
-            href={`/marketplace${q ? `?q=${q}` : ""}`}
+            href={listHref}
             class:list={["rounded-full px-3 py-1", !mapOpen ? "bg-surface-secondary text-text-primary" : "text-text-secondary"]}
           >
             Lista
           </a>
           <a
-            href={`/marketplace?map=1${q ? `&q=${q}` : ""}`}
+            href={mapHref}
             class:list={["rounded-full px-3 py-1", mapOpen ? "bg-surface-secondary text-text-primary" : "text-text-secondary"]}
           >
             Mapa
           </a>
         </div>
       </div>
+
+      {/* Shopper area. A plain GET form, so the chosen zone ends up in the URL
+          and the page keeps working without JavaScript; geolocation only
+          pre-fills the fields, which stay editable. */}
+      <form
+        id="area-panel"
+        action="/marketplace"
+        method="get"
+        class="flex flex-col gap-3 rounded-2xl border border-border bg-surface-card p-4"
+        hidden={!areaActive}
+      >
+        {q && <input type="hidden" name="q" value={q} />}
+        {mapOpen && <input type="hidden" name="map" value="1" />}
+        <input type="hidden" name="country" id="area-country" value={area.country || "MX"} />
+
+        <div class="flex flex-wrap items-baseline justify-between gap-2">
+          <p class="text-sm font-semibold">¿Dónde quieres que te atiendan?</p>
+          <button type="button" id="area-locate" class="text-[13px] font-medium text-accent hover:underline">
+            📍 Usar mi ubicación
+          </button>
+        </div>
+        <p class="text-[13px] text-text-secondary">
+          Filtramos negocios con local en tu zona y negocios móviles que llegan hasta ahí. Puedes
+          escribir la zona a mano si prefieres.
+        </p>
+
+        <div class="grid gap-3 sm:grid-cols-3">
+          {areaFields.map((field) => (
+            <div>
+              <label class="ol-label" for={`area-${field.name}`}>{field.label}</label>
+              <input
+                class="ol-input"
+                id={`area-${field.name}`}
+                name={field.name}
+                value={area[field.name]}
+                placeholder={field.placeholder}
+                data-area-field
+              />
+            </div>
+          ))}
+        </div>
+
+        <p id="area-msg" class="hidden text-[13px] text-text-secondary"></p>
+
+        <div class="flex items-center gap-3">
+          <button
+            type="submit"
+            class="rounded-full bg-accent px-5 py-2 text-sm font-medium text-text-inverse hover:bg-accent/90"
+          >
+            Aplicar zona
+          </button>
+          <a href={clearAreaHref} class="text-sm font-medium text-text-secondary hover:underline">
+            Limpiar
+          </a>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -90,12 +240,44 @@ const filters = [
       <h1 class="font-heading text-lg font-semibold">
         {products.length} {products.length === 1 ? "resultado" : "resultados"}
         {q && <span class="text-text-muted"> para “{q}”</span>}
+        {areaActive && <span class="text-text-muted"> en {areaLabel}</span>}
       </h1>
     </div>
 
     <div class:list={["grid gap-6", mapOpen ? "lg:grid-cols-[1fr_1.1fr]" : "grid-cols-1"]}>
       {/* Results — hidden on mobile when the map view is active */}
       <div class:list={[mapOpen && "hidden lg:block"]}>
+        {/* Businesses that travel to the customer. They have no coordinates,
+            so they can never appear on the map — they get cards instead of an
+            invented pin. */}
+        {reachBusinesses.length > 0 && (
+          <section class="mb-6">
+            <div class="mb-3 flex items-baseline justify-between gap-3">
+              <h2 class="font-heading text-base font-semibold">
+                Negocios que llegan a ti
+                <span class="text-text-muted"> ({reachBusinesses.length})</span>
+              </h2>
+              {areaActive && <span class="text-xs text-text-muted">{areaLabel}</span>}
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              {reachBusinesses.map((b) => (
+                <BusinessCard
+                  name={b.name}
+                  type={humanize(b.business_type)}
+                  neighborhood={text(b.neighborhood) || text(b.city)}
+                  locationMode={b.location_mode}
+                  serviceAreas={b.service_areas}
+                  logoUrl={b.logo_url}
+                  whatsapp={b.whatsapp}
+                  href={`/business/${b.slug}`}
+                  hours={b.hours}
+                  timezone={b.timezone}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
         {products.length > 0 ? (
           <div
             class:list={[
@@ -130,52 +312,186 @@ const filters = [
 
       {/* Map */}
       {mapOpen && (
-        <div class="h-[70vh] overflow-hidden rounded-2xl border border-border bg-surface-secondary lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)]">
-          <div id="map" class="h-full w-full"></div>
-          <script type="application/json" id="map-data" set:html={JSON.stringify(markers)}></script>
+        <div class="flex h-[70vh] flex-col overflow-hidden rounded-2xl border border-border bg-surface-secondary lg:sticky lg:top-20 lg:h-[calc(100vh-7rem)]">
+          <label
+            class="flex items-center gap-2 border-b border-border bg-surface-primary px-3 py-2 text-sm text-text-secondary"
+          >
+            <input type="checkbox" id="open-now-filter" />
+            Abiertos ahora
+            <span id="open-now-count" class="ml-auto text-xs text-text-muted"></span>
+          </label>
+          <div
+            id="map"
+            class="w-full flex-1"
+            data-center={JSON.stringify(DEFAULT_CENTER)}
+            data-zoom={DEFAULT_ZOOM}
+          ></div>
+          <script is:inline type="application/json" id="map-data" set:html={JSON.stringify(markers)}></script>
         </div>
       )}
     </div>
   </div>
 </PublicLayout>
 
+<script>
+  // Shopper area panel. Geolocation + reverse geocoding only *pre-fill* the
+  // form: the fields stay editable and the form is a plain GET, so a wrong or
+  // unavailable lookup still leaves the shopper able to type their zone.
+  import { shopperAreaFromNominatim, SHOPPER_AREA_KEYS } from "@/lib/shopper-area";
+
+  const toggle = document.getElementById("area-toggle");
+  const panel = document.getElementById("area-panel") as HTMLFormElement | null;
+  const msgEl = document.getElementById("area-msg");
+
+  function note(text: string) {
+    if (!msgEl) return;
+    msgEl.textContent = text;
+    msgEl.classList.toggle("hidden", !text);
+  }
+
+  toggle?.addEventListener("click", () => {
+    if (!panel) return;
+    panel.hidden = !panel.hidden;
+    toggle.setAttribute("aria-expanded", String(!panel.hidden));
+    if (!panel.hidden) {
+      (panel.querySelector('[name="state"]') as HTMLInputElement | null)?.focus();
+    }
+  });
+
+  function fill(area: Record<string, string>) {
+    for (const key of SHOPPER_AREA_KEYS) {
+      const input = document.getElementById(`area-${key}`) as HTMLInputElement | null;
+      if (input) input.value = area[key] || "";
+    }
+  }
+
+  document.getElementById("area-locate")?.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      note("Tu navegador no comparte la ubicación. Escribe tu zona a mano.");
+      return;
+    }
+    note("Buscando tu zona…");
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=es`,
+          );
+          if (!res.ok) throw new Error("reverse geocode failed");
+          fill(shopperAreaFromNominatim((await res.json())?.address));
+          note("Revisa la zona y aplica el filtro.");
+        } catch {
+          note("No pudimos detectar tu zona. Escríbela a mano.");
+        }
+      },
+      () => note("No pudimos acceder a tu ubicación. Escribe tu zona a mano."),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 600_000 },
+    );
+  });
+</script>
+
 {
   mapOpen && (
     <script>
       import L from "leaflet";
       import "leaflet/dist/leaflet.css";
+      import { isOpenNow, openMeta } from "@/lib/hours";
+      import type { BusinessHour } from "@/types/api";
 
       const el = document.getElementById("map");
       const dataEl = document.getElementById("map-data");
       if (el && dataEl) {
-        type Marker = { slug: string; name: string; lat: number; lng: number; label: string };
+        type Marker = {
+          slug: string;
+          name: string;
+          lat: number;
+          lng: number;
+          label: string;
+          hours: BusinessHour[];
+          timezone: string;
+        };
         const markers: Marker[] = JSON.parse(dataEl.textContent || "[]");
-        // Default to Mexico City when no points are available yet.
-        const center: [number, number] = markers.length
-          ? [markers[0].lat, markers[0].lng]
-          : [19.4326, -99.1332];
+        // Street-level defaults come from the SSR frontmatter via data attrs.
+        const fallbackCenter = JSON.parse(el.dataset.center || "[19.4326,-99.1332]") as [
+          number,
+          number,
+        ];
+        const streetZoom = Number(el.dataset.zoom) || 16;
 
         const map = L.map(el, { zoomControl: true, attributionControl: false }).setView(
-          center,
-          markers.length ? 13 : 12,
+          fallbackCenter,
+          streetZoom,
         );
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 19,
         }).addTo(map);
 
-        const bounds: [number, number][] = [];
-        for (const m of markers) {
+        const layers = markers.map((m) => {
           const pin = L.divIcon({
             className: "",
             html: `<span class="map-pin">${m.label}</span>`,
             iconSize: [0, 0],
           });
-          L.marker([m.lat, m.lng], { icon: pin })
-            .addTo(map)
-            .bindPopup(`<strong>${m.name}</strong><br/><a href="/business/${m.slug}">Ver tienda</a>`);
-          bounds.push([m.lat, m.lng]);
+          const meta = openMeta(isOpenNow(m.hours, m.timezone));
+          const status = meta ? `<br/><small>${meta.label}</small>` : "";
+          const layer = L.marker([m.lat, m.lng], { icon: pin }).bindPopup(
+            `<strong>${m.name}</strong>${status}<br/><a href="/business/${m.slug}">Ver tienda</a>`,
+          );
+          return { marker: m, layer };
+        });
+
+        const filterEl = document.getElementById("open-now-filter") as HTMLInputElement | null;
+        const countEl = document.getElementById("open-now-count");
+
+        /**
+         * Show every business by default. When filtering, keep those that are
+         * open AND those whose hours are unknown — hiding unknowns would punish
+         * businesses that simply haven't filled in a schedule yet.
+         */
+        // Once geolocation resolves we keep the user's street-level view instead
+        // of auto-fitting to all markers (which would zoom back out to the city).
+        let userLocated = false;
+
+        function render() {
+          const onlyOpen = filterEl?.checked ?? false;
+          const bounds: [number, number][] = [];
+          let shown = 0;
+
+          for (const { marker, layer } of layers) {
+            const open = isOpenNow(marker.hours, marker.timezone);
+            const visible = !onlyOpen || open !== false;
+            if (visible) {
+              layer.addTo(map);
+              bounds.push([marker.lat, marker.lng]);
+              shown++;
+            } else {
+              layer.remove();
+            }
+          }
+
+          if (countEl) {
+            countEl.textContent = onlyOpen ? `${shown} de ${layers.length}` : "";
+          }
+          if (bounds.length > 1 && !userLocated) map.fitBounds(bounds, { padding: [40, 40] });
         }
-        if (bounds.length > 1) map.fitBounds(bounds, { padding: [40, 40] });
+
+        render();
+
+        // Center on the user's location at street zoom; the city-center fallback
+        // set above stays put when permission is denied or unavailable.
+        navigator.geolocation?.getCurrentPosition(
+          (pos) => {
+            userLocated = true;
+            map.setView([pos.coords.latitude, pos.coords.longitude], streetZoom);
+          },
+          undefined,
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 600_000 },
+        );
+
+        filterEl?.addEventListener("change", render);
+        // Re-evaluate as opening/closing times pass on a long-lived tab.
+        setInterval(render, 60_000);
 
         // Mobile: the container often finishes layout after init → recompute
         // size so tiles fill the box instead of rendering gray/half.

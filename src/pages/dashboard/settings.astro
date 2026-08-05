@@ -3,22 +3,40 @@ import { Icon } from "astro-icon/components";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import ImageUploader from "@/components/dashboard/ImageUploader.astro";
+import LogoPresets from "@/components/dashboard/LogoPresets.astro";
+import ServiceAreaEditor from "@/components/dashboard/ServiceAreaEditor.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { text } from "@/lib/format";
-import type { Business } from "@/types/api";
+import { weekSchedule } from "@/lib/hours";
+import { businessLocationMode, hasFixedLocation } from "@/lib/service-areas";
+import type { Business, BusinessHours } from "@/types/api";
 
 const { token, businessId } = await getServerAuth(Astro);
 
 let business: Business | null = null;
+let hours: BusinessHours | null = null;
 let loadError = false;
 if (token && businessId) {
+  const api = authedApi(token, businessId);
   try {
-    business = await authedApi(token, businessId).getBusiness();
+    business = await api.getBusiness();
   } catch {
     loadError = true;
   }
+  try {
+    hours = await api.getHours();
+  } catch {
+    // Hours are optional: a business that never set them still renders the
+    // editor, just empty. Don't fail the whole settings page over it.
+    hours = null;
+  }
 }
+
+// Seven Monday-first rows, pre-filled with whatever is stored.
+const schedule = weekSchedule(hours?.hours);
+const timezone = hours?.timezone || business?.timezone || "America/Mexico_City";
 
 // Same catalog as onboarding; if the stored type predates the list (or came
 // from the API seed) keep it selectable instead of silently remapping it.
@@ -36,6 +54,11 @@ if (business?.business_type && !businessTypes.some(([v]) => v === business.busin
   businessTypes.unshift([business.business_type, business.business_type]);
 }
 
+// Location mode drives which half of the form applies: a mobile business has
+// no address to edit, and the fixed fields below stay hidden for it.
+const locationMode = businessLocationMode(business);
+const showsFixedLocation = hasFixedLocation(locationMode);
+
 const isActive = business?.status === "active";
 const logoUrl = text(business?.logo_url);
 const coverUrl = text(business?.cover_image_url);
@@ -49,7 +72,7 @@ const lng = text(business?.longitude);
   ) : loadError || !business ? (
     <NeedsSetup reason="error" />
   ) : (
-    <div class="mx-auto max-w-6xl px-6 py-8" data-business-id={businessId} data-lat={lat} data-lng={lng}>
+    <div class="mx-auto max-w-6xl px-6 py-8" data-business-id={businessId} data-status={business.status} data-lat={lat} data-lng={lng}>
       {/* Action bar */}
       <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
         <div>
@@ -126,8 +149,13 @@ const lng = text(business?.longitude);
             </div>
           </section>
 
+          {/* Reach: fixed premises, mobile service, or both */}
+          <section class="ol-card p-6">
+            <ServiceAreaEditor mode={locationMode} areas={business.service_areas} />
+          </section>
+
           {/* Location — same picker as onboarding */}
-          <section class="ol-card flex flex-col gap-4 p-6">
+          <section class="ol-card flex flex-col gap-4 p-6" data-fixed-only hidden={!showsFixedLocation}>
             <div>
               <h2 class="font-heading font-semibold">Ubicación</h2>
               <p class="text-sm text-text-secondary">
@@ -154,11 +182,11 @@ const lng = text(business?.longitude);
             <div class="grid grid-cols-3 gap-3">
               <div>
                 <label class="ol-label" for="city">Ciudad</label>
-                <input class="ol-input" id="city" name="city" value={business.city} />
+                <input class="ol-input" id="city" name="city" value={text(business.city)} />
               </div>
               <div>
                 <label class="ol-label" for="state">Estado</label>
-                <input class="ol-input" id="state" name="state" value={business.state} />
+                <input class="ol-input" id="state" name="state" value={text(business.state)} />
               </div>
               <div>
                 <label class="ol-label" for="postal_code">CP</label>
@@ -166,6 +194,62 @@ const lng = text(business?.longitude);
               </div>
             </div>
             <input type="hidden" name="country" value={business.country || "MX"} />
+          </section>
+
+          {/* Opening hours */}
+          <section class="ol-card p-5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="font-heading font-semibold">Horario de atención</h2>
+              <span class="text-xs text-text-muted">
+                Zona horaria: <span class="font-data">{timezone}</span>
+              </span>
+            </div>
+            <p class="mt-1 text-sm text-text-secondary">
+              Opcional. Si lo defines, los clientes verán si estás abierto ahora. Para un horario
+              nocturno, usa una hora de cierre menor a la de apertura (ej. 22:00 – 02:00).
+            </p>
+            <p class="mt-1 text-sm text-text-muted">
+              Deja los días en blanco si trabajas por pedido o sin horario fijo: no se mostrará
+              ningún horario en tu tienda. Vacía todos los días para quitar un horario que ya
+              habías guardado.
+            </p>
+
+            <div class="mt-4 flex flex-col gap-2" id="hours-rows">
+              {schedule.map(({ day, label, hour }) => (
+                <div
+                  class="flex flex-wrap items-center gap-3 rounded-xl border border-border px-3 py-2"
+                  data-hours-row
+                  data-day={day}
+                >
+                  <span class="w-24 shrink-0 text-sm font-medium">{label}</span>
+                  <div class="flex items-center gap-2">
+                    <input
+                      class="ol-input w-32"
+                      type="time"
+                      data-opens
+                      value={hour?.is_closed ? "" : (hour?.opens_at ?? "")}
+                      disabled={hour?.is_closed ?? false}
+                      aria-label={`Hora de apertura: ${label}`}
+                    />
+                    <span class="text-text-muted">–</span>
+                    <input
+                      class="ol-input w-32"
+                      type="time"
+                      data-closes
+                      value={hour?.is_closed ? "" : (hour?.closes_at ?? "")}
+                      disabled={hour?.is_closed ?? false}
+                      aria-label={`Hora de cierre: ${label}`}
+                    />
+                  </div>
+                  <label class="ml-auto flex items-center gap-2 text-sm text-text-secondary">
+                    <input type="checkbox" data-closed checked={hour?.is_closed ?? false} />
+                    Cerrado
+                  </label>
+                </div>
+              ))}
+            </div>
+
+            <p id="hours-msg" class="mt-3 hidden rounded-xl px-3 py-2 text-sm"></p>
           </section>
 
           <p id="settings-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
@@ -202,33 +286,47 @@ const lng = text(business?.longitude);
             </Button>
           </div>
 
-          {/* Images (upload pending — preview only) */}
+          {/* Images */}
           <div class="ol-card p-5">
             <h2 class="font-heading font-semibold">Imágenes</h2>
             <p class="mt-1 text-sm text-text-secondary">Logo y portada de tu tienda pública.</p>
-            <div class="mt-4 flex items-center gap-4">
-              <span class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-accent-soft text-accent">
-                {logoUrl ? (
-                  <img src={logoUrl} alt="Logo" class="size-full object-cover" />
-                ) : (
-                  <Icon name="lucide:store" width={24} height={24} />
-                )}
-              </span>
-              <div>
-                <p class="text-sm font-medium">Logo</p>
-                <p class="text-xs text-text-muted">Se administra desde tu cuenta · próximamente aquí.</p>
+            <div class="mt-4">
+              {/* The logo lives on the Clerk organization, not in our storage;
+                  its URL is mirrored onto the business so the storefront can
+                  render it without a Clerk round trip. */}
+              <ImageUploader
+                id="logo"
+                kind="logo"
+                target="clerk-logo"
+                value={logoUrl}
+                aspect={1}
+                outputWidth={512}
+                outputType="image/png"
+                square
+                label="Logo"
+                hint="Cuadrado · se recorta en círculo en algunas vistas"
+              />
+              <div class="mt-3">
+                <LogoPresets
+                  businessType={business.business_type}
+                  name={business.name}
+                  label="¿Aún no tienes logo? Elige uno"
+                />
               </div>
             </div>
-            <div class="mt-4">
-              <p class="mb-1.5 text-sm font-medium">Portada</p>
-              {coverUrl ? (
-                <img src={coverUrl} alt="Portada" class="h-28 w-full rounded-xl border border-border object-cover" />
-              ) : (
-                <div class="flex h-28 flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed border-border bg-surface-secondary/50 text-text-muted">
-                  <Icon name="lucide:image-plus" width={22} height={22} />
-                  <span class="text-xs">Subir portada · próximamente</span>
-                </div>
-              )}
+            <div class="mt-5">
+              <ImageUploader
+                id="cover"
+                kind="cover"
+                value={coverUrl}
+                aspect={3}
+                outputWidth={1500}
+                heightClass="h-28"
+                label="Portada"
+                hint="Panorámica · mantén lo importante dentro del recuadro"
+                safeMinAspect={2}
+                safeMaxAspect={5.1}
+              />
             </div>
           </div>
 
@@ -237,14 +335,27 @@ const lng = text(business?.longitude);
             <h2 class="font-heading font-semibold">Entrega</h2>
             <p class="mt-1 text-sm text-text-secondary">Opciones que se muestran a los compradores.</p>
             <div class="mt-4 flex flex-col gap-3">
-              <label class="flex items-center gap-2 text-sm text-text-secondary">
-                <input type="checkbox" name="pickup_available" form="settings-form" checked={business.pickup_available} />
+              {/* Pickup needs premises; the script disables it for a mobile
+                  business. Delivery is a separate option and stays available
+                  in every mode. */}
+              <label class="flex items-center gap-2 text-sm text-text-secondary" data-pickup-label>
+                <input
+                  type="checkbox"
+                  id="pickup_available"
+                  name="pickup_available"
+                  form="settings-form"
+                  checked={business.pickup_available && showsFixedLocation}
+                  disabled={!showsFixedLocation}
+                />
                 Recoge en tienda
               </label>
               <label class="flex items-center gap-2 text-sm text-text-secondary">
                 <input type="checkbox" name="delivery_available" form="settings-form" checked={business.delivery_available} />
                 Envío a domicilio
               </label>
+              <p class="text-xs text-text-muted" data-pickup-note hidden={showsFixedLocation}>
+                Un negocio móvil no tiene local, así que no se ofrece recoger en tienda.
+              </p>
             </div>
           </div>
         </div>
@@ -256,14 +367,69 @@ const lng = text(business?.longitude);
 <script>
   import L from "leaflet";
   import "leaflet/dist/leaflet.css";
+  import { buildHoursPayload, validateHoursRows, type HoursFormRow } from "@/lib/hours";
+  import {
+    allowsPickup,
+    serviceAreasFor,
+    hasFixedLocation,
+    normalizeLocationMode,
+    validateServiceAreas,
+    type ServiceAreaFormRow,
+  } from "@/lib/service-areas";
+  import type { LocationMode } from "@/types/api";
 
   const root = document.querySelector("[data-business-id]") as HTMLElement | null;
   if (root) {
     const businessId = root.dataset.businessId!;
+    // Current published state, sent on every save so a profile edit doesn't
+    // reset it (the API defaults an omitted status to "draft").
+    const currentStatus = root.dataset.status || "draft";
     const form = document.getElementById("settings-form") as HTMLFormElement;
     const msgEl = document.getElementById("settings-msg") as HTMLElement;
     const btn = document.getElementById("settings-btn") as HTMLButtonElement;
     const label = btn?.querySelector("[data-label]") as HTMLElement;
+
+    // ── Location mode ───────────────────────────────────────────────────────
+    // The service-area editor owns the radios; the page hides the address
+    // picker and disables pickup when there are no premises.
+    let locationMode: LocationMode = normalizeLocationMode(
+      document.querySelector<HTMLElement>("[data-location-editor]")?.dataset.mode,
+    );
+    const pickupEl = document.getElementById("pickup_available") as HTMLInputElement | null;
+    const pickupLabel = document.querySelector<HTMLElement>("[data-pickup-label]");
+    const pickupNote = document.querySelector<HTMLElement>("[data-pickup-note]");
+
+    function applyLocationMode(mode: LocationMode) {
+      locationMode = mode;
+      const fixed = hasFixedLocation(mode);
+      document.querySelectorAll<HTMLElement>("[data-fixed-only]").forEach((el) => {
+        el.hidden = !fixed;
+      });
+      if (pickupEl) {
+        pickupEl.disabled = !allowsPickup(mode);
+        if (pickupEl.disabled) pickupEl.checked = false;
+      }
+      pickupLabel?.classList.toggle("opacity-50", !allowsPickup(mode));
+      if (pickupNote) pickupNote.hidden = allowsPickup(mode);
+      // The map lives inside the section we just toggled; it needs a reflow
+      // once it becomes visible again or Leaflet renders a gray box.
+      if (fixed) window.dispatchEvent(new Event("resize"));
+    }
+
+    document.addEventListener("location-mode-change", (event) => {
+      applyLocationMode((event as CustomEvent<{ mode: LocationMode }>).detail.mode);
+    });
+    applyLocationMode(locationMode);
+
+    /** Rows the service-area editor serialized into the hidden field. */
+    function readServiceAreaRows(fd: FormData): ServiceAreaFormRow[] {
+      try {
+        const parsed = JSON.parse(String(fd.get("service_areas") || "[]"));
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
 
     // ── Location picker (same behavior as onboarding) ──────────────────────
     const latEl = document.getElementById("latitude") as HTMLInputElement;
@@ -336,9 +502,36 @@ const lng = text(business?.longitude);
         });
       });
 
-      // Leaflet needs a reflow once the card is laid out.
+      // Leaflet needs a reflow once the card is laid out — and again whenever
+      // switching back to a mode that shows the map, or it renders gray.
       setTimeout(() => map.invalidateSize(), 0);
+      window.addEventListener("resize", () => map.invalidateSize());
     }
+    // ────────────────────────────────────────────────────────────────────────
+
+
+    // ── Logo presets ────────────────────────────────────────────────────────
+    // A generated mark takes the same route as an uploaded photo: hand the file
+    // to the logo uploader, which stores it on the Clerk organization.
+    const logoUploader = document.querySelector<HTMLElement>('[data-image-uploader][data-id="logo"]');
+    const presetsRoot = document.querySelector<HTMLElement>("[data-logo-presets]");
+
+    document.addEventListener("logo-preset", (e) => {
+      const { file } = (e as CustomEvent<{ file: File }>).detail;
+      logoUploader?.dispatchEvent(new CustomEvent("image-file", { detail: file }));
+    });
+
+    // Keep the tiles in step with the fields they are derived from.
+    document.getElementById("name")?.addEventListener("input", (e) => {
+      presetsRoot?.dispatchEvent(
+        new CustomEvent("presets-name", { detail: (e.target as HTMLInputElement).value }),
+      );
+    });
+    document.getElementById("business_type")?.addEventListener("change", (e) => {
+      presetsRoot?.dispatchEvent(
+        new CustomEvent("presets-type", { detail: (e.target as HTMLSelectElement).value }),
+      );
+    });
     // ────────────────────────────────────────────────────────────────────────
 
     document.getElementById("slug")?.addEventListener("input", (e) => {
@@ -351,9 +544,74 @@ const lng = text(business?.longitude);
       msgEl.className = `rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
     }
 
+    // ── Opening hours ───────────────────────────────────────────────────────
+    const hoursMsgEl = document.getElementById("hours-msg") as HTMLElement | null;
+
+    function flashHours(ok: boolean, msg: string) {
+      if (!hoursMsgEl) return;
+      hoursMsgEl.textContent = msg;
+      hoursMsgEl.className = `mt-3 rounded-xl px-3 py-2 text-sm ${ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`;
+    }
+
+    /** Read the seven rows out of the DOM. */
+    function readHoursRows(): HoursFormRow[] {
+      return [...document.querySelectorAll<HTMLElement>("[data-hours-row]")].map((row) => ({
+        day_of_week: Number(row.dataset.day),
+        opens_at: (row.querySelector("[data-opens]") as HTMLInputElement).value,
+        closes_at: (row.querySelector("[data-closes]") as HTMLInputElement).value,
+        is_closed: (row.querySelector("[data-closed]") as HTMLInputElement).checked,
+      }));
+    }
+
+    // A closed day has no times — mirror that in the UI so the form can't
+    // express a state the API would reject.
+    document.querySelectorAll<HTMLElement>("[data-hours-row]").forEach((row) => {
+      const closedEl = row.querySelector("[data-closed]") as HTMLInputElement;
+      const timeEls = [
+        row.querySelector("[data-opens]") as HTMLInputElement,
+        row.querySelector("[data-closes]") as HTMLInputElement,
+      ];
+      closedEl.addEventListener("change", () => {
+        timeEls.forEach((el) => {
+          el.disabled = closedEl.checked;
+          if (closedEl.checked) el.value = "";
+        });
+      });
+    });
+
+    async function saveHours(): Promise<boolean> {
+      const rows = readHoursRows();
+      const problem = validateHoursRows(rows);
+      if (problem) {
+        flashHours(false, problem);
+        return false;
+      }
+      const res = await fetch(`/api/businesses/${businessId}/hours`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(buildHoursPayload(rows)),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        flashHours(false, data?.error || "No se pudo guardar el horario.");
+        return false;
+      }
+      flashHours(true, "Horario guardado.");
+      return true;
+    }
+
     async function save(statusOverride?: string): Promise<boolean> {
       const fd = new FormData(form);
       const str = (k: string) => String(fd.get(k) || "").trim();
+      const mode = normalizeLocationMode(fd.get("location_mode") ?? locationMode);
+      const areaRows = readServiceAreaRows(fd);
+      const areaProblem = validateServiceAreas(areaRows, mode);
+      if (areaProblem) {
+        flash(false, areaProblem);
+        return false;
+      }
+      const fixed = hasFixedLocation(mode);
+
       const payload: Record<string, unknown> = {
         name: str("name"),
         slug: str("slug"),
@@ -363,22 +621,42 @@ const lng = text(business?.longitude);
         whatsapp: str("whatsapp"),
         email: str("email"),
         website: str("website"),
-        address: str("address"),
-        neighborhood: str("neighborhood"),
-        city: str("city"),
-        state: str("state"),
-        country: str("country") || "MX",
-        postal_code: str("postal_code"),
-        pickup_available: fd.get("pickup_available") === "on",
+        location_mode: mode,
+        service_areas: serviceAreasFor(areaRows, mode),
+        // Switching to mobile clears the premises: send explicit nulls so the
+        // old address and pin stop being served, rather than lingering as
+        // stale data behind a mode that says there is no location. A blank
+        // field is null too — the API stores these as nullable text, and an
+        // empty string would read as a real (empty) value.
+        address: (fixed && str("address")) || null,
+        neighborhood: (fixed && str("neighborhood")) || null,
+        city: (fixed && str("city")) || null,
+        state: (fixed && str("state")) || null,
+        country: fixed ? str("country") || "MX" : null,
+        postal_code: (fixed && str("postal_code")) || null,
+        pickup_available: allowsPickup(mode) && fd.get("pickup_available") === "on",
         delivery_available: fd.get("delivery_available") === "on",
       };
       // Coordinates are decimals API-side: only send them when the pin was set,
       // an empty string would fail to parse.
-      if (str("latitude") && str("longitude")) {
+      if (!fixed) {
+        payload.latitude = null;
+        payload.longitude = null;
+      } else if (str("latitude") && str("longitude")) {
         payload.latitude = str("latitude");
         payload.longitude = str("longitude");
       }
-      if (statusOverride) payload.status = statusOverride;
+      // Images. The API validates these as `uri` (nullable), so send null — not
+      // "" — when absent. logo_url mirrors the Clerk organization image: Clerk
+      // owns the file, the business row just stores its URL for the storefront.
+      const coverVal = (document.getElementById("cover-url") as HTMLInputElement | null)?.value.trim();
+      payload.cover_image_url = coverVal || null;
+      const logoVal = (document.getElementById("logo-url") as HTMLInputElement | null)?.value.trim();
+      payload.logo_url = logoVal || null;
+      // Always send the current status. The API's update defaults an omitted
+      // status to "draft", so a plain profile save would otherwise un-publish
+      // the store. Publish/pause passes an explicit override.
+      payload.status = statusOverride || currentStatus;
 
       const res = await fetch(`/api/businesses/${businessId}`, {
         method: "PATCH",
@@ -395,7 +673,11 @@ const lng = text(business?.longitude);
       btn.disabled = true;
       const original = label.textContent;
       label.textContent = "Guardando…";
-      if (await save()) flash(true, "Cambios guardados.");
+      // Profile and hours are separate API resources; save both from the one
+      // button so pending schedule edits aren't silently dropped.
+      const savedProfile = await save();
+      const savedHours = await saveHours();
+      if (savedProfile && savedHours) flash(true, "Cambios guardados.");
       btn.disabled = false;
       label.textContent = original;
     });

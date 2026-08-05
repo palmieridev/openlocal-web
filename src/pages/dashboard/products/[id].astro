@@ -4,6 +4,7 @@ import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import ImageUploader from "@/components/dashboard/ImageUploader.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { formatPrice, stockMeta } from "@/lib/format";
@@ -132,58 +133,49 @@ const previewMeta = product
             </div>
           </form>
 
-          {/* Variants list */}
+          {/* Variants — horizontal card carousel */}
           <div class="ol-card p-6">
             <h2 class="font-heading font-semibold">Variantes</h2>
-            <p class="mt-1 text-sm text-text-secondary">SKU, precio y stock público. Una variante visible basta para que el producto aparezca en tu tienda.</p>
+            <p class="mt-1 text-sm text-text-secondary">Cada variante tiene su propia imagen, SKU, precio y stock público. Una variante visible basta para que el producto aparezca en tu tienda.</p>
             {variants.length > 0 ? (
-              <div class="mt-4 overflow-hidden rounded-xl border border-border">
-                <div class="overflow-x-auto">
-                <table class="w-full min-w-[480px] text-sm">
-                  <thead>
-                    <tr class="border-b border-border text-left text-[11px] uppercase tracking-wide text-text-muted">
-                      <th class="px-4 py-2.5 font-medium">Variante / SKU</th>
-                      <th class="px-4 py-2.5 font-medium">Precio</th>
-                      <th class="px-4 py-2.5 font-medium">Stock público</th>
-                      <th class="px-4 py-2.5 font-medium"><span class="sr-only">Editar</span></th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-border">
-                    {variants.map((v) => {
-                      const sm = stockMeta(v.public_stock_status);
-                      return (
-                        <tr>
-                          <td class="px-4 py-3">
-                            <div class="font-medium text-text-primary">{v.name || product.name}</div>
-                            <div class="font-data text-xs text-text-muted">{v.sku}</div>
-                            {v.track_inventory === false && (
-                              <div class="mt-0.5 inline-flex items-center gap-1 text-[11px] text-text-muted">
-                                <Icon name="lucide:eye-off" width={11} height={11} /> Sin seguimiento de inventario
-                              </div>
-                            )}
-                          </td>
-                          <td class="px-4 py-3 font-data">{formatPrice(v.price, v.currency)}</td>
-                          <td class="px-4 py-3">
-                            <span class={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${sm.bg} ${sm.fg}`}>
-                              <span class={`size-1.5 rounded-full ${sm.dot}`}></span>{sm.label}
-                            </span>
-                          </td>
-                          <td class="px-4 py-3 text-right">
-                            <button
-                              type="button"
-                              class="variant-edit inline-flex size-8 items-center justify-center rounded-lg border border-border text-text-secondary hover:bg-surface-secondary"
-                              data-variant={JSON.stringify(v)}
-                              aria-label="Editar variante"
-                            >
-                              <Icon name="lucide:square-pen" width={15} height={15} />
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                </div>
+              /* Scroll-snap rail: cards keep a fixed width so several peek in
+                 on desktop while staying swipeable on a phone. */
+              <div class="-mx-6 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2">
+                {variants.map((v) => {
+                  const sm = stockMeta(v.public_stock_status);
+                  return (
+                    <article class="flex w-56 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-surface-card">
+                      <div
+                        class="relative flex h-32 items-start justify-end bg-accent-soft bg-cover bg-center p-2"
+                        style={v.image_url ? `background-image:url('${v.image_url}');` : ""}
+                      >
+                        {!v.image_url && (
+                          <Icon name="lucide:image" class="absolute inset-0 m-auto text-accent/30" width={28} height={28} />
+                        )}
+                        <span class={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sm.bg} ${sm.fg}`}>
+                          <span class={`size-1.5 rounded-full ${sm.dot}`}></span>{sm.label}
+                        </span>
+                      </div>
+                      <div class="flex flex-1 flex-col gap-1 p-3">
+                        <p class="truncate text-sm font-medium text-text-primary">{v.name || product.name}</p>
+                        <p class="font-data text-xs text-text-muted">{v.sku}</p>
+                        <p class="font-data text-base font-semibold text-text-primary">{formatPrice(v.price, v.currency)}</p>
+                        {v.track_inventory === false && (
+                          <span class="inline-flex items-center gap-1 text-[11px] text-text-muted">
+                            <Icon name="lucide:eye-off" width={11} height={11} /> Sin inventario
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          class="variant-edit mt-2 inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-secondary"
+                          data-variant={JSON.stringify(v)}
+                        >
+                          <Icon name="lucide:square-pen" width={13} height={13} /> Editar
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <div class="mt-4 rounded-xl border border-dashed border-border px-4 py-8 text-center">
@@ -211,13 +203,16 @@ const previewMeta = product
                 {product.is_public ? "Público" : "Oculto"}
               </span>
             </div>
+            <div id="preview-card">
             <ProductCard
               name={product.name}
               meta={previewMeta}
               price={firstVariant?.price ?? ""}
               currency={firstVariant?.currency ?? "MXN"}
               stockStatus={firstVariant?.public_stock_status}
+              imageUrl={firstVariant?.image_url}
             />
+            </div>
           </div>
 
           {/* Store ≠ inventory note */}
@@ -244,6 +239,18 @@ const previewMeta = product
             <button type="button" id="variant-modal-close" class="text-text-muted hover:text-text-secondary" aria-label="Cerrar">
               <Icon name="lucide:x" width={18} height={18} />
             </button>
+          </div>
+          <div>
+            <span class="ol-label">Imagen</span>
+            {/* One shared control for the modal; openModal() loads the selected
+                variant's URL into it via the "image-set" event. */}
+            <ImageUploader
+              id="variant-image"
+              kind="product"
+              aspect={1.5}
+              outputWidth={1200}
+              hint="Se recorta en 3:2 · máx 5 MB"
+            />
           </div>
           <div>
             <label class="ol-label" for="vname">Nombre de la variante</label>
@@ -346,9 +353,17 @@ const previewMeta = product
       if (el) el.value = value;
     };
 
+    // The uploader is rendered once and reused, so its value has to be loaded
+    // (or cleared) every time the modal opens for a different variant.
+    const imageUploader = document.querySelector<HTMLElement>('[data-image-uploader][data-id="variant-image"]');
+    const imageUrlEl = document.getElementById("variant-image-url") as HTMLInputElement | null;
+    const loadImage = (url: string) =>
+      imageUploader?.dispatchEvent(new CustomEvent("image-set", { detail: url }));
+
     function openModal(variant?: Record<string, any>) {
       vMsg.className = "hidden";
       vForm.reset();
+      loadImage(variant?.image_url ?? "");
       if (variant) {
         vTitle.textContent = "Editar variante";
         vBtnLabel.textContent = "Guardar cambios";
@@ -412,6 +427,9 @@ const previewMeta = product
         track_inventory: fd.get("track_inventory") === "on",
         currency: "MXN",
         status: "active",
+        // Always sent: "" tells the API to remove the image. Omitting it would
+        // mean "leave unchanged", which can't express a removal.
+        image_url: String(imageUrlEl?.value ?? "").trim(),
       };
       const barcode = str("barcode");
       if (barcode) payload.barcode = barcode;

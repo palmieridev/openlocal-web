@@ -21,6 +21,35 @@ export interface NullString {
   Valid: boolean;
 }
 
+/**
+ * How a business reaches its customers.
+ *
+ * - `fixed`  — a physical address customers come to (the historical default).
+ * - `mobile` — no premises: the business travels to the customer. Every fixed
+ *   location field (address/city/coords) may be null; coverage lives in
+ *   `service_areas`, so a mobile business must never get a map pin.
+ * - `hybrid` — both: a physical address **and** service areas it travels to.
+ */
+export type LocationMode = "fixed" | "mobile" | "hybrid";
+
+/**
+ * One geography a mobile/hybrid business covers.
+ *
+ * `country` and `state` are always present on a valid row; everything narrower
+ * is optional and may be null, so an area can be as broad as a whole state or
+ * as narrow as one neighborhood.
+ */
+export interface ServiceArea {
+  /** Owner-facing label ("Zona centro"); required by the API. */
+  name: string;
+  country: string;
+  state: string;
+  municipality?: string | null;
+  city?: string | null;
+  neighborhood?: string | null;
+  postal_code?: string | null;
+}
+
 /** A business profile. Private fields are only present on authorized reads. */
 export interface Business {
   id: string;
@@ -36,18 +65,50 @@ export interface Business {
   logo_url?: string;
   cover_image_url?: string;
   status?: string;
-  address?: string;
-  neighborhood?: string;
-  city: string;
-  state: string;
-  country: string;
-  postal_code?: string;
-  latitude?: string;
-  longitude?: string;
+  /**
+   * Fixed-location fields. All nullable: a `mobile` business has no premises,
+   * so it stores none of them.
+   */
+  address?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  /** Defaults to "fixed" when an older payload omits it. */
+  location_mode?: LocationMode;
+  /** Always an array on responses; empty for a purely fixed business. */
+  service_areas?: ServiceArea[];
   pickup_available: boolean;
   delivery_available: boolean;
+  /** IANA zone the opening hours are expressed in (e.g. "America/Mexico_City"). */
+  timezone?: string;
+  /** Present on public payloads. Empty array means "no hours set" (unknown). */
+  hours?: BusinessHour[];
   created_at?: string;
   updated_at?: string;
+}
+
+/**
+ * One day of a business's weekly schedule.
+ *
+ * `day_of_week` is **0 = Monday … 6 = Sunday**. Times are "HH:MM" strings in the
+ * business's own timezone, and are null when `is_closed`. An overnight span
+ * (opens_at 22:00 → closes_at 02:00) is legal and must be handled by callers.
+ */
+export interface BusinessHour {
+  day_of_week: number;
+  opens_at: string | null;
+  closes_at: string | null;
+  is_closed: boolean;
+}
+
+/** Owner-facing hours payload (GET/PUT /businesses/:id/hours). */
+export interface BusinessHours {
+  timezone: string;
+  hours: BusinessHour[];
 }
 
 /** Private catalog product. */
@@ -78,6 +139,12 @@ export interface Variant {
   internal_code?: string;
   name: string;
   attributes?: Record<string, unknown>;
+  /**
+   * Storefront image, owned by the variant. On writes: omit (or send null) to
+   * leave the current image alone, send "" to remove it — the API can't tell an
+   * omitted field from an explicit null, so it treats both as "unchanged".
+   */
+  image_url?: string | null;
   price: string;
   cost?: string;
   currency: string;
