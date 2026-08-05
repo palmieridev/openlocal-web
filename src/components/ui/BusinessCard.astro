@@ -3,12 +3,18 @@ import { Icon } from "astro-icon/components";
 import Badge from "./Badge.astro";
 import OpenBadge from "./OpenBadge.astro";
 import { formatDistance } from "@/lib/format";
-import type { BusinessHour } from "@/types/api";
+import {
+  formatServiceAreas,
+  locationModeLabel,
+  normalizeLocationMode,
+  servesAtCustomerLocation,
+} from "@/lib/service-areas";
+import type { BusinessHour, LocationMode, ServiceArea } from "@/types/api";
 
 interface Props {
   name: string;
   type?: string;
-  neighborhood?: string;
+  neighborhood?: string | null;
   rating?: number | null;
   productCount?: number | null;
   distanceKm?: number | null;
@@ -18,6 +24,9 @@ interface Props {
   href?: string;
   hours?: BusinessHour[] | null;
   timezone?: string | null;
+  /** Defaults to "fixed" so existing callers keep their current rendering. */
+  locationMode?: LocationMode | string | null;
+  serviceAreas?: ServiceArea[] | null;
 }
 
 const {
@@ -33,9 +42,16 @@ const {
   href,
   hours,
   timezone,
+  locationMode,
+  serviceAreas,
 } = Astro.props;
 
-const typeLine = [type, neighborhood].filter(Boolean).join(" · ");
+const mode = normalizeLocationMode(locationMode);
+const mobile = mode === "mobile";
+const coverage = servesAtCustomerLocation(mode) ? formatServiceAreas(serviceAreas) : "";
+// A mobile business has no address, so it shows no neighborhood; the coverage
+// line below carries the reach instead.
+const typeLine = [type, mobile ? "" : neighborhood].filter(Boolean).join(" · ");
 const dist = formatDistance(distanceKm);
 const countLine = [
   productCount != null ? `${productCount} productos` : null,
@@ -72,6 +88,16 @@ const waHref = whatsapp ? `https://wa.me/${whatsapp.replace(/[^\d]/g, "")}` : nu
       {typeLine && <p class="text-[13px] text-text-secondary">{typeLine}</p>}
       <OpenBadge hours={hours} timezone={timezone} />
     </div>
+
+    {servesAtCustomerLocation(mode) && (
+      <p class="flex items-start gap-1.5 text-[12px] text-text-secondary">
+        <Icon name="lucide:truck" class="mt-0.5 shrink-0 text-accent" width={13} height={13} />
+        <span>
+          <span class="font-medium">{locationModeLabel(mode)}</span>
+          {coverage ? ` · ${coverage}` : ""}
+        </span>
+      </p>
+    )}
 
     {tags.length > 0 && (
       <div class="mt-0.5 flex flex-wrap gap-1.5">

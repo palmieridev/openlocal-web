@@ -21,6 +21,35 @@ export interface NullString {
   Valid: boolean;
 }
 
+/**
+ * How a business reaches its customers.
+ *
+ * - `fixed`  — a physical address customers come to (the historical default).
+ * - `mobile` — no premises: the business travels to the customer. Every fixed
+ *   location field (address/city/coords) may be null; coverage lives in
+ *   `service_areas`, so a mobile business must never get a map pin.
+ * - `hybrid` — both: a physical address **and** service areas it travels to.
+ */
+export type LocationMode = "fixed" | "mobile" | "hybrid";
+
+/**
+ * One geography a mobile/hybrid business covers.
+ *
+ * `country` and `state` are always present on a valid row; everything narrower
+ * is optional and may be null, so an area can be as broad as a whole state or
+ * as narrow as one neighborhood.
+ */
+export interface ServiceArea {
+  /** Owner-facing label ("Zona centro"); required by the API. */
+  name: string;
+  country: string;
+  state: string;
+  municipality?: string | null;
+  city?: string | null;
+  neighborhood?: string | null;
+  postal_code?: string | null;
+}
+
 /** A business profile. Private fields are only present on authorized reads. */
 export interface Business {
   id: string;
@@ -36,14 +65,22 @@ export interface Business {
   logo_url?: string;
   cover_image_url?: string;
   status?: string;
-  address?: string;
-  neighborhood?: string;
-  city: string;
-  state: string;
-  country: string;
-  postal_code?: string;
-  latitude?: string;
-  longitude?: string;
+  /**
+   * Fixed-location fields. All nullable: a `mobile` business has no premises,
+   * so it stores none of them.
+   */
+  address?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  postal_code?: string | null;
+  latitude?: string | null;
+  longitude?: string | null;
+  /** Defaults to "fixed" when an older payload omits it. */
+  location_mode?: LocationMode;
+  /** Always an array on responses; empty for a purely fixed business. */
+  service_areas?: ServiceArea[];
   pickup_available: boolean;
   delivery_available: boolean;
   /** IANA zone the opening hours are expressed in (e.g. "America/Mexico_City"). */

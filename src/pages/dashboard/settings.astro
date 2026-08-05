@@ -5,10 +5,12 @@ import Button from "@/components/ui/Button.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import ImageUploader from "@/components/dashboard/ImageUploader.astro";
 import LogoPresets from "@/components/dashboard/LogoPresets.astro";
+import ServiceAreaEditor from "@/components/dashboard/ServiceAreaEditor.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { text } from "@/lib/format";
 import { weekSchedule } from "@/lib/hours";
+import { businessLocationMode, hasFixedLocation } from "@/lib/service-areas";
 import type { Business, BusinessHours } from "@/types/api";
 
 const { token, businessId } = await getServerAuth(Astro);
@@ -51,6 +53,11 @@ const businessTypes: [string, string][] = [
 if (business?.business_type && !businessTypes.some(([v]) => v === business.business_type)) {
   businessTypes.unshift([business.business_type, business.business_type]);
 }
+
+// Location mode drives which half of the form applies: a mobile business has
+// no address to edit, and the fixed fields below stay hidden for it.
+const locationMode = businessLocationMode(business);
+const showsFixedLocation = hasFixedLocation(locationMode);
 
 const isActive = business?.status === "active";
 const logoUrl = text(business?.logo_url);
@@ -142,8 +149,13 @@ const lng = text(business?.longitude);
             </div>
           </section>
 
+          {/* Reach: fixed premises, mobile service, or both */}
+          <section class="ol-card p-6">
+            <ServiceAreaEditor mode={locationMode} areas={business.service_areas} />
+          </section>
+
           {/* Location — same picker as onboarding */}
-          <section class="ol-card flex flex-col gap-4 p-6">
+          <section class="ol-card flex flex-col gap-4 p-6" data-fixed-only hidden={!showsFixedLocation}>
             <div>
               <h2 class="font-heading font-semibold">Ubicación</h2>
               <p class="text-sm text-text-secondary">
@@ -170,11 +182,11 @@ const lng = text(business?.longitude);
             <div class="grid grid-cols-3 gap-3">
               <div>
                 <label class="ol-label" for="city">Ciudad</label>
-                <input class="ol-input" id="city" name="city" value={business.city} />
+                <input class="ol-input" id="city" name="city" value={text(business.city)} />
               </div>
               <div>
                 <label class="ol-label" for="state">Estado</label>
-                <input class="ol-input" id="state" name="state" value={business.state} />
+                <input class="ol-input" id="state" name="state" value={text(business.state)} />
               </div>
               <div>
                 <label class="ol-label" for="postal_code">CP</label>
@@ -323,14 +335,27 @@ const lng = text(business?.longitude);
             <h2 class="font-heading font-semibold">Entrega</h2>
             <p class="mt-1 text-sm text-text-secondary">Opciones que se muestran a los compradores.</p>
             <div class="mt-4 flex flex-col gap-3">
-              <label class="flex items-center gap-2 text-sm text-text-secondary">
-                <input type="checkbox" name="pickup_available" form="settings-form" checked={business.pickup_available} />
+              {/* Pickup needs premises; the script disables it for a mobile
+                  business. Delivery is a separate option and stays available
+                  in every mode. */}
+              <label class="flex items-center gap-2 text-sm text-text-secondary" data-pickup-label>
+                <input
+                  type="checkbox"
+                  id="pickup_available"
+                  name="pickup_available"
+                  form="settings-form"
+                  checked={business.pickup_available && showsFixedLocation}
+                  disabled={!showsFixedLocation}
+                />
                 Recoge en tienda
               </label>
               <label class="flex items-center gap-2 text-sm text-text-secondary">
                 <input type="checkbox" name="delivery_available" form="settings-form" checked={business.delivery_available} />
                 Envío a domicilio
               </label>
+              <p class="text-xs text-text-muted" data-pickup-note hidden={showsFixedLocation}>
+                Un negocio móvil no tiene local, así que no se ofrece recoger en tienda.
+              </p>
             </div>
           </div>
         </div>
@@ -343,6 +368,15 @@ const lng = text(business?.longitude);
   import L from "leaflet";
   import "leaflet/dist/leaflet.css";
   import { buildHoursPayload, validateHoursRows, type HoursFormRow } from "@/lib/hours";
+  import {
+    allowsPickup,
+    serviceAreasFor,
+    hasFixedLocation,
+    normalizeLocationMode,
+    validateServiceAreas,
+    type ServiceAreaFormRow,
+  } from "@/lib/service-areas";
+  import type { LocationMode } from "@/types/api";
 
   const root = document.querySelector("[data-business-id]") as HTMLElement | null;
   if (root) {
@@ -354,6 +388,48 @@ const lng = text(business?.longitude);
     const msgEl = document.getElementById("settings-msg") as HTMLElement;
     const btn = document.getElementById("settings-btn") as HTMLButtonElement;
     const label = btn?.querySelector("[data-label]") as HTMLElement;
+
+    // ── Location mode ───────────────────────────────────────────────────────
+    // The service-area editor owns the radios; the page hides the address
+    // picker and disables pickup when there are no premises.
+    let locationMode: LocationMode = normalizeLocationMode(
+      document.querySelector<HTMLElement>("[data-location-editor]")?.dataset.mode,
+    );
+    const pickupEl = document.getElementById("pickup_available") as HTMLInputElement | null;
+    const pickupLabel = document.querySelector<HTMLElement>("[data-pickup-label]");
+    const pickupNote = document.querySelector<HTMLElement>("[data-pickup-note]");
+
+    function applyLocationMode(mode: LocationMode) {
+      locationMode = mode;
+      const fixed = hasFixedLocation(mode);
+      document.querySelectorAll<HTMLElement>("[data-fixed-only]").forEach((el) => {
+        el.hidden = !fixed;
+      });
+      if (pickupEl) {
+        pickupEl.disabled = !allowsPickup(mode);
+        if (pickupEl.disabled) pickupEl.checked = false;
+      }
+      pickupLabel?.classList.toggle("opacity-50", !allowsPickup(mode));
+      if (pickupNote) pickupNote.hidden = allowsPickup(mode);
+      // The map lives inside the section we just toggled; it needs a reflow
+      // once it becomes visible again or Leaflet renders a gray box.
+      if (fixed) window.dispatchEvent(new Event("resize"));
+    }
+
+    document.addEventListener("location-mode-change", (event) => {
+      applyLocationMode((event as CustomEvent<{ mode: LocationMode }>).detail.mode);
+    });
+    applyLocationMode(locationMode);
+
+    /** Rows the service-area editor serialized into the hidden field. */
+    function readServiceAreaRows(fd: FormData): ServiceAreaFormRow[] {
+      try {
+        const parsed = JSON.parse(String(fd.get("service_areas") || "[]"));
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
 
     // ── Location picker (same behavior as onboarding) ──────────────────────
     const latEl = document.getElementById("latitude") as HTMLInputElement;
@@ -426,8 +502,10 @@ const lng = text(business?.longitude);
         });
       });
 
-      // Leaflet needs a reflow once the card is laid out.
+      // Leaflet needs a reflow once the card is laid out — and again whenever
+      // switching back to a mode that shows the map, or it renders gray.
       setTimeout(() => map.invalidateSize(), 0);
+      window.addEventListener("resize", () => map.invalidateSize());
     }
     // ────────────────────────────────────────────────────────────────────────
 
@@ -525,6 +603,15 @@ const lng = text(business?.longitude);
     async function save(statusOverride?: string): Promise<boolean> {
       const fd = new FormData(form);
       const str = (k: string) => String(fd.get(k) || "").trim();
+      const mode = normalizeLocationMode(fd.get("location_mode") ?? locationMode);
+      const areaRows = readServiceAreaRows(fd);
+      const areaProblem = validateServiceAreas(areaRows, mode);
+      if (areaProblem) {
+        flash(false, areaProblem);
+        return false;
+      }
+      const fixed = hasFixedLocation(mode);
+
       const payload: Record<string, unknown> = {
         name: str("name"),
         slug: str("slug"),
@@ -534,18 +621,28 @@ const lng = text(business?.longitude);
         whatsapp: str("whatsapp"),
         email: str("email"),
         website: str("website"),
-        address: str("address"),
-        neighborhood: str("neighborhood"),
-        city: str("city"),
-        state: str("state"),
-        country: str("country") || "MX",
-        postal_code: str("postal_code"),
-        pickup_available: fd.get("pickup_available") === "on",
+        location_mode: mode,
+        service_areas: serviceAreasFor(areaRows, mode),
+        // Switching to mobile clears the premises: send explicit nulls so the
+        // old address and pin stop being served, rather than lingering as
+        // stale data behind a mode that says there is no location. A blank
+        // field is null too — the API stores these as nullable text, and an
+        // empty string would read as a real (empty) value.
+        address: (fixed && str("address")) || null,
+        neighborhood: (fixed && str("neighborhood")) || null,
+        city: (fixed && str("city")) || null,
+        state: (fixed && str("state")) || null,
+        country: fixed ? str("country") || "MX" : null,
+        postal_code: (fixed && str("postal_code")) || null,
+        pickup_available: allowsPickup(mode) && fd.get("pickup_available") === "on",
         delivery_available: fd.get("delivery_available") === "on",
       };
       // Coordinates are decimals API-side: only send them when the pin was set,
       // an empty string would fail to parse.
-      if (str("latitude") && str("longitude")) {
+      if (!fixed) {
+        payload.latitude = null;
+        payload.longitude = null;
+      } else if (str("latitude") && str("longitude")) {
         payload.latitude = str("latitude");
         payload.longitude = str("longitude");
       }
