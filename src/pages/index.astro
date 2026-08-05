@@ -107,7 +107,9 @@ const stats = [
             <BusinessCard
               name={b.name}
               type={humanize(b.business_type)}
-              neighborhood={b.neighborhood ?? b.city}
+              neighborhood={text(b.neighborhood) || text(b.city)}
+              locationMode={b.location_mode}
+              serviceAreas={b.service_areas}
               logoUrl={b.logo_url}
               tags={[
                 b.pickup_available ? "Recoge en tienda" : null,
