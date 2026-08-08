@@ -38,3 +38,6 @@ openlocal.pen
 .env*
 # …but the checked-in template has to stay addable.
 !.env.example
+
+# Clerk keyless-mode credentials are generated locally and must never be committed.
+/.clerk/
