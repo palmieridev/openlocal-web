@@ -2,14 +2,21 @@
 import { Icon } from "astro-icon/components";
 
 /**
- * Image upload control with a crop/position step.
+ * Image upload control, with an optional crop/position step.
  *
- * Phone photos are portrait (or 4:3) while the storefront renders wide banners
- * and fixed-height cards, so a raw upload gets centre-cropped by CSS and the
- * subject falls outside the frame. Picking a file therefore opens a cropper
- * whose viewport matches the display aspect: the owner pans/zooms, and only the
- * visible region is encoded and uploaded. That also normalises EXIF rotation
- * and shrinks multi-MB camera files.
+ * Two modes:
+ *
+ * - **Crop (`crop` — the default).** For images the layout forces into a fixed
+ *   aspect: the storefront cover banner and the square logo. Picking a file
+ *   opens a cropper whose viewport matches the display aspect, the owner
+ *   pans/zooms, and only the visible region is encoded and uploaded. That also
+ *   normalises EXIF rotation and shrinks multi-MB camera files.
+ * - **Original (`crop={false}`).** For product/variant photos, which are shown
+ *   whole (`object-contain`) rather than centre-cropped. The picked file is
+ *   uploaded byte-for-byte, so nothing is lost and — just as importantly —
+ *   nothing has to be decoded in the browser first, which is what used to fail
+ *   on Android. Only a file over the 5 MB cap is re-encoded, and then it is
+ *   scaled down whole, never cropped.
  *
  * `target` picks where the bytes go: "blob" posts to /api/upload (Vercel Blob),
  * "clerk-logo" calls Clerk's organization.setLogo — the org image is owned by
@@ -23,7 +30,7 @@ interface Props {
     kind: string;
     /** Current image URL, if any. */
     value?: string | null;
-    /** Crop viewport aspect (width / height). */
+    /** Crop viewport aspect (width / height). Ignored when `crop` is false. */
     aspect?: number;
     /** Encoded width in px; height follows from `aspect`. */
     outputWidth?: number;
@@ -36,6 +43,15 @@ interface Props {
     label?: string;
     hint?: string;
     target?: "blob" | "clerk-logo";
+    /** false → upload the original file untouched, with no crop step. */
+    crop?: boolean;
+    /** Preview fit. Defaults to `contain` in original mode, `cover` otherwise. */
+    previewFit?: "cover" | "contain";
+    /**
+     * Original mode only: longest edge kept when a file over the size cap has
+     * to be shrunk. Big enough for a full-bleed storefront photo.
+     */
+    maxDimension?: number;
     /**
      * Narrowest / widest aspect this image is displayed at across breakpoints.
      * The storefront cover is ~2:1 on a phone but ~5:1 on a desktop, so no single
@@ -58,10 +74,16 @@ const {
     label,
     hint,
     target = "blob",
+    crop = true,
+    previewFit = crop ? "cover" : "contain",
+    maxDimension = 2000,
     safeMinAspect,
     safeMaxAspect,
 } = Astro.props;
 const url = value ?? "";
+const defaultHint = crop
+    ? "JPG, PNG, WebP o AVIF · máx 5 MB"
+    : "JPG, PNG, WebP o AVIF · se guarda completa, sin recortes";
 ---
 
 <div
@@ -72,6 +94,8 @@ const url = value ?? "";
     data-output-width={outputWidth}
     data-output-type={outputType}
     data-target={target}
+    data-crop={String(crop)}
+    data-max-dimension={maxDimension}
     data-safe-min={safeMinAspect}
     data-safe-max={safeMaxAspect}
 >
@@ -88,7 +112,8 @@ const url = value ?? "";
             src={url || undefined}
             alt=""
             class:list={[
-                "absolute inset-0 size-full object-cover",
+                "absolute inset-0 size-full",
+                previewFit === "contain" ? "object-contain" : "object-cover",
                 { hidden: !url },
             ]}
         />
@@ -117,7 +142,7 @@ const url = value ?? "";
     </label>
     <div class="mt-2 flex items-center justify-between gap-2">
         <p class="text-xs text-text-muted">
-            {hint ?? "JPG, PNG, WebP o AVIF · máx 5 MB"}
+            {hint ?? defaultHint}
         </p>
         <button
             type="button"
@@ -132,73 +157,89 @@ const url = value ?? "";
     </div>
     <p data-msg class="mt-2 hidden rounded-xl px-3 py-2 text-sm"></p>
 
-    {/* Crop / position modal */}
-    <div
-        data-crop-modal
-        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 p-4"
-    >
-        <div class="ol-card flex w-full max-w-lg flex-col gap-4 p-5 shadow-xl">
-            <div>
-                <h2 class="font-heading font-semibold">Acomoda la imagen</h2>
-                <p class="text-sm text-text-secondary">
-                    Arrastra para mover y usa el control para acercar. Solo se
-                    guarda lo que se ve en el recuadro.
-                </p>
-            </div>
+    {
+        /* Crop / position modal — only rendered in crop mode. Scrolls as a
+           whole so its buttons stay reachable on a short phone screen. */
+    }
+    {
+        crop && (
             <div
-                data-crop-viewport
-                class="relative w-full touch-none overflow-hidden rounded-xl bg-surface-secondary select-none"
+                data-crop-modal
+                class="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto overscroll-contain bg-black/50 p-4"
             >
-                <img
-                    data-crop-image
-                    alt=""
-                    class="absolute max-w-none origin-top-left will-change-transform"
-                />
-                {
-                    /* Region that stays visible at every breakpoint (see safeMinAspect). */
-                }
-                <div
-                    data-crop-safe
-                    class="pointer-events-none absolute hidden rounded-sm border border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.18)]"
-                >
+                <div class="ol-card my-auto flex w-full max-w-lg flex-col gap-4 p-5 shadow-xl">
+                    <div>
+                        <h2 class="font-heading font-semibold">
+                            Acomoda la imagen
+                        </h2>
+                        <p class="text-sm text-text-secondary">
+                            Arrastra para mover y usa el control para acercar.
+                            Solo se guarda lo que se ve en el recuadro.
+                        </p>
+                    </div>
+                    <div
+                        data-crop-viewport
+                        class="relative w-full touch-none overflow-hidden rounded-xl bg-surface-secondary select-none"
+                    >
+                        <img
+                            data-crop-image
+                            alt=""
+                            class="absolute max-w-none origin-top-left will-change-transform"
+                        />
+                        {
+                            /* Region that stays visible at every breakpoint (see safeMinAspect). */
+                        }
+                        <div
+                            data-crop-safe
+                            class="pointer-events-none absolute hidden rounded-sm border border-dashed border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.18)]"
+                        />
+                    </div>
+                    <label class="flex items-center gap-3 text-sm text-text-secondary">
+                        <Icon name="lucide:zoom-in" width={16} height={16} />
+                        <input
+                            data-zoom
+                            type="range"
+                            min="1"
+                            max="4"
+                            step="0.01"
+                            value="1"
+                            class="w-full"
+                        />
+                    </label>
+                    <div class="flex items-center justify-end gap-2 border-t border-border pt-4">
+                        <button
+                            type="button"
+                            data-crop-cancel
+                            class="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="button"
+                            data-crop-confirm
+                            class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-text-inverse hover:opacity-90"
+                        >
+                            <span data-crop-label>Usar imagen</span>
+                        </button>
+                    </div>
                 </div>
             </div>
-            <label class="flex items-center gap-3 text-sm text-text-secondary">
-                <Icon name="lucide:zoom-in" width={16} height={16} />
-                <input
-                    data-zoom
-                    type="range"
-                    min="1"
-                    max="4"
-                    step="0.01"
-                    value="1"
-                    class="w-full"
-                />
-            </label>
-            <div
-                class="flex items-center justify-end gap-2 border-t border-border pt-4"
-            >
-                <button
-                    type="button"
-                    data-crop-cancel
-                    class="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
-                >
-                    Cancelar
-                </button>
-                <button
-                    type="button"
-                    data-crop-confirm
-                    class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-text-inverse hover:opacity-90"
-                >
-                    <span data-crop-label>Usar imagen</span>
-                </button>
-            </div>
-        </div>
-    </div>
+        )
+    }
 </div>
 
 <script>
-    import { MAX_IMAGE_BYTES, validateImageUpload } from "@/lib/upload";
+    import {
+        MAX_IMAGE_BYTES,
+        validateImageType,
+        validateImageUpload,
+    } from "@/lib/upload";
+    import {
+        IMAGE_DECODE_MESSAGE,
+        decodeImage,
+        fitWithin,
+        type DecodedImage,
+    } from "@/lib/image-source";
 
     document
         .querySelectorAll<HTMLElement>("[data-image-uploader]")
@@ -208,6 +249,8 @@ const url = value ?? "";
             const outputWidth = Number(root.dataset.outputWidth) || 1500;
             const outputType = root.dataset.outputType || "image/jpeg";
             const target = root.dataset.target || "blob";
+            const cropMode = root.dataset.crop !== "false";
+            const maxDimension = Number(root.dataset.maxDimension) || 2000;
 
             const q = <T extends HTMLElement>(sel: string) =>
                 root.querySelector<T>(sel)!;
@@ -218,11 +261,6 @@ const url = value ?? "";
             const uploading = q("[data-uploading]");
             const removeBtn = q("[data-remove]");
             const msg = q("[data-msg]");
-            const modal = q("[data-crop-modal]");
-            const viewport = q("[data-crop-viewport]");
-            const cropImage = q<HTMLImageElement>("[data-crop-image]");
-            const safeArea = q("[data-crop-safe]");
-            const zoom = q<HTMLInputElement>("[data-zoom]");
 
             function flash(ok: boolean, text: string) {
                 msg.textContent = text;
@@ -243,204 +281,14 @@ const url = value ?? "";
                 );
             }
 
-            // ── Crop state ──────────────────────────────────────────────────────────
-            // `scale` maps source pixels → viewport pixels; tx/ty are the image's
-            // top-left offset inside the viewport, clamped so it always covers it.
-            let bitmap: ImageBitmap | null = null;
-            let objectUrl = "";
-            let minScale = 1;
-            let scale = 1;
-            let tx = 0;
-            let ty = 0;
-
-            function viewportSize() {
-                const width = viewport.clientWidth;
-                return { width, height: width / aspect };
-            }
-
-            function clamp() {
-                const { width, height } = viewportSize();
-                const w = (bitmap?.width ?? 0) * scale;
-                const h = (bitmap?.height ?? 0) * scale;
-                tx = Math.min(0, Math.max(width - w, tx));
-                ty = Math.min(0, Math.max(height - h, ty));
-            }
-
-            function paint() {
-                if (!bitmap) return;
-                cropImage.style.width = `${bitmap.width * scale}px`;
-                cropImage.style.height = `${bitmap.height * scale}px`;
-                cropImage.style.transform = `translate(${tx}px, ${ty}px)`;
-            }
-
-            function fit() {
-                if (!bitmap) return;
-                const { width, height } = viewportSize();
-                viewport.style.height = `${height}px`;
-                minScale = Math.max(
-                    width / bitmap.width,
-                    height / bitmap.height,
-                );
-                scale = minScale * Number(zoom.value);
-                // Start centred on the middle of the photo.
-                tx = (width - bitmap.width * scale) / 2;
-                ty = (height - bitmap.height * scale) / 2;
-                clamp();
-                paint();
-            }
-
-            function closeModal() {
-                modal.classList.add("hidden");
-                modal.classList.remove("flex");
-                if (objectUrl) URL.revokeObjectURL(objectUrl);
-                objectUrl = "";
-                bitmap?.close();
-                bitmap = null;
-                input.value = "";
-            }
-
-            input.addEventListener("change", async () => {
-                const file = input.files?.[0];
-                if (!file) return;
-                msg.classList.add("hidden");
-                const problem = validateImageUpload(file);
-                if (problem) {
-                    flash(false, problem);
-                    input.value = "";
-                    return;
-                }
-                try {
-                    // `from-image` applies EXIF rotation, which phone cameras rely on.
-                    bitmap = await createImageBitmap(file, {
-                        imageOrientation: "from-image",
-                    });
-                } catch {
-                    flash(false, "No se pudo leer la imagen.");
-                    input.value = "";
-                    return;
-                }
-                objectUrl = URL.createObjectURL(file);
-                cropImage.src = objectUrl;
-                zoom.value = "1";
-                modal.classList.remove("hidden");
-                modal.classList.add("flex");
-                // The viewport has no width until it is displayed.
-                requestAnimationFrame(() => {
-                    fit();
-                    // Narrow screens trim the sides, wide ones trim top and bottom; the
-                    // intersection is what every visitor is guaranteed to see.
-                    const safeMin = Number(root.dataset.safeMin);
-                    const safeMax = Number(root.dataset.safeMax);
-                    if (safeMin > 0 && safeMax > 0) {
-                        const inset = (fraction: number) =>
-                            `${((1 - Math.min(1, fraction)) / 2) * 100}%`;
-                        const x = inset(safeMin / aspect);
-                        const y = inset(aspect / safeMax);
-                        safeArea.style.left = x;
-                        safeArea.style.right = x;
-                        safeArea.style.top = y;
-                        safeArea.style.bottom = y;
-                        safeArea.classList.remove("hidden");
-                    }
-                });
-            });
-
-            // Pan.
-            let dragging = false;
-            let lastX = 0;
-            let lastY = 0;
-            viewport.addEventListener("pointerdown", (e) => {
-                if (!bitmap) return;
-                dragging = true;
-                lastX = e.clientX;
-                lastY = e.clientY;
-                viewport.setPointerCapture(e.pointerId);
-            });
-            viewport.addEventListener("pointermove", (e) => {
-                if (!dragging) return;
-                tx += e.clientX - lastX;
-                ty += e.clientY - lastY;
-                lastX = e.clientX;
-                lastY = e.clientY;
-                clamp();
-                paint();
-            });
-            const endDrag = () => {
-                dragging = false;
-            };
-            viewport.addEventListener("pointerup", endDrag);
-            viewport.addEventListener("pointercancel", endDrag);
-
-            // Zoom about the viewport centre.
-            zoom.addEventListener("input", () => {
-                if (!bitmap) return;
-                const { width, height } = viewportSize();
-                const previous = scale;
-                scale = minScale * Number(zoom.value);
-                const ratio = scale / previous;
-                tx = width / 2 - (width / 2 - tx) * ratio;
-                ty = height / 2 - (height / 2 - ty) * ratio;
-                clamp();
-                paint();
-            });
-
-            q("[data-crop-cancel]").addEventListener("click", closeModal);
-            modal.addEventListener("click", (e) => {
-                if (e.target === modal) closeModal();
-            });
-
-            q("[data-crop-confirm]").addEventListener("click", async () => {
-                if (!bitmap) return;
-                const { width, height } = viewportSize();
-                // Viewport rect expressed in source pixels.
-                const sx = -tx / scale;
-                const sy = -ty / scale;
-                const sw = width / scale;
-                const sh = height / scale;
-
-                const canvas = document.createElement("canvas");
-                canvas.width = outputWidth;
-                canvas.height = Math.round(outputWidth / aspect);
-                const ctx = canvas.getContext("2d");
-                if (!ctx) return;
-                ctx.drawImage(
-                    bitmap,
-                    sx,
-                    sy,
-                    sw,
-                    sh,
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height,
-                );
-
-                const blob = await new Promise<Blob | null>((resolve) =>
-                    canvas.toBlob(resolve, outputType, 0.9),
-                );
-                if (!blob) {
-                    flash(false, "No se pudo procesar la imagen.");
-                    return;
-                }
-                if (blob.size > MAX_IMAGE_BYTES) {
-                    flash(false, "La imagen supera el máximo de 5 MB.");
-                    return;
-                }
-                const ext = outputType === "image/png" ? "png" : "jpg";
-                const file = new File([blob], `${kind}.${ext}`, {
-                    type: outputType,
-                });
-
-                closeModal();
+            /** Upload `file` and reflect the outcome in the control. */
+            async function send(file: File, okText: string) {
                 placeholder.classList.add("hidden");
                 uploading.classList.remove("hidden");
                 uploading.classList.add("flex");
                 try {
                     setUrl(await store(file));
-                    flash(
-                        true,
-                        "Imagen lista. Guarda los cambios para publicarla.",
-                    );
+                    flash(true, okText);
                 } catch (err) {
                     placeholder.classList.toggle(
                         "hidden",
@@ -456,6 +304,107 @@ const url = value ?? "";
                     uploading.classList.add("hidden");
                     uploading.classList.remove("flex");
                 }
+            }
+
+            /** Encode a whole decoded image at `width`×`height`. No cropping. */
+            async function encodeWhole(
+                decoded: DecodedImage,
+                width: number,
+                height: number,
+                quality: number,
+            ): Promise<Blob | null> {
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) return null;
+                ctx.drawImage(decoded.source, 0, 0, width, height);
+                return new Promise<Blob | null>((resolve) =>
+                    canvas.toBlob(resolve, "image/jpeg", quality),
+                );
+            }
+
+            /**
+             * Last resort for an original over the 5 MB cap: scale the *whole*
+             * frame down until it fits, dropping quality first so the picture
+             * keeps as many pixels as possible.
+             */
+            async function shrinkToFit(file: File): Promise<File> {
+                const decoded = await decodeImage(file);
+                try {
+                    let { width, height } = fitWithin(
+                        decoded.width,
+                        decoded.height,
+                        maxDimension,
+                    );
+                    for (const quality of [0.88, 0.78, 0.68, 0.6]) {
+                        const blob = await encodeWhole(
+                            decoded,
+                            width,
+                            height,
+                            quality,
+                        );
+                        if (blob && blob.size <= MAX_IMAGE_BYTES) {
+                            return new File([blob], `${kind}.jpg`, {
+                                type: "image/jpeg",
+                            });
+                        }
+                        ({ width, height } = fitWithin(
+                            width,
+                            height,
+                            Math.round(Math.max(width, height) * 0.75),
+                        ));
+                    }
+                    throw new Error(
+                        "La imagen es demasiado pesada. Intenta con una foto más pequeña.",
+                    );
+                } finally {
+                    decoded.release();
+                }
+            }
+
+            /** Original mode: upload the picked bytes as they are. */
+            async function useOriginal(file: File) {
+                input.value = "";
+                let payload: File = file;
+                if (file.size > MAX_IMAGE_BYTES) {
+                    try {
+                        payload = await shrinkToFit(file);
+                    } catch (err) {
+                        flash(
+                            false,
+                            err instanceof Error
+                                ? err.message
+                                : IMAGE_DECODE_MESSAGE,
+                        );
+                        return;
+                    }
+                }
+                await send(
+                    payload,
+                    "Imagen lista. Guarda los cambios para publicarla.",
+                );
+            }
+
+            input.addEventListener("change", async () => {
+                const file = input.files?.[0];
+                if (!file) return;
+                msg.classList.add("hidden");
+                // In original mode an oversized file is recoverable (it gets
+                // scaled down), so only the format check is fatal there.
+                const problem = cropMode
+                    ? validateImageUpload(file)
+                    : validateImageType(file);
+                if (problem) {
+                    flash(false, problem);
+                    input.value = "";
+                    return;
+                }
+                if (!cropMode) {
+                    await useOriginal(file);
+                    return;
+                }
+                await openCropper(file);
             });
 
             /** Persist the bytes and return the public URL. */
@@ -508,22 +457,202 @@ const url = value ?? "";
                 const file = (e as CustomEvent<File>).detail;
                 if (!file) return;
                 msg.classList.add("hidden");
-                placeholder.classList.add("hidden");
-                uploading.classList.remove("hidden");
-                uploading.classList.add("flex");
+                await send(
+                    file,
+                    "Logo listo. Guarda los cambios para publicarlo.",
+                );
+            });
+
+            // ── Crop mode ───────────────────────────────────────────────────────────
+            let openCropper = async (_file: File) => {};
+            if (!cropMode) return;
+
+            const modal = q("[data-crop-modal]");
+            const viewport = q("[data-crop-viewport]");
+            const cropImage = q<HTMLImageElement>("[data-crop-image]");
+            const safeArea = q("[data-crop-safe]");
+            const zoom = q<HTMLInputElement>("[data-zoom]");
+
+            // `scale` maps source pixels → viewport pixels; tx/ty are the image's
+            // top-left offset inside the viewport, clamped so it always covers it.
+            let decoded: DecodedImage | null = null;
+            let objectUrl = "";
+            let minScale = 1;
+            let scale = 1;
+            let tx = 0;
+            let ty = 0;
+
+            function viewportSize() {
+                const width = viewport.clientWidth;
+                return { width, height: width / aspect };
+            }
+
+            function clamp() {
+                const { width, height } = viewportSize();
+                const w = (decoded?.width ?? 0) * scale;
+                const h = (decoded?.height ?? 0) * scale;
+                tx = Math.min(0, Math.max(width - w, tx));
+                ty = Math.min(0, Math.max(height - h, ty));
+            }
+
+            function paint() {
+                if (!decoded) return;
+                cropImage.style.width = `${decoded.width * scale}px`;
+                cropImage.style.height = `${decoded.height * scale}px`;
+                cropImage.style.transform = `translate(${tx}px, ${ty}px)`;
+            }
+
+            function fit() {
+                if (!decoded) return;
+                const { width, height } = viewportSize();
+                viewport.style.height = `${height}px`;
+                minScale = Math.max(
+                    width / decoded.width,
+                    height / decoded.height,
+                );
+                scale = minScale * Number(zoom.value);
+                // Start centred on the middle of the photo.
+                tx = (width - decoded.width * scale) / 2;
+                ty = (height - decoded.height * scale) / 2;
+                clamp();
+                paint();
+            }
+
+            function closeModal() {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+                if (objectUrl) URL.revokeObjectURL(objectUrl);
+                objectUrl = "";
+                decoded?.release();
+                decoded = null;
+                input.value = "";
+            }
+
+            openCropper = async (file: File) => {
                 try {
-                    setUrl(await store(file));
-                    flash(true, "Logo listo. Guarda los cambios para publicarlo.");
-                } catch (err) {
-                    placeholder.classList.toggle("hidden", Boolean(urlEl.value));
-                    flash(
-                        false,
-                        err instanceof Error ? err.message : "Error al subir la imagen.",
-                    );
-                } finally {
-                    uploading.classList.add("hidden");
-                    uploading.classList.remove("flex");
+                    decoded = await decodeImage(file);
+                } catch {
+                    flash(false, IMAGE_DECODE_MESSAGE);
+                    input.value = "";
+                    return;
                 }
+                objectUrl = URL.createObjectURL(file);
+                cropImage.src = objectUrl;
+                zoom.value = "1";
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                // The viewport has no width until it is displayed.
+                requestAnimationFrame(() => {
+                    fit();
+                    // Narrow screens trim the sides, wide ones trim top and bottom; the
+                    // intersection is what every visitor is guaranteed to see.
+                    const safeMin = Number(root.dataset.safeMin);
+                    const safeMax = Number(root.dataset.safeMax);
+                    if (safeMin > 0 && safeMax > 0) {
+                        const inset = (fraction: number) =>
+                            `${((1 - Math.min(1, fraction)) / 2) * 100}%`;
+                        const x = inset(safeMin / aspect);
+                        const y = inset(aspect / safeMax);
+                        safeArea.style.left = x;
+                        safeArea.style.right = x;
+                        safeArea.style.top = y;
+                        safeArea.style.bottom = y;
+                        safeArea.classList.remove("hidden");
+                    }
+                });
+            };
+
+            // Pan.
+            let dragging = false;
+            let lastX = 0;
+            let lastY = 0;
+            viewport.addEventListener("pointerdown", (e) => {
+                if (!decoded) return;
+                dragging = true;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                viewport.setPointerCapture(e.pointerId);
+            });
+            viewport.addEventListener("pointermove", (e) => {
+                if (!dragging) return;
+                tx += e.clientX - lastX;
+                ty += e.clientY - lastY;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                clamp();
+                paint();
+            });
+            const endDrag = () => {
+                dragging = false;
+            };
+            viewport.addEventListener("pointerup", endDrag);
+            viewport.addEventListener("pointercancel", endDrag);
+
+            // Zoom about the viewport centre.
+            zoom.addEventListener("input", () => {
+                if (!decoded) return;
+                const { width, height } = viewportSize();
+                const previous = scale;
+                scale = minScale * Number(zoom.value);
+                const ratio = scale / previous;
+                tx = width / 2 - (width / 2 - tx) * ratio;
+                ty = height / 2 - (height / 2 - ty) * ratio;
+                clamp();
+                paint();
+            });
+
+            q("[data-crop-cancel]").addEventListener("click", closeModal);
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) closeModal();
+            });
+
+            q("[data-crop-confirm]").addEventListener("click", async () => {
+                if (!decoded) return;
+                const { width, height } = viewportSize();
+                // Viewport rect expressed in source pixels.
+                const sx = -tx / scale;
+                const sy = -ty / scale;
+                const sw = width / scale;
+                const sh = height / scale;
+
+                const canvas = document.createElement("canvas");
+                canvas.width = outputWidth;
+                canvas.height = Math.round(outputWidth / aspect);
+                const ctx = canvas.getContext("2d");
+                if (!ctx) return;
+                ctx.drawImage(
+                    decoded.source,
+                    sx,
+                    sy,
+                    sw,
+                    sh,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height,
+                );
+
+                const blob = await new Promise<Blob | null>((resolve) =>
+                    canvas.toBlob(resolve, outputType, 0.9),
+                );
+                if (!blob) {
+                    flash(false, "No se pudo procesar la imagen.");
+                    return;
+                }
+                if (blob.size > MAX_IMAGE_BYTES) {
+                    flash(false, "La imagen supera el máximo de 5 MB.");
+                    return;
+                }
+                const ext = outputType === "image/png" ? "png" : "jpg";
+                const file = new File([blob], `${kind}.${ext}`, {
+                    type: outputType,
+                });
+
+                closeModal();
+                await send(
+                    file,
+                    "Imagen lista. Guarda los cambios para publicarla.",
+                );
             });
         });
 </script>
