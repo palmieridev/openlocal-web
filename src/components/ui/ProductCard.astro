@@ -35,11 +35,20 @@ const Tag = href ? "a" : "div";
   class="group flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-card border border-border/60 transition-shadow hover:shadow-md"
   {...href ? { href } : {}}
 >
+  {/* Photos are stored uncropped, so the tile letterboxes them (object-contain)
+      instead of centre-cropping — a portrait shot loses nothing. */}
   <div
     data-card-image
-    class="relative flex h-44 items-start justify-end bg-accent-soft bg-cover bg-center p-3"
-    style={imageUrl ? `background-image:url('${imageUrl}');` : ""}
+    class="relative flex h-44 items-start justify-end bg-accent-soft p-3"
   >
+    <img
+      data-card-photo
+      src={imageUrl || undefined}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      class:list={["absolute inset-0 size-full object-contain", { hidden: !imageUrl }]}
+    />
     {/* Always rendered so the dashboard preview can toggle it as the image changes. */}
     <Icon
       name="lucide:image"
@@ -49,7 +58,7 @@ const Tag = href ? "a" : "div";
       height={40}
     />
     {stockStatus && (
-      <Badge tone="stock" bg={stock.bg} fg={stock.fg} dot={stock.dot}>{stock.label}</Badge>
+      <Badge tone="stock" bg={stock.bg} fg={stock.fg} dot={stock.dot} class="relative z-10">{stock.label}</Badge>
     )}
   </div>
 
