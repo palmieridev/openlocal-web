@@ -34,3 +34,7 @@ skills-lock.json
 .claude/
 .agents/
 openlocal.pen
+.vercel
+.env*
+# …but the checked-in template has to stay addable.
+!.env.example
