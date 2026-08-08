@@ -16,8 +16,8 @@ import { text } from "./format";
  */
 
 /** Owner-form limits; mirrored by `maxlength` on the inputs. */
-export const VARIANT_DESCRIPTION_MAX = 600;
-export const VARIANT_PRICE_NOTE_MAX = 140;
+export const VARIANT_DESCRIPTION_MAX = 2000;
+export const VARIANT_PRICE_NOTE_MAX = 500;
 
 /** Coerce a nullable/NullString API value to a trimmed plain string. */
 export function variantText(value: string | NullString | null | undefined): string {
