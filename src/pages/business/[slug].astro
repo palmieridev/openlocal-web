@@ -5,8 +5,10 @@ import Button from "@/components/ui/Button.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import OpenBadge from "@/components/ui/OpenBadge.astro";
+import ImageLightbox from "@/components/ui/ImageLightbox.astro";
 import { publicApi } from "@/lib/api/client";
 import { text, humanize } from "@/lib/format";
+import { publicPriceNote, publicVariantDescription } from "@/lib/variants";
 import { groupedSchedule, zonedNow } from "@/lib/hours";
 import {
   allowsPickup,
@@ -218,24 +220,64 @@ const headerTags = [
 
             {products.length > 0 ? (
               <div id="product-grid" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {products.map((p, i) => (
-                  <div
-                    class="product-item"
-                    data-brand={text(p.brand)}
-                    data-price={Number(p.price) || 0}
-                    data-name={p.name}
-                    data-index={i}
-                  >
-                    <ProductCard
-                      name={p.name}
-                      meta={[text(p.brand), p.variant_name].filter(Boolean).join(" · ")}
-                      price={p.price}
-                      currency={p.currency}
-                      stockStatus={p.public_stock_status}
-                      imageUrl={p.image_url}
-                    />
-                  </div>
-                ))}
+                {products.map((p, i) => {
+                  const variantDescription = publicVariantDescription(p);
+                  const priceNote = publicPriceNote(p);
+                  const panelId = `variant-details-${p.variant_id || i}`;
+                  return (
+                    <div
+                      class="product-item"
+                      data-brand={text(p.brand)}
+                      data-price={Number(p.price) || 0}
+                      data-name={p.name}
+                      data-index={i}
+                    >
+                      <ProductCard
+                        name={p.name}
+                        meta={[text(p.brand), p.variant_name].filter(Boolean).join(" · ")}
+                        price={p.price}
+                        currency={p.currency}
+                        priceNote={priceNote}
+                        stockStatus={p.public_stock_status}
+                        imageUrl={p.image_url}
+                        lightbox
+                      >
+                        {(variantDescription || p.description) && (
+                          <div slot="details" class="mt-2 border-t border-border/60 pt-2">
+                            <button
+                              type="button"
+                              class="variant-toggle flex w-full items-center justify-between gap-2 text-[13px] font-medium text-text-secondary transition-colors hover:text-text-primary"
+                              aria-expanded="false"
+                              aria-controls={panelId}
+                            >
+                              <span>Ver detalles</span>
+                              <Icon
+                                name="lucide:chevron-down"
+                                class="shrink-0 transition-transform"
+                                data-variant-chevron
+                                width={15}
+                                height={15}
+                              />
+                            </button>
+                            <div id={panelId} class="mt-2 flex flex-col gap-2 text-[13px] leading-relaxed text-text-secondary" hidden>
+                              {variantDescription ? (
+                                <div>
+                                  <p class="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+                                    {p.variant_name || "Variante"}
+                                  </p>
+                                  <p class="mt-1 whitespace-pre-line">{variantDescription}</p>
+                                </div>
+                              ) : null}
+                              {p.description && (
+                                <p class="whitespace-pre-line text-text-muted">{p.description}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </ProductCard>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div class="rounded-2xl border border-dashed border-border bg-surface-card/50 p-10 text-center text-sm text-text-secondary">
@@ -406,6 +448,9 @@ const headerTags = [
           </aside>
         </div>
       </div>
+
+      {/* One viewer for every product image on the page. */}
+      <ImageLightbox />
     </PublicLayout>
   )
 }
@@ -466,6 +511,21 @@ const headerTags = [
           return (Number(a.dataset.index) || 0) - (Number(b.dataset.index) || 0);
         })
         .forEach((el) => grid.appendChild(el));
+    });
+
+    // Variant details disclosure, one per card.
+    grid.querySelectorAll<HTMLButtonElement>(".variant-toggle").forEach((toggle) => {
+      const panel = document.getElementById(toggle.getAttribute("aria-controls") || "");
+      const chevron = toggle.querySelector<HTMLElement>("[data-variant-chevron]");
+      const label = toggle.querySelector("span");
+      if (!panel) return;
+      toggle.addEventListener("click", () => {
+        const open = toggle.getAttribute("aria-expanded") === "true";
+        toggle.setAttribute("aria-expanded", open ? "false" : "true");
+        panel.hidden = open;
+        chevron?.classList.toggle("rotate-180", !open);
+        if (label) label.textContent = open ? "Ver detalles" : "Ocultar detalles";
+      });
     });
 
     const chips = Array.from(document.querySelectorAll<HTMLElement>("#chip-bar .chip"));
