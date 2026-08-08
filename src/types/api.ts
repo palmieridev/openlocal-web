@@ -140,6 +140,16 @@ export interface Variant {
   name: string;
   attributes?: Record<string, unknown>;
   /**
+   * Long-form explanation of this variant (materials, medidas, acabados).
+   * Nullable on the API, and absent from older payloads — always coerce.
+   */
+  description?: string | null;
+  /**
+   * Short caveat shown next to the price ("El precio final depende de medidas
+   * y acabados"). Nullable, same handling as `description`.
+   */
+  price_note?: string | null;
+  /**
    * Storefront image, owned by the variant. On writes: omit (or send null) to
    * leave the current image alone, send "" to remove it — the API can't tell an
    * omitted field from an explicit null, so it treats both as "unchanged".
@@ -169,7 +179,11 @@ export interface PublicProduct {
   variant_id: string;
   sku: string;
   variant_name: string;
+  /** Variant-level detail; null/absent when the owner left it empty. */
+  variant_description?: string | null;
   price: string;
+  /** Short caveat rendered beside the price. Null/absent when unset. */
+  price_note?: string | null;
   currency: string;
   public_stock_status: PublicStockStatus;
   image_url?: string | null;
@@ -192,7 +206,10 @@ export interface MarketplaceProduct {
   variant_id: string;
   sku: string;
   variant_name: string;
+  /** Raw sqlc row, so this may arrive as a NullString. */
+  variant_description?: string | NullString | null;
   price: string;
+  price_note?: string | NullString | null;
   currency: string;
   public_stock_status: PublicStockStatus;
   image_url?: string | null;

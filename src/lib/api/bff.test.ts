@@ -86,4 +86,11 @@ describe("readBody", () => {
     const request = new Request("http://test/", { method: "POST", body: "nope" });
     await expect(readBody(request)).resolves.toBe("{}");
   });
+
+  it("applies the transform before serializing", async () => {
+    const request = new Request("http://test/", { method: "POST", body: '{"a":1}' });
+    await expect(
+      readBody(request, (body) => ({ ...(body as object), b: 2 })),
+    ).resolves.toBe('{"a":1,"b":2}');
+  });
 });

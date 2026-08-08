@@ -35,7 +35,10 @@ export async function forward(
 }
 
 /** Read and JSON-encode a request body for forwarding. */
-export async function readBody(request: Request): Promise<string> {
+export async function readBody(
+  request: Request,
+  transform: (body: unknown) => unknown = (body) => body,
+): Promise<string> {
   const body = await request.json().catch(() => ({}));
-  return JSON.stringify(body);
+  return JSON.stringify(transform(body));
 }

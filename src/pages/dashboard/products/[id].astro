@@ -8,6 +8,11 @@ import ImageUploader from "@/components/dashboard/ImageUploader.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { formatPrice, stockMeta } from "@/lib/format";
+import {
+  VARIANT_DESCRIPTION_MAX,
+  VARIANT_PRICE_NOTE_MAX,
+  variantPriceNote,
+} from "@/lib/variants";
 import type { Business, Product, Variant } from "@/types/api";
 
 const { id } = Astro.params;
@@ -145,14 +150,21 @@ const previewMeta = product
                   const sm = stockMeta(v.public_stock_status);
                   return (
                     <article class="flex w-56 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-surface-card">
-                      <div
-                        class="relative flex h-32 items-start justify-end bg-accent-soft bg-cover bg-center p-2"
-                        style={v.image_url ? `background-image:url('${v.image_url}');` : ""}
-                      >
-                        {!v.image_url && (
+                      {/* object-contain: variant photos are stored uncropped,
+                          so a portrait shot has to be shown whole. */}
+                      <div class="relative flex h-32 items-start justify-end bg-accent-soft p-2">
+                        {v.image_url ? (
+                          <img
+                            src={v.image_url}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            class="absolute inset-0 size-full object-contain"
+                          />
+                        ) : (
                           <Icon name="lucide:image" class="absolute inset-0 m-auto text-accent/30" width={28} height={28} />
                         )}
-                        <span class={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sm.bg} ${sm.fg}`}>
+                        <span class={`relative z-10 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${sm.bg} ${sm.fg}`}>
                           <span class={`size-1.5 rounded-full ${sm.dot}`}></span>{sm.label}
                         </span>
                       </div>
@@ -209,6 +221,7 @@ const previewMeta = product
               meta={previewMeta}
               price={firstVariant?.price ?? ""}
               currency={firstVariant?.currency ?? "MXN"}
+              priceNote={variantPriceNote(firstVariant)}
               stockStatus={firstVariant?.public_stock_status}
               imageUrl={firstVariant?.image_url}
             />
@@ -230,9 +243,13 @@ const previewMeta = product
         </div>
       </div>
 
-      {/* Variant add/edit modal — shared popup */}
-      <div id="variant-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
-        <form id="variant-form" class="ol-card flex w-full max-w-md flex-col gap-4 p-6 shadow-xl">
+      {/* Variant add/edit modal — shared popup.
+          The overlay scrolls (items-start + my-auto on the panel) instead of
+          centring a panel taller than the viewport: on a phone the form is
+          longer than the screen, and centring it clipped Guardar/Cancelar off
+          both ends with no way to reach them. */}
+      <div id="variant-modal" class="fixed inset-0 z-50 hidden items-start justify-center overflow-y-auto overscroll-contain bg-black/40 p-4">
+        <form id="variant-form" class="ol-card my-auto flex w-full max-w-md flex-col gap-4 p-6 shadow-xl">
           <input type="hidden" name="variant_id" />
           <div class="flex items-center justify-between">
             <h2 id="variant-modal-title" class="font-heading font-semibold">Agregar variante</h2>
@@ -247,14 +264,29 @@ const previewMeta = product
             <ImageUploader
               id="variant-image"
               kind="product"
-              aspect={1.5}
-              outputWidth={1200}
-              hint="Se recorta en 3:2 · máx 5 MB"
+              crop={false}
+              heightClass="h-48"
+              hint="Se guarda completa, sin recortes · vertical u horizontal"
             />
           </div>
           <div>
             <label class="ol-label" for="vname">Nombre de la variante</label>
             <input class="ol-input" id="vname" name="vname" placeholder="Color natural" />
+          </div>
+          <div>
+            <label class="ol-label" for="vdescription">Descripción de la variante</label>
+            <textarea
+              class="ol-textarea"
+              id="vdescription"
+              name="vdescription"
+              rows="3"
+              maxlength={VARIANT_DESCRIPTION_MAX}
+              aria-describedby="vdescription-hint"
+              placeholder="Tejida a mano en palma natural, 30 × 25 cm, asa reforzada."
+            ></textarea>
+            <p id="vdescription-hint" class="mt-1 text-xs text-text-muted">
+              Explica esta variante: materiales, medidas, acabados. Se muestra en tu tienda al abrir los detalles.
+            </p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
@@ -275,6 +307,20 @@ const previewMeta = product
               <label class="ol-label" for="cost">Costo</label>
               <input class="ol-input font-data" id="cost" name="cost" inputmode="decimal" placeholder="0.00" />
             </div>
+          </div>
+          <div>
+            <label class="ol-label" for="vprice_note">Nota de precio</label>
+            <input
+              class="ol-input"
+              id="vprice_note"
+              name="vprice_note"
+              maxlength={VARIANT_PRICE_NOTE_MAX}
+              aria-describedby="vprice_note-hint"
+              placeholder="El precio final depende de medidas y acabados"
+            />
+            <p id="vprice_note-hint" class="mt-1 text-xs text-text-muted">
+              Aclaración corta que aparece junto al precio en tu tienda. Déjala vacía si el precio es final.
+            </p>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
@@ -307,6 +353,8 @@ const previewMeta = product
 </DashboardLayout>
 
 <script>
+  import { variantDescription, variantDetailsError, variantPriceNote } from "@/lib/variants";
+
   const root = document.querySelector("[data-product-id]") as HTMLElement | null;
   if (root) {
     const businessId = root.dataset.businessId!;
@@ -349,7 +397,11 @@ const previewMeta = product
     const vBtnLabel = vForm?.querySelector("#variant-btn [data-label]") as HTMLElement;
     const deleteBtn = document.getElementById("variant-delete") as HTMLButtonElement;
     const set = (name: string, value: string) => {
-      const el = vForm.elements.namedItem(name) as HTMLInputElement | HTMLSelectElement | null;
+      const el = vForm.elements.namedItem(name) as
+        | HTMLInputElement
+        | HTMLSelectElement
+        | HTMLTextAreaElement
+        | null;
       if (el) el.value = value;
     };
 
@@ -370,6 +422,8 @@ const previewMeta = product
         deleteBtn.classList.remove("hidden");
         set("variant_id", variant.id ?? "");
         set("vname", variant.name ?? "");
+        set("vdescription", variantDescription(variant));
+        set("vprice_note", variantPriceNote(variant));
         set("sku", variant.sku ?? "");
         set("barcode", variant.barcode ?? "");
         set("price", variant.price ?? "");
@@ -386,10 +440,14 @@ const previewMeta = product
       }
       modal.classList.remove("hidden");
       modal.classList.add("flex");
+      // Keep the scroll gesture inside the overlay on touch devices.
+      document.body.classList.add("overflow-hidden");
+      modal.scrollTop = 0;
     }
     function closeModal() {
       modal.classList.add("hidden");
       modal.classList.remove("flex");
+      document.body.classList.remove("overflow-hidden");
     }
 
     document.getElementById("variant-add-btn")?.addEventListener("click", () => openModal());
@@ -414,6 +472,13 @@ const previewMeta = product
       const str = (k: string) => String(fd.get(k) || "").trim();
       const variantId = str("variant_id");
       const sku = str("sku");
+      const description = str("vdescription");
+      const priceNote = str("vprice_note");
+      const detailsError = variantDetailsError(description, priceNote);
+      if (detailsError) {
+        flash(vMsg, false, detailsError);
+        return;
+      }
       // Only send optional fields when filled — the API parses cost/barcode/etc.
       // strictly and 500s on an empty decimal string.
       const payload: Record<string, unknown> = {
@@ -422,6 +487,10 @@ const previewMeta = product
         sku,
         name: str("vname") || sku,
         attributes: {},
+        // Text fields are always sent: like image_url, "" is what clears them,
+        // while omitting them would read as "leave unchanged".
+        description,
+        price_note: priceNote,
         price: str("price") || "0",
         public_stock_status: str("public_stock_status") || "unknown",
         track_inventory: fd.get("track_inventory") === "on",

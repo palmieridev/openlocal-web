@@ -9,10 +9,14 @@ interface Props {
   meta?: string;
   price: string | number;
   currency?: string;
+  /** Short caveat the owner attached to the variant price. */
+  priceNote?: string | null;
   distanceKm?: number | null;
   stockStatus?: PublicStockStatus | string;
   imageUrl?: string | null;
   href?: string;
+  /** Make the image open the page's <ImageLightbox />. Needs no `href`. */
+  lightbox?: boolean;
 }
 
 const {
@@ -20,11 +24,18 @@ const {
   meta,
   price,
   currency = "MXN",
+  priceNote,
   distanceKm,
   stockStatus,
   imageUrl,
   href,
+  lightbox = false,
 } = Astro.props;
+
+const note = priceNote?.trim() ?? "";
+// A nested <button> inside the card's <a> would be invalid markup, so the
+// zoom trigger only appears on cards that are not themselves a link.
+const zoomable = lightbox && !href && !!imageUrl;
 
 const stock = stockMeta(stockStatus);
 const dist = formatDistance(distanceKm);
@@ -35,11 +46,20 @@ const Tag = href ? "a" : "div";
   class="group flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-card border border-border/60 transition-shadow hover:shadow-md"
   {...href ? { href } : {}}
 >
+  {/* Photos are stored uncropped, so the tile letterboxes them (object-contain)
+      instead of centre-cropping — a portrait shot loses nothing. */}
   <div
     data-card-image
-    class="relative flex h-44 items-start justify-end bg-accent-soft bg-cover bg-center p-3"
-    style={imageUrl ? `background-image:url('${imageUrl}');` : ""}
+    class="relative flex h-44 items-start justify-end bg-accent-soft p-3"
   >
+    <img
+      data-card-photo
+      src={imageUrl || undefined}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      class:list={["absolute inset-0 size-full object-contain", { hidden: !imageUrl }]}
+    />
     {/* Always rendered so the dashboard preview can toggle it as the image changes. */}
     <Icon
       name="lucide:image"
@@ -48,8 +68,22 @@ const Tag = href ? "a" : "div";
       width={40}
       height={40}
     />
+    {zoomable && (
+      <button
+        type="button"
+        class="absolute inset-0 z-0 flex cursor-zoom-in items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
+        data-lightbox-src={imageUrl}
+        data-lightbox-alt={`Imagen de ${name}`}
+        data-lightbox-caption={[name, meta].filter(Boolean).join(" · ")}
+        aria-label={`Ver imagen completa de ${name}`}
+      >
+        <span class="rounded-full bg-black/45 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+          <Icon name="lucide:zoom-in" width={18} height={18} />
+        </span>
+      </button>
+    )}
     {stockStatus && (
-      <Badge tone="stock" bg={stock.bg} fg={stock.fg} dot={stock.dot}>{stock.label}</Badge>
+      <Badge tone="stock" bg={stock.bg} fg={stock.fg} dot={stock.dot} class="relative z-10">{stock.label}</Badge>
     )}
   </div>
 
@@ -70,5 +104,12 @@ const Tag = href ? "a" : "div";
         </span>
       )}
     </div>
+    {note && (
+      <p class="flex items-start gap-1.5 text-xs leading-snug text-text-muted" data-price-note>
+        <Icon name="lucide:info" class="mt-px shrink-0 text-accent" width={12} height={12} />
+        <span>{note}</span>
+      </p>
+    )}
+    <slot name="details" />
   </div>
 </Tag>

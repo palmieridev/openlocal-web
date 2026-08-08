@@ -5,6 +5,7 @@ import ProductCard from "@/components/ui/ProductCard.astro";
 import BusinessCard from "@/components/ui/BusinessCard.astro";
 import { publicApi } from "@/lib/api/client";
 import { humanize, text } from "@/lib/format";
+import { publicPriceNote } from "@/lib/variants";
 import {
   businessLocationMode,
   hasMapPin,
@@ -291,6 +292,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
                 meta={p.business_name}
                 price={p.price}
                 currency={p.currency}
+                priceNote={publicPriceNote(p)}
                 stockStatus={p.public_stock_status}
                 imageUrl={p.image_url}
                 href={`/business/${p.business_slug}`}

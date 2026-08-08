@@ -26,16 +26,28 @@ export interface UploadCandidate {
 }
 
 /**
- * Returns a user-facing (Spanish) error message when the file is not an
- * acceptable image, or null when it passes. Messages surface directly in the UI.
+ * Format/emptiness check only — the part a file can never recover from.
+ * Split out from `validateImageUpload` because an oversized original *is*
+ * recoverable: the uploader shrinks it (whole frame, no crop) instead of
+ * refusing it.
  */
-export function validateImageUpload(file: UploadCandidate): string | null {
+export function validateImageType(file: UploadCandidate): string | null {
   if (!imageExtension(file.type)) {
     return "Formato no admitido. Usa JPG, PNG, WebP o AVIF.";
   }
   if (file.size <= 0) {
     return "El archivo está vacío.";
   }
+  return null;
+}
+
+/**
+ * Returns a user-facing (Spanish) error message when the file is not an
+ * acceptable image, or null when it passes. Messages surface directly in the UI.
+ */
+export function validateImageUpload(file: UploadCandidate): string | null {
+  const problem = validateImageType(file);
+  if (problem) return problem;
   if (file.size > MAX_IMAGE_BYTES) {
     return "La imagen supera el máximo de 5 MB.";
   }

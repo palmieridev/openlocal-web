@@ -6,6 +6,7 @@ import BusinessCard from "@/components/ui/BusinessCard.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import { publicApi } from "@/lib/api/client";
 import { text, humanize } from "@/lib/format";
+import { publicPriceNote } from "@/lib/variants";
 
 const [businesses, products] = await Promise.all([
   publicApi.listBusinesses({ limit: 6 }),
@@ -150,6 +151,7 @@ const stats = [
               meta={`${p.business_name}`}
               price={p.price}
               currency={p.currency}
+              priceNote={publicPriceNote(p)}
               stockStatus={p.public_stock_status}
               imageUrl={p.image_url}
               href={`/business/${p.business_slug}`}

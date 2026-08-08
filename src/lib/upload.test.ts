@@ -3,8 +3,26 @@ import {
   IMAGE_EXTENSIONS,
   MAX_IMAGE_BYTES,
   imageExtension,
+  validateImageType,
   validateImageUpload,
 } from "./upload";
+
+describe("validateImageType", () => {
+  it("rejects unsupported formats and empty files", () => {
+    expect(validateImageType({ type: "image/gif", size: 10 })).toMatch(
+      /Formato no admitido/,
+    );
+    expect(validateImageType({ type: "image/jpeg", size: 0 })).toMatch(
+      /vacío/,
+    );
+  });
+
+  it("ignores size — an oversized original is shrunk, not refused", () => {
+    expect(
+      validateImageType({ type: "image/jpeg", size: MAX_IMAGE_BYTES * 4 }),
+    ).toBeNull();
+  });
+});
 
 describe("imageExtension", () => {
   it("maps every allowed MIME type to its extension", () => {
