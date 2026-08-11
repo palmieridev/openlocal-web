@@ -91,3 +91,23 @@ describe("humanize", () => {
     expect(humanize("")).toBe("");
   });
 });
+
+describe("locale-aware formatting", () => {
+  it("keeps prices in MXN across locales", () => {
+    expect(formatPrice("1234.50", "MXN", "es")).toContain("1,234.5");
+    const english = formatPrice("1234.50", "MXN", "en");
+    expect(english).toContain("1,234.5");
+    expect(english).toContain("MX$");
+  });
+
+  it("translates the stock badge label", () => {
+    expect(stockMeta("available", "en").label).toBe("In stock");
+    expect(stockMeta("available", "es").label).toBe("En stock");
+    expect(stockMeta("out_of_stock", "en").label).toBe("Sold out");
+    expect(stockMeta(undefined, "en").label).toBe("Ask the shop");
+  });
+
+  it("defaults to Spanish when no locale is passed", () => {
+    expect(stockMeta("low_stock").label).toBe("Pocas piezas");
+  });
+});

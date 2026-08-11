@@ -1,25 +1,36 @@
 import type { NullString, PublicStockStatus } from "@/types/api";
+import { DEFAULT_LOCALE, intlLocale, useT, type Locale } from "@/i18n";
 
-const mxn = new Intl.NumberFormat("es-MX", {
-  style: "currency",
-  currency: "MXN",
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 2,
-});
+/**
+ * Locale only changes grouping and currency-symbol placement — prices stay in
+ * MXN either way ("$1,234" in es-MX, "MX$1,234" in en-US).
+ */
+const formatters = new Map<string, Intl.NumberFormat>();
+function currencyFormatter(locale: Locale, currency: string): Intl.NumberFormat {
+  const key = `${locale}:${currency}`;
+  let formatter = formatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(intlLocale(locale), {
+      style: "currency",
+      currency,
+      minimumFractionDigits: currency === "MXN" ? 0 : undefined,
+      maximumFractionDigits: 2,
+    });
+    formatters.set(key, formatter);
+  }
+  return formatter;
+}
 
 /** Format a decimal-string or number price as MXN ($1,234). */
-export function formatPrice(value: string | number | undefined | null, currency = "MXN"): string {
+export function formatPrice(
+  value: string | number | undefined | null,
+  currency = "MXN",
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (value === undefined || value === null || value === "") return "—";
   const n = typeof value === "number" ? value : Number(value);
   if (Number.isNaN(n)) return "—";
-  if (currency !== "MXN") {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(n);
-  }
-  return mxn.format(n);
+  return currencyFormatter(locale, currency).format(n);
 }
 
 /** Human distance in km ("1.2 km"), or empty when unknown. */
@@ -44,20 +55,24 @@ export interface StockMeta {
   dot: string;
 }
 
-/** Spanish label + warm-palette colors for a public stock status. */
-export function stockMeta(status: PublicStockStatus | string | undefined): StockMeta {
+/** Localized label + warm-palette colors for a public stock status. */
+export function stockMeta(
+  status: PublicStockStatus | string | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): StockMeta {
+  const t = useT(locale).stock;
   switch (status) {
     case "in_stock":
     case "available":
-      return { label: "En stock", bg: "bg-success-soft", fg: "text-success", dot: "bg-success" };
+      return { label: t.inStock, bg: "bg-success-soft", fg: "text-success", dot: "bg-success" };
     case "low_stock":
-      return { label: "Pocas piezas", bg: "bg-warning-soft", fg: "text-warning", dot: "bg-warning" };
+      return { label: t.lowStock, bg: "bg-warning-soft", fg: "text-warning", dot: "bg-warning" };
     case "out_of_stock":
-      return { label: "Agotado", bg: "bg-danger-soft", fg: "text-danger", dot: "bg-danger" };
+      return { label: t.outOfStock, bg: "bg-danger-soft", fg: "text-danger", dot: "bg-danger" };
     case "made_to_order":
-      return { label: "Bajo pedido", bg: "bg-accent-soft", fg: "text-accent", dot: "bg-accent" };
+      return { label: t.madeToOrder, bg: "bg-accent-soft", fg: "text-accent", dot: "bg-accent" };
     default:
-      return { label: "Consultar", bg: "bg-surface-secondary", fg: "text-text-muted", dot: "bg-text-muted" };
+      return { label: t.unknown, bg: "bg-surface-secondary", fg: "text-text-muted", dot: "bg-text-muted" };
   }
 }
 
