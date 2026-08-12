@@ -115,7 +115,12 @@ describe("interpolate", () => {
 
 describe("clientDict", () => {
   it("ships only the island-facing namespaces", () => {
-    expect(Object.keys(clientDict("en")).sort()).toEqual(["common", "stock"]);
+    expect(Object.keys(clientDict("en")).sort()).toEqual([
+      "common",
+      "hours",
+      "lightbox",
+      "stock",
+    ]);
     expect(clientDict("en").common.save).toBe("Save");
   });
 });

@@ -2,11 +2,15 @@
 import PublicLayout from "@/layouts/PublicLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import { Icon } from "astro-icon/components";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
 ---
 
 <PublicLayout
-  title="Algo salió mal — Openlocal"
-  description="Ocurrió un error inesperado. Intenta de nuevo en unos momentos."
+  title={t.errors.serverTitle}
+  description={t.errors.serverMeta}
 >
   <section class="mx-auto flex max-w-xl flex-col items-center px-4 py-24 text-center sm:py-32">
     <div class="mb-6 flex size-16 items-center justify-center rounded-full bg-danger-soft">
@@ -14,15 +18,14 @@ import { Icon } from "astro-icon/components";
     </div>
     <p class="font-mono text-sm text-text-muted">500</p>
     <h1 class="mt-2 text-2xl font-semibold text-text-primary sm:text-3xl">
-      Algo salió mal
+      {t.errors.serverHeading}
     </h1>
     <p class="mt-3 text-sm text-text-secondary sm:text-base">
-      Ocurrió un error inesperado de nuestro lado. Ya estamos en ello — intenta
-      de nuevo en unos momentos.
+      {t.errors.serverBody}
     </p>
     <div class="mt-8 flex flex-wrap justify-center gap-3">
-      <Button href="/marketplace" icon="lucide:store">Ir al marketplace</Button>
-      <Button href="/" variant="secondary">Volver al inicio</Button>
+      <Button href={localePath(locale, "/marketplace")} icon="lucide:store">{t.errors.goMarketplace}</Button>
+      <Button href={localePath(locale, "/")} variant="secondary">{t.errors.backHome}</Button>
     </div>
   </section>
 </PublicLayout>

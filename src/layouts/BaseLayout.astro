@@ -46,7 +46,10 @@ const canonical = new URL(trim(Astro.originPathname), site);
     <meta property="og:type" content="website" />
     <meta property="og:locale" content={locale === "es" ? "es_MX" : "en_US"} />
     <meta name="generator" content={Astro.generator} />
-    <script is:inline set:html={`window.__OL_I18N=${JSON.stringify(clientDict(locale))}`} />
+    <script
+      is:inline
+      set:html={`window.__OL_LOCALE=${JSON.stringify(locale)};window.__OL_I18N=${JSON.stringify(clientDict(locale))}`}
+    />
   </head>
   <body class={`min-h-screen bg-surface-primary text-text-primary ${bodyClass}`}>
     <slot />

@@ -100,6 +100,11 @@ export function interpolate(
   );
 }
 
+/** Both locales pluralize on `n === 1`, so one branch covers them. */
+export function pluralize(count: number, one: string, other: string): string {
+  return interpolate(count === 1 ? one : other, { count });
+}
+
 /**
  * The subset of the dictionary shipped to the browser. Vanilla `<script>`
  * islands cannot import Astro props, so `BaseLayout` inlines this as
@@ -107,7 +112,7 @@ export function interpolate(
  */
 export function clientDict(locale: Locale | string | undefined) {
   const t = useT(locale);
-  return { common: t.common, stock: t.stock };
+  return { common: t.common, stock: t.stock, hours: t.hours, lightbox: t.lightbox };
 }
 
 export type ClientDict = ReturnType<typeof clientDict>;

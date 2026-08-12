@@ -3,7 +3,7 @@ import { Icon } from "astro-icon/components";
 import {
   DEFAULT_COUNTRY,
   LOCATION_MODES,
-  LOCATION_MODE_META,
+  locationModeMeta,
   normalizeLocationMode,
   serviceAreaRows,
   servesAtCustomerLocation,
@@ -30,6 +30,7 @@ interface Props {
 }
 
 const { mode: rawMode, areas, class: extra = "" } = Astro.props;
+const modeMeta = locationModeMeta(Astro.locals.locale);
 const mode = normalizeLocationMode(rawMode);
 const rows = serviceAreaRows(areas);
 const areasVisible = servesAtCustomerLocation(mode);
@@ -53,7 +54,7 @@ const areasVisible = servesAtCustomerLocation(mode);
 
   <div class="grid gap-2 sm:grid-cols-3">
     {LOCATION_MODES.map((value) => {
-      const meta = LOCATION_MODE_META[value];
+      const meta = modeMeta[value];
       return (
         <label
           class="flex cursor-pointer flex-col gap-1 rounded-xl border border-border bg-surface-card p-3 transition-colors has-[:checked]:border-accent has-[:checked]:bg-accent-soft"

@@ -1,4 +1,5 @@
 import type { BusinessHour } from "@/types/api";
+import { DEFAULT_LOCALE, interpolate, useT, type Locale } from "@/i18n";
 
 /**
  * Opening-hours helpers.
@@ -9,16 +10,11 @@ import type { BusinessHour } from "@/types/api";
  * closes. Everything below is pure — `now` is always injected.
  */
 
-/** Spanish day names indexed by day_of_week (0 = Monday). */
-export const DAY_LABELS = [
-  "Lunes",
-  "Martes",
-  "Miércoles",
-  "Jueves",
-  "Viernes",
-  "Sábado",
-  "Domingo",
-] as const;
+/** Day names indexed by day_of_week (0 = Monday), in the given locale. */
+export function dayLabels(locale: Locale = DEFAULT_LOCALE): string[] {
+  const t = useT(locale).hours;
+  return [t.monday, t.tuesday, t.wednesday, t.thursday, t.friday, t.saturday, t.sunday];
+}
 
 /** en-US short weekday → day_of_week (0 = Monday). */
 const WEEKDAY_INDEX: Record<string, number> = {
@@ -130,18 +126,22 @@ export interface OpenMeta {
   dot: string;
 }
 
-/** Spanish label + palette tokens for an open/closed state (null → no badge). */
-export function openMeta(open: boolean | null): OpenMeta | null {
+/** Localized label + palette tokens for an open/closed state (null → no badge). */
+export function openMeta(open: boolean | null, locale: Locale = DEFAULT_LOCALE): OpenMeta | null {
   if (open === null) return null;
+  const t = useT(locale).hours;
   return open
-    ? { label: "Abierto", bg: "bg-success-soft", fg: "text-success", dot: "bg-success" }
-    : { label: "Cerrado", bg: "bg-surface-secondary", fg: "text-text-muted", dot: "bg-text-muted" };
+    ? { label: t.open, bg: "bg-success-soft", fg: "text-success", dot: "bg-success" }
+    : { label: t.closed, bg: "bg-surface-secondary", fg: "text-text-muted", dot: "bg-text-muted" };
 }
 
-/** "09:00 – 18:30" for a day, or "Cerrado" / "—" when not applicable. */
-export function formatDayRange(hour: BusinessHour | undefined): string {
+/** "09:00 – 18:30" for a day, or the localized "closed" / "—" when not applicable. */
+export function formatDayRange(
+  hour: BusinessHour | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
   if (!hour) return "—";
-  if (hour.is_closed) return "Cerrado";
+  if (hour.is_closed) return useT(locale).hours.closed;
   if (!hour.opens_at || !hour.closes_at) return "—";
   return `${hour.opens_at} – ${hour.closes_at}`;
 }
@@ -149,9 +149,10 @@ export function formatDayRange(hour: BusinessHour | undefined): string {
 /** All seven days in Monday-first order, filling gaps with undefined. */
 export function weekSchedule(
   hours: BusinessHour[] | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
 ): Array<{ day: number; label: string; hour: BusinessHour | undefined }> {
   const byDay = new Map((hours ?? []).map((hour) => [hour.day_of_week, hour]));
-  return DAY_LABELS.map((label, day) => ({ day, label, hour: byDay.get(day) }));
+  return dayLabels(locale).map((label, day) => ({ day, label, hour: byDay.get(day) }));
 }
 
 export interface ScheduleGroup {
@@ -163,13 +164,22 @@ export interface ScheduleGroup {
   days: number[];
 }
 
-/** "Lunes" · "Lunes y martes" · "Lunes a viernes" for a run of days. */
-function dayRunLabel(days: number[]): string {
-  const first = DAY_LABELS[days[0]];
+/**
+ * "Lunes" · "Lunes y martes" · "Lunes a viernes" for a run of days.
+ *
+ * Both the cased and lower-cased last day are handed to the template so each
+ * dictionary picks what its grammar needs — Spanish lower-cases mid-sentence
+ * ("Lunes a viernes"), English does not ("Monday to Friday").
+ */
+function dayRunLabel(days: number[], locale: Locale = DEFAULT_LOCALE): string {
+  const labels = dayLabels(locale);
+  const t = useT(locale).hours;
+  const first = labels[days[0]];
   if (days.length === 1) return first;
-  const last = DAY_LABELS[days[days.length - 1]].toLowerCase();
+  const last = labels[days[days.length - 1]];
+  const vars = { first, last, lastLower: last.toLowerCase() };
   // Two days read better joined with "y" than as a range.
-  return days.length === 2 ? `${first} y ${last}` : `${first} a ${last}`;
+  return interpolate(days.length === 2 ? t.runTwo : t.runRange, vars);
 }
 
 /**
@@ -177,11 +187,14 @@ function dayRunLabel(days: number[]): string {
  * row ("Lunes a viernes: 09:00 – 18:30"). Only adjacent runs collapse, so the
  * week stays in order and a midweek exception still stands out.
  */
-export function groupedSchedule(hours: BusinessHour[] | null | undefined): ScheduleGroup[] {
+export function groupedSchedule(
+  hours: BusinessHour[] | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): ScheduleGroup[] {
   const groups: Array<{ range: string; days: number[] }> = [];
 
-  for (const entry of weekSchedule(hours)) {
-    const range = formatDayRange(entry.hour);
+  for (const entry of weekSchedule(hours, locale)) {
+    const range = formatDayRange(entry.hour, locale);
     const previous = groups[groups.length - 1];
     if (previous && previous.range === range) {
       previous.days.push(entry.day);
@@ -190,7 +203,7 @@ export function groupedSchedule(hours: BusinessHour[] | null | undefined): Sched
     }
   }
 
-  return groups.map((group) => ({ ...group, label: dayRunLabel(group.days) }));
+  return groups.map((group) => ({ ...group, label: dayRunLabel(group.days, locale) }));
 }
 
 // ── Owner editor ────────────────────────────────────────────────────────────
@@ -217,15 +230,21 @@ export function isUnsetRow(row: HoursFormRow): boolean {
  * relayed 500: a closed day carries no times; a day with times needs both, and
  * they must differ. Blank days are skipped. Returns the first problem, or null.
  */
-export function validateHoursRows(rows: HoursFormRow[]): string | null {
+export function validateHoursRows(
+  rows: HoursFormRow[],
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  const t = useT(locale).hours;
+  const labels = dayLabels(locale);
   for (const row of rows) {
     if (row.is_closed || isUnsetRow(row)) continue;
-    const label = DAY_LABELS[row.day_of_week] ?? `Día ${row.day_of_week}`;
+    const day =
+      labels[row.day_of_week] ?? interpolate(t.dayFallback, { day: row.day_of_week });
     if (!row.opens_at || !row.closes_at) {
-      return `${label}: falta la hora de apertura o de cierre.`;
+      return interpolate(t.missingTime, { day });
     }
     if (row.opens_at === row.closes_at) {
-      return `${label}: la apertura y el cierre no pueden ser iguales.`;
+      return interpolate(t.sameTime, { day });
     }
   }
   return null;

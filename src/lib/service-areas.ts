@@ -1,4 +1,5 @@
 import type { Business, LocationMode, ServiceArea } from "@/types/api";
+import { DEFAULT_LOCALE, interpolate, useT, type Locale } from "@/i18n";
 
 /**
  * Location modes and service areas.
@@ -26,26 +27,32 @@ export interface LocationModeMeta {
   icon: string;
 }
 
-export const LOCATION_MODE_META: Record<LocationMode, LocationModeMeta> = {
-  fixed: {
-    value: "fixed",
-    label: "Local fijo",
-    description: "Tienes una dirección donde los clientes te visitan.",
-    icon: "lucide:store",
-  },
-  mobile: {
-    value: "mobile",
-    label: "Negocio móvil",
-    description: "No tienes local: das servicio en la ubicación del cliente.",
-    icon: "lucide:truck",
-  },
-  hybrid: {
-    value: "hybrid",
-    label: "Local y servicio a domicilio",
-    description: "Tienes local y además vas a la ubicación del cliente.",
-    icon: "lucide:map-pinned",
-  },
-};
+/** Mode metadata in the given locale (icons are locale-independent). */
+export function locationModeMeta(
+  locale: Locale = DEFAULT_LOCALE,
+): Record<LocationMode, LocationModeMeta> {
+  const t = useT(locale).location;
+  return {
+    fixed: {
+      value: "fixed",
+      label: t.fixedLabel,
+      description: t.fixedDescription,
+      icon: "lucide:store",
+    },
+    mobile: {
+      value: "mobile",
+      label: t.mobileLabel,
+      description: t.mobileDescription,
+      icon: "lucide:truck",
+    },
+    hybrid: {
+      value: "hybrid",
+      label: t.hybridLabel,
+      description: t.hybridDescription,
+      icon: "lucide:map-pinned",
+    },
+  };
+}
 
 /** Coerce anything (form value, legacy payload) into a valid mode. */
 export function normalizeLocationMode(value: unknown): LocationMode {
@@ -74,9 +81,9 @@ export function allowsPickup(mode: LocationMode): boolean {
   return hasFixedLocation(mode);
 }
 
-/** Spanish label for the mode, used in badges and card chips. */
-export function locationModeLabel(mode: LocationMode): string {
-  return LOCATION_MODE_META[mode].label;
+/** Localized label for the mode, used in badges and card chips. */
+export function locationModeLabel(mode: LocationMode, locale: Locale = DEFAULT_LOCALE): string {
+  return locationModeMeta(locale)[mode].label;
 }
 
 // ── Owner editor ────────────────────────────────────────────────────────────
@@ -199,7 +206,9 @@ export function dedupeServiceAreaRows(rows: ServiceAreaFormRow[]): ServiceAreaFo
 export function validateServiceAreas(
   rows: ServiceAreaFormRow[],
   mode: LocationMode,
+  locale: Locale = DEFAULT_LOCALE,
 ): string | null {
+  const t = useT(locale).areas;
   // A fixed business never sends its rows (see `serviceAreasFor`), so rows the
   // owner left behind when switching back must not block the save.
   if (!servesAtCustomerLocation(mode)) return null;
@@ -207,20 +216,24 @@ export function validateServiceAreas(
   const filled = rows.filter((row) => !isBlankServiceAreaRow(row)).map(normalizeServiceAreaRow);
 
   if (filled.length === 0) {
-    return "Agrega al menos una zona de servicio (estado y, si aplica, municipio o colonia).";
+    return t.atLeastOne;
   }
   if (filled.length > MAX_SERVICE_AREAS) {
-    return `Puedes agregar hasta ${MAX_SERVICE_AREAS} zonas de servicio.`;
+    return interpolate(t.tooMany, { max: MAX_SERVICE_AREAS });
   }
 
   for (const [index, row] of filled.entries()) {
-    const label = row.name || `Zona ${index + 1}`;
-    if (!row.country) return `${label}: falta el país.`;
-    if (!row.state) return `${label}: falta el estado.`;
+    const label = row.name || interpolate(t.rowFallback, { index: index + 1 });
+    if (!row.country) return interpolate(t.missingCountry, { label });
+    if (!row.state) return interpolate(t.missingState, { label });
     // Mirrors the API's own bounds; an unnamed row is labelled from its
     // geography before it is sent, so only a name the owner typed can fail.
     if (row.name && (row.name.length < AREA_NAME_MIN || row.name.length > AREA_NAME_MAX)) {
-      return `${label}: el nombre de la zona debe tener entre ${AREA_NAME_MIN} y ${AREA_NAME_MAX} caracteres.`;
+      return interpolate(t.nameLength, {
+        label,
+        min: AREA_NAME_MIN,
+        max: AREA_NAME_MAX,
+      });
     }
   }
   return null;
@@ -236,13 +249,17 @@ export const AREA_NAME_MAX = 120;
  * null or one-character name. Naming a zone is optional for the owner, so an
  * unnamed row is labelled from the geography it covers.
  */
-export function serviceAreaRowName(row: ServiceAreaFormRow): string {
+export function serviceAreaRowName(
+  row: ServiceAreaFormRow,
+  locale: Locale = DEFAULT_LOCALE,
+): string {
+  const t = useT(locale).areas;
   const derived =
     row.name ||
     [row.neighborhood, row.city || row.municipality, row.state].filter(Boolean).join(", ") ||
-    (row.postal_code ? `CP ${row.postal_code}` : "");
+    (row.postal_code ? interpolate(t.postal, { code: row.postal_code }) : "");
   const name = derived.slice(0, AREA_NAME_MAX);
-  return name.length >= AREA_NAME_MIN ? name : "Zona de servicio";
+  return name.length >= AREA_NAME_MIN ? name : t.fallbackName;
 }
 
 /**
@@ -282,7 +299,7 @@ const cleaned = (value: string | null | undefined) => (value ?? "").trim();
  * Human label for one area, narrowest-first: "Roma Norte, Cuauhtémoc, CDMX".
  * The owner's own name wins when they gave one. Empty when the row is empty.
  */
-export function serviceAreaLabel(area: ServiceArea): string {
+export function serviceAreaLabel(area: ServiceArea, locale: Locale = DEFAULT_LOCALE): string {
   const name = cleaned(area.name);
   if (name) return name;
   const parts = [
@@ -293,13 +310,17 @@ export function serviceAreaLabel(area: ServiceArea): string {
     cleaned(area.state),
   ].filter(Boolean);
   const postal = cleaned(area.postal_code);
-  if (parts.length === 0) return postal ? `CP ${postal}` : "";
-  return postal ? `${parts.join(", ")} (CP ${postal})` : parts.join(", ");
+  const postalLabel = postal ? interpolate(useT(locale).areas.postal, { code: postal }) : "";
+  if (parts.length === 0) return postalLabel;
+  return postalLabel ? `${parts.join(", ")} (${postalLabel})` : parts.join(", ");
 }
 
 /** Labels for a whole coverage list, blanks removed and duplicates collapsed. */
-export function serviceAreaLabels(areas: ServiceArea[] | null | undefined): string[] {
-  const labels = (areas ?? []).map(serviceAreaLabel).filter(Boolean);
+export function serviceAreaLabels(
+  areas: ServiceArea[] | null | undefined,
+  locale: Locale = DEFAULT_LOCALE,
+): string[] {
+  const labels = (areas ?? []).map((area) => serviceAreaLabel(area, locale)).filter(Boolean);
   return [...new Set(labels)];
 }
 
@@ -310,8 +331,9 @@ export function serviceAreaLabels(areas: ServiceArea[] | null | undefined): stri
 export function formatServiceAreas(
   areas: ServiceArea[] | null | undefined,
   max = 2,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
-  const labels = serviceAreaLabels(areas);
+  const labels = serviceAreaLabels(areas, locale);
   if (labels.length === 0) return "";
   const shown = labels.slice(0, max);
   const rest = labels.length - shown.length;
