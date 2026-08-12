@@ -116,13 +116,18 @@ describe("interpolate", () => {
 describe("clientDict", () => {
   it("ships only the island-facing namespaces", () => {
     expect(Object.keys(clientDict("en")).sort()).toEqual([
+      "analytics",
       "common",
       "hours",
+      "inventory",
       "lightbox",
       "marketplace",
+      "movementModal",
+      "movements",
       "onboarding",
       "productDetail",
       "products",
+      "scanner",
       "stock",
       "storefront",
       "variantLimits",

@@ -123,6 +123,11 @@ export function clientDict(locale: Locale | string | undefined) {
     products: t.products,
     productDetail: t.productDetail,
     variantLimits: t.variantLimits,
+    inventory: t.inventory,
+    movementModal: t.movementModal,
+    movements: t.movements,
+    scanner: t.scanner,
+    analytics: t.analytics,
   };
 }
 

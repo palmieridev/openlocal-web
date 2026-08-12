@@ -7,7 +7,12 @@ import Button from "@/components/ui/Button.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { formatPrice } from "@/lib/format";
+import { localePath, useT } from "@/i18n";
 import type { ABCRow } from "@/types/api";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).analytics;
+const to = (href: string) => localePath(locale, href);
 
 const { token, businessId } = await getServerAuth(Astro);
 
@@ -43,8 +48,15 @@ const barColor: Record<string, string> = {
   ) : (
     <>
       <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-surface-card px-8 py-5">
-        <h1 class="font-heading text-2xl font-semibold">Analítica</h1>
-        <Button variant="secondary" size="sm" icon="lucide:scan-barcode" href="/dashboard/inventory/scan">Escanear</Button>
+        <h1 class="font-heading text-2xl font-semibold">{t.title}</h1>
+        <Button
+          variant="secondary"
+          size="sm"
+          icon="lucide:scan-barcode"
+          href={to("/dashboard/inventory/scan")}
+        >
+          {t.scan}
+        </Button>
       </div>
       <div class="mx-auto max-w-5xl px-8 py-6">
         <AnalyticsTabs active="abc" />
@@ -52,16 +64,16 @@ const barColor: Record<string, string> = {
       {rows.length > 0 ? (
         <div class="ol-card mt-6 overflow-hidden">
           <div class="border-b border-border px-5 py-3">
-            <h2 class="font-heading font-semibold">Clasificación ABC (Pareto)</h2>
-            <p class="text-xs text-text-muted">Productos ordenados por valor de venta acumulado.</p>
+            <h2 class="font-heading font-semibold">{t.abcTitle}</h2>
+            <p class="text-xs text-text-muted">{t.abcIntro}</p>
           </div>
           <table class="w-full text-sm">
             <thead>
               <tr class="border-b border-border text-left text-xs uppercase tracking-wide text-text-muted">
-                <th class="px-5 py-3 font-medium">Producto</th>
-                <th class="px-5 py-3 font-medium">Valor</th>
-                <th class="px-5 py-3 font-medium">% acum.</th>
-                <th class="px-5 py-3 font-medium">Clase</th>
+                <th class="px-5 py-3 font-medium">{t.colProduct}</th>
+                <th class="px-5 py-3 font-medium">{t.colValue}</th>
+                <th class="px-5 py-3 font-medium">{t.colCumulative}</th>
+                <th class="px-5 py-3 font-medium">{t.colClass}</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border">
@@ -75,7 +87,7 @@ const barColor: Record<string, string> = {
                         <div class={`h-full ${barColor[cls] ?? barColor.C}`} style={`width:${Math.max(4, (value(r) / max) * 100)}%`}></div>
                       </div>
                     </td>
-                    <td class="px-5 py-3 font-data">{formatPrice(value(r))}</td>
+                    <td class="px-5 py-3 font-data">{formatPrice(value(r), "MXN", locale)}</td>
                     <td class="px-5 py-3 font-data text-text-muted">{r.cumulative_percent ? `${Number(r.cumulative_percent).toFixed(0)}%` : "—"}</td>
                     <td class="px-5 py-3">
                       <span class={`rounded-full px-2.5 py-1 text-[11px] font-bold ${classStyle[cls] ?? classStyle.C}`}>{cls}</span>
@@ -89,7 +101,7 @@ const barColor: Record<string, string> = {
       ) : (
         <div class="ol-card mt-6 border-dashed p-12 text-center">
           <Icon name="lucide:chart-column" class="mx-auto text-text-muted" width={32} height={32} />
-          <p class="mt-3 text-sm text-text-secondary">Necesitas ventas registradas para calcular el ABC.</p>
+          <p class="mt-3 text-sm text-text-secondary">{t.abcEmpty}</p>
         </div>
       )}
       </div>
