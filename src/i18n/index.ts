@@ -128,6 +128,9 @@ export function clientDict(locale: Locale | string | undefined) {
     movements: t.movements,
     scanner: t.scanner,
     analytics: t.analytics,
+    imageUploader: t.imageUploader,
+    upload: t.upload,
+    settings: t.settings,
   };
 }
 

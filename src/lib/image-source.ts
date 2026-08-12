@@ -16,6 +16,8 @@
  *
  * The DOM work is injectable so the chain itself is unit-testable under node.
  */
+import { DEFAULT_LOCALE, useT, type Locale } from "@/i18n";
+
 
 /** Which decoder produced the image — useful in tests and debugging. */
 export type ImageDecodeStrategy = "bitmap-oriented" | "bitmap" | "element";
@@ -42,12 +44,13 @@ export interface DecodeDeps {
   decodeElement?: ((blob: Blob) => Promise<DecodeResult>) | null;
 }
 
-/** User-facing (Spanish) message when nothing could read the file. */
-export const IMAGE_DECODE_MESSAGE =
-  "No se pudo leer la imagen. Intenta con otra foto.";
+/** User-facing message when nothing could read the file. */
+export function imageDecodeMessage(locale: Locale = DEFAULT_LOCALE): string {
+  return useT(locale).upload.decodeFailed;
+}
 
 export class ImageDecodeError extends Error {
-  constructor(message: string = IMAGE_DECODE_MESSAGE) {
+  constructor(message: string = imageDecodeMessage()) {
     super(message);
     this.name = "ImageDecodeError";
   }

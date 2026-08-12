@@ -119,6 +119,7 @@ describe("clientDict", () => {
       "analytics",
       "common",
       "hours",
+      "imageUploader",
       "inventory",
       "lightbox",
       "marketplace",
@@ -128,8 +129,10 @@ describe("clientDict", () => {
       "productDetail",
       "products",
       "scanner",
+      "settings",
       "stock",
       "storefront",
+      "upload",
       "variantLimits",
     ]);
     expect(clientDict("en").common.save).toBe("Save");
