@@ -1,8 +1,13 @@
 ---
 import { SignIn } from "@clerk/astro/components";
 import AuthLayout from "@/layouts/AuthLayout.astro";
+import ClerkLocalization from "@/components/ClerkLocalization.astro";
+import { useT } from "@/i18n";
+
+const t = useT(Astro.locals.locale);
 ---
 
-<AuthLayout title="Iniciar sesión — Openlocal">
+<AuthLayout title={t.auth.signInTitle}>
   <SignIn />
+  <ClerkLocalization />
 </AuthLayout>

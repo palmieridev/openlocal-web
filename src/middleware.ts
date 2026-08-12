@@ -4,6 +4,7 @@ import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
   isLocale,
+  localePath,
   preferredLocale,
   splitLocale,
 } from "@/i18n";
@@ -15,6 +16,16 @@ const auth = clerkMiddleware((auth, context) => {
   if (isProtected(context.request)) {
     const { userId, redirectToSignIn } = auth();
     if (!userId) {
+      // Clerk's own helper targets the configured (unprefixed) sign-in URL,
+      // which would drop an English visitor onto the Spanish page. Keep them in
+      // their locale and hand Clerk the prefixed return path.
+      const locale = context.locals.locale;
+      if (locale && locale !== DEFAULT_LOCALE) {
+        const signIn = new URL(localePath(locale, "/login"), context.url);
+        const back = localePath(locale, `${context.url.pathname}${context.url.search}`);
+        signIn.searchParams.set("redirect_url", back);
+        return context.redirect(signIn.toString());
+      }
       return redirectToSignIn();
     }
   }

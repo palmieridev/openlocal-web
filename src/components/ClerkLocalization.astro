@@ -1,0 +1,22 @@
+---
+/**
+ * Locale for Clerk's prebuilt `<SignIn>` / `<SignUp>` widgets.
+ *
+ * The `clerk()` integration only takes a build-time `localization`, which would
+ * pin the whole app to one language. `updateClerkOptions()` sets it per page
+ * instead, so `/login` and `/en/login` render the widget in their own language.
+ *
+ * Only the Spanish resource is loaded: Clerk's own default is `enUS`, already
+ * inside clerk-js, so the English pages need no extra 76 KB module. The import
+ * lives in a locale-specific island rather than a conditional inside one
+ * script, so the bundle is only fetched on the pages that use it.
+ */
+const locale = Astro.locals.locale;
+---
+
+{locale === "es" && <script>
+  import { esMX } from "@clerk/localizations/es-MX";
+  import { updateClerkOptions } from "@clerk/astro/client";
+
+  updateClerkOptions({ localization: esMX });
+</script>}

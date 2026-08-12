@@ -1,11 +1,25 @@
 ---
 import { SignUp } from "@clerk/astro/components";
 import AuthLayout from "@/layouts/AuthLayout.astro";
+import ClerkLocalization from "@/components/ClerkLocalization.astro";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
 
 // Shopper signup: plain account, no organization. Lands on the marketplace.
 ---
 
-<AuthLayout title="Crear cuenta de comprador — Openlocal">
-  <SignUp signInUrl="/login" fallbackRedirectUrl="/marketplace" />
-  <a href="/register" class="text-sm text-text-muted hover:text-text-secondary">← Otras opciones</a>
+<AuthLayout title={t.auth.shopperPageTitle}>
+  <SignUp
+    signInUrl={localePath(locale, "/login")}
+    fallbackRedirectUrl={localePath(locale, "/marketplace")}
+  />
+  <a
+    href={localePath(locale, "/register")}
+    class="text-sm text-text-muted hover:text-text-secondary"
+  >
+    {t.auth.otherOptions}
+  </a>
+  <ClerkLocalization />
 </AuthLayout>

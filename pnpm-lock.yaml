@@ -20,6 +20,9 @@ importers:
       '@clerk/astro':
         specifier: ^3.4.20
         version: 3.4.20(astro@6.4.8(@types/node@26.0.1)(@vercel/blob@2.6.1)(@vercel/functions@3.7.5)(jiti@2.7.0)(lightningcss@1.32.0)(rollup@4.62.2)(yaml@2.9.0))
+      '@clerk/localizations':
+        specifier: ^4.15.1
+        version: 4.15.1
       '@fontsource-variable/geist':
         specifier: ^5.2.9
         version: 5.2.9
@@ -232,8 +235,24 @@ packages:
     resolution: {integrity: sha512-/haECiKneGkRXkedhNHYp8tK9kjDpWIf6vtWhd+zeJ+HE6a7A9UOcajLUipvbqe834iAJAewhzUretCSrhAglg==}
     engines: {node: '>=20.9.0'}
 
+  '@clerk/localizations@4.15.1':
+    resolution: {integrity: sha512-dmQPgb67cHzVQBZI7LXGr/AnYvbbG20Kd2hd+KpppWMUiwDnu6pTJEFUH7L9ySbeOOJNQk+vMr0IDi5qvdE4XA==}
+    engines: {node: '>=20.9.0'}
+
   '@clerk/shared@4.26.0':
     resolution: {integrity: sha512-CYPOxpvKuKidy4ReSf3XU3YF28kr3QlmdJuFtwlrChK/GnLJxKp54GmUYtgoh1p61IHqirWfc8MerxlUhwWLFQ==}
+    engines: {node: '>=20.9.0'}
+    peerDependencies:
+      react: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
+      react-dom: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
+  '@clerk/shared@4.28.1':
+    resolution: {integrity: sha512-OhpUczN6t8CYJ+g8HdzN1O4SFC2EANOZRDwlE3rXxKu13eNtyFbLspt+d6Nhb/PmcThS/fIAKYnQQrwv0vIEwg==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       react: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
@@ -3417,7 +3436,21 @@ snapshots:
       - react
       - react-dom
 
+  '@clerk/localizations@4.15.1':
+    dependencies:
+      '@clerk/shared': 4.28.1
+    transitivePeerDependencies:
+      - react
+      - react-dom
+
   '@clerk/shared@4.26.0':
+    dependencies:
+      '@tanstack/query-core': 5.101.1
+      dequal: 2.0.3
+      glob-to-regexp: 0.4.1
+      js-cookie: 3.0.7
+
+  '@clerk/shared@4.28.1':
     dependencies:
       '@tanstack/query-core': 5.101.1
       dequal: 2.0.3
