@@ -121,6 +121,7 @@ describe("clientDict", () => {
       "lightbox",
       "marketplace",
       "stock",
+      "storefront",
     ]);
     expect(clientDict("en").common.save).toBe("Save");
   });
