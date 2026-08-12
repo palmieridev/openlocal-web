@@ -112,7 +112,13 @@ export function pluralize(count: number, one: string, other: string): string {
  */
 export function clientDict(locale: Locale | string | undefined) {
   const t = useT(locale);
-  return { common: t.common, stock: t.stock, hours: t.hours, lightbox: t.lightbox };
+  return {
+    common: t.common,
+    stock: t.stock,
+    hours: t.hours,
+    lightbox: t.lightbox,
+    marketplace: t.marketplace,
+  };
 }
 
 export type ClientDict = ReturnType<typeof clientDict>;
