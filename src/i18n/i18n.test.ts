@@ -120,6 +120,7 @@ describe("clientDict", () => {
       "hours",
       "lightbox",
       "marketplace",
+      "onboarding",
       "stock",
       "storefront",
     ]);

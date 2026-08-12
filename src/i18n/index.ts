@@ -119,6 +119,7 @@ export function clientDict(locale: Locale | string | undefined) {
     lightbox: t.lightbox,
     marketplace: t.marketplace,
     storefront: t.storefront,
+    onboarding: t.onboarding,
   };
 }
 

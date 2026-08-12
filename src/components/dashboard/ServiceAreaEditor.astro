@@ -8,6 +8,7 @@ import {
   serviceAreaRows,
   servesAtCustomerLocation,
 } from "@/lib/service-areas";
+import { interpolate, useT } from "@/i18n";
 import type { LocationMode, ServiceArea } from "@/types/api";
 
 /**
@@ -30,7 +31,9 @@ interface Props {
 }
 
 const { mode: rawMode, areas, class: extra = "" } = Astro.props;
-const modeMeta = locationModeMeta(Astro.locals.locale);
+const locale = Astro.locals.locale;
+const t = useT(locale).serviceAreaEditor;
+const modeMeta = locationModeMeta(locale);
 const mode = normalizeLocationMode(rawMode);
 const rows = serviceAreaRows(areas);
 const areasVisible = servesAtCustomerLocation(mode);
@@ -44,12 +47,9 @@ const areasVisible = servesAtCustomerLocation(mode);
 >
   <div class="flex flex-col gap-1">
     <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">
-      ¿Cómo atiendes a tus clientes?
+      {t.heading}
     </h2>
-    <p class="text-sm text-text-secondary">
-      Elige cómo llegas a tus clientes. Los negocios móviles no aparecen con un pin en el mapa:
-      se muestran por las zonas donde dan servicio.
-    </p>
+    <p class="text-sm text-text-secondary">{t.intro}</p>
   </div>
 
   <div class="grid gap-2 sm:grid-cols-3">
@@ -84,11 +84,8 @@ const areasVisible = servesAtCustomerLocation(mode);
     hidden={!areasVisible}
   >
     <div class="flex flex-col gap-1">
-      <h3 class="text-sm font-semibold">Zonas de servicio</h3>
-      <p class="text-sm text-text-secondary">
-        Dónde puedes dar servicio. El estado es obligatorio; municipio, ciudad, colonia y CP son
-        opcionales — déjalos vacíos para cubrir un área más amplia.
-      </p>
+      <h3 class="text-sm font-semibold">{t.areasHeading}</h3>
+      <p class="text-sm text-text-secondary">{t.areasIntro}</p>
     </div>
 
     <div class="flex flex-col gap-3" data-area-rows>
@@ -99,39 +96,39 @@ const areasVisible = servesAtCustomerLocation(mode);
               class="ol-input flex-1"
               data-area-field="name"
               value={row.name}
-              placeholder={`Nombre de la zona (opcional) — ej. Zona ${index + 1}`}
-              aria-label="Nombre de la zona"
+              placeholder={interpolate(t.namePlaceholder, { index: index + 1 })}
+              aria-label={t.nameLabel}
             />
             <input type="hidden" data-area-field="country" value={row.country || DEFAULT_COUNTRY} />
             <button
               type="button"
               class="shrink-0 rounded-lg border border-border p-2 text-text-muted transition-colors hover:border-danger hover:text-danger"
               data-area-remove
-              aria-label="Quitar zona"
+              aria-label={t.removeArea}
             >
               <Icon name="lucide:trash-2" width={15} height={15} />
             </button>
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
-              <label class="ol-label">Estado *</label>
+              <label class="ol-label">{t.state}</label>
               <input class="ol-input" data-area-field="state" value={row.state} placeholder="CDMX" />
             </div>
             <div>
-              <label class="ol-label">Municipio / alcaldía</label>
+              <label class="ol-label">{t.municipality}</label>
               <input class="ol-input" data-area-field="municipality" value={row.municipality} placeholder="Cuauhtémoc" />
             </div>
             <div>
-              <label class="ol-label">Ciudad</label>
+              <label class="ol-label">{t.city}</label>
               <input class="ol-input" data-area-field="city" value={row.city} placeholder="Ciudad de México" />
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="ol-label">Colonia</label>
+                <label class="ol-label">{t.neighborhood}</label>
                 <input class="ol-input" data-area-field="neighborhood" value={row.neighborhood} placeholder="Roma Norte" />
               </div>
               <div>
-                <label class="ol-label">CP</label>
+                <label class="ol-label">{t.postalCode}</label>
                 <input class="ol-input" data-area-field="postal_code" value={row.postal_code} inputmode="numeric" placeholder="06700" />
               </div>
             </div>
@@ -145,7 +142,7 @@ const areasVisible = servesAtCustomerLocation(mode);
       class="self-start text-sm font-medium text-accent hover:underline"
       data-area-add
     >
-      + Agregar otra zona
+      {t.addArea}
     </button>
   </div>
 

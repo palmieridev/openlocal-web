@@ -4,47 +4,55 @@ import AuthLayout from "@/layouts/AuthLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import Stepper from "@/components/onboarding/Stepper.astro";
 import { getServerAuth } from "@/lib/api/server";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).onboarding;
 
 // Step 2 of onboarding. Optional: lets the owner seed a few products before
 // publishing. Requires a business (created in step 1) — bounce back otherwise.
 const { businessId } = await getServerAuth(Astro);
-if (!businessId) return Astro.redirect("/onboarding");
+if (!businessId) return Astro.redirect(localePath(locale, "/onboarding"));
 
 // product_type must match the API enum (stocked_product | made_to_order_product | unique_item).
 const productTypes = [
-  ["stocked_product", "Producto con inventario"],
-  ["made_to_order_product", "Bajo pedido"],
-  ["unique_item", "Pieza única"],
+  ["stocked_product", t.typeStocked],
+  ["made_to_order_product", t.typeMadeToOrder],
+  ["unique_item", t.typeUnique],
 ];
 ---
 
-<AuthLayout title="Agrega productos — Openlocal">
+<AuthLayout title={t.productsTitle}>
   <div class="flex w-full max-w-xl flex-col gap-6">
     <Stepper current={2} />
 
     <div class="ol-card w-full p-8">
-      <h1 class="font-heading text-xl font-semibold">Agrega tus primeros productos</h1>
-      <p class="mt-1 text-sm text-text-secondary">
-        Opcional — puedes agregar o editar tu catálogo cuando quieras desde tu panel.
-      </p>
+      <h1 class="font-heading text-xl font-semibold">{t.productsHeading}</h1>
+      <p class="mt-1 text-sm text-text-secondary">{t.productsIntro}</p>
 
       <ul id="added-list" class="mt-6 hidden flex-col gap-2"></ul>
 
       <form id="product-form" data-business-id={businessId} class="mt-6 flex flex-col gap-4 border-t border-border pt-6">
         <div>
-          <label class="ol-label" for="name">Nombre del producto</label>
-          <input class="ol-input" id="name" name="name" required placeholder="Bolsa tejida a mano" />
+          <label class="ol-label" for="name">{t.productName}</label>
+          <input
+            class="ol-input"
+            id="name"
+            name="name"
+            required
+            placeholder={t.productNamePlaceholder}
+          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="ol-label" for="product_type">Tipo</label>
+            <label class="ol-label" for="product_type">{t.productType}</label>
             <select class="ol-select" id="product_type" name="product_type">
               {productTypes.map(([v, l]) => <option value={v}>{l}</option>)}
             </select>
           </div>
           <div class="flex items-end pb-2.5">
             <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="is_public" checked /> Visible en tienda
+              <input type="checkbox" name="is_public" checked /> {t.visibleInShop}
             </label>
           </div>
         </div>
@@ -52,22 +60,35 @@ const productTypes = [
         <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
 
         <Button type="submit" variant="secondary" icon="lucide:plus" id="add-btn" class="self-start">
-          <span data-label>Agregar producto</span>
+          <span data-label>{t.addProduct}</span>
         </Button>
       </form>
     </div>
 
     <div class="flex items-center justify-between">
-      <Button variant="ghost" href="/onboarding" icon="lucide:arrow-left">Atrás</Button>
+      <Button variant="ghost" href={localePath(locale, "/onboarding")} icon="lucide:arrow-left">
+        {t.back}
+      </Button>
       <div class="flex items-center gap-2">
-        <Button variant="ghost" href="/onboarding/publish">Omitir por ahora</Button>
-        <Button variant="primary" iconEnd="lucide:arrow-right" href="/onboarding/publish">Continuar</Button>
+        <Button variant="ghost" href={localePath(locale, "/onboarding/publish")}>
+          {t.skipForNow}
+        </Button>
+        <Button
+          variant="primary"
+          iconEnd="lucide:arrow-right"
+          href={localePath(locale, "/onboarding/publish")}
+        >
+          {t.continue}
+        </Button>
       </div>
     </div>
   </div>
 </AuthLayout>
 
 <script>
+  import { ui } from "@/lib/i18n-client";
+
+  const t = ui().onboarding;
   const form = document.getElementById("product-form") as HTMLFormElement | null;
   if (form) {
     const errEl = document.getElementById("form-error") as HTMLElement;
@@ -80,7 +101,7 @@ const productTypes = [
       e.preventDefault();
       errEl.classList.add("hidden");
       btn.disabled = true;
-      label.textContent = "Guardando…";
+      label.textContent = ui().common.saving;
       const fd = new FormData(form);
       const name = String(fd.get("name") || "");
       const payload = {
@@ -99,7 +120,7 @@ const productTypes = [
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "No se pudo agregar el producto.");
+        if (!res.ok) throw new Error(data?.error || t.addFailed);
 
         const li = document.createElement("li");
         li.className = "flex items-center gap-3 rounded-xl border border-border bg-surface-primary px-4 py-3 text-sm";
@@ -116,11 +137,11 @@ const productTypes = [
 
         form.reset();
       } catch (err) {
-        errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        errEl.textContent = err instanceof Error ? err.message : t.unexpected;
         errEl.classList.remove("hidden");
       } finally {
         btn.disabled = false;
-        label.textContent = "Agregar producto";
+        label.textContent = t.addProduct;
       }
     });
   }
