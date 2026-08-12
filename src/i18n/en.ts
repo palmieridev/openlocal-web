@@ -552,7 +552,6 @@ export const en = {
   },
   analytics: {
     title: "Analytics",
-    scan: "Scan",
     abcTitle: "ABC classification (Pareto)",
     abcIntro: "Products ranked by cumulative sales value.",
     colProduct: "Product",

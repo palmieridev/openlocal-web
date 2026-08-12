@@ -4,11 +4,10 @@ import AnalyticsTabs from "@/components/dashboard/AnalyticsTabs.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import Button from "@/components/ui/Button.astro";
 import { getServerAuth } from "@/lib/api/server";
-import { localePath, useT } from "@/i18n";
+import { useT } from "@/i18n";
 
 const locale = Astro.locals.locale;
 const t = useT(locale).analytics;
-const to = (href: string) => localePath(locale, href);
 
 const { businessId } = await getServerAuth(Astro);
 ---
@@ -20,14 +19,6 @@ const { businessId } = await getServerAuth(Astro);
     <>
       <div class="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-surface-card px-8 py-5">
         <h1 class="font-heading text-2xl font-semibold">{t.title}</h1>
-        <Button
-          variant="secondary"
-          size="sm"
-          icon="lucide:scan-barcode"
-          href={to("/dashboard/inventory/scan")}
-        >
-          {t.scan}
-        </Button>
       </div>
       <div class="mx-auto max-w-xl px-8 py-6" data-business-id={businessId}>
         <AnalyticsTabs active="eoq" />

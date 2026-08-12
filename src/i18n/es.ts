@@ -558,7 +558,6 @@ export const es = {
   },
   analytics: {
     title: "Analítica",
-    scan: "Escanear",
     abcTitle: "Clasificación ABC (Pareto)",
     abcIntro: "Productos ordenados por valor de venta acumulado.",
     colProduct: "Producto",
