@@ -120,6 +120,9 @@ export function clientDict(locale: Locale | string | undefined) {
     marketplace: t.marketplace,
     storefront: t.storefront,
     onboarding: t.onboarding,
+    products: t.products,
+    productDetail: t.productDetail,
+    variantLimits: t.variantLimits,
   };
 }
 
