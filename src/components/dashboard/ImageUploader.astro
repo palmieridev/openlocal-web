@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import { useT } from "@/i18n";
 
 /**
  * Image upload control, with an optional crop/position step.
@@ -81,9 +82,9 @@ const {
     safeMaxAspect,
 } = Astro.props;
 const url = value ?? "";
-const defaultHint = crop
-    ? "JPG, PNG, WebP o AVIF · máx 5 MB"
-    : "JPG, PNG, WebP o AVIF · se guarda completa, sin recortes";
+const dict = useT(Astro.locals.locale);
+const iu = dict.imageUploader;
+const defaultHint = crop ? iu.hintCrop : iu.hintOriginal;
 ---
 
 <div
@@ -125,13 +126,13 @@ const defaultHint = crop
             ]}
         >
             <Icon name="lucide:image-plus" width={22} height={22} />
-            <span class="text-xs">Subir imagen</span>
+            <span class="text-xs">{iu.upload}</span>
         </div>
         <span
             data-uploading
             class="absolute inset-0 hidden items-center justify-center bg-surface-card/80 text-xs font-medium text-text-secondary"
         >
-            Subiendo…
+            {iu.uploading}
         </span>
         <input
             data-input
@@ -212,14 +213,14 @@ const defaultHint = crop
                             data-crop-cancel
                             class="rounded-xl border border-border px-4 py-2 text-sm font-medium text-text-secondary hover:bg-surface-secondary"
                         >
-                            Cancelar
+                            {dict.common.cancel}
                         </button>
                         <button
                             type="button"
                             data-crop-confirm
                             class="rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-text-inverse hover:opacity-90"
                         >
-                            <span data-crop-label>Usar imagen</span>
+                            <span data-crop-label>{iu.useImage}</span>
                         </button>
                     </div>
                 </div>
@@ -235,11 +236,15 @@ const defaultHint = crop
         validateImageUpload,
     } from "@/lib/upload";
     import {
-        IMAGE_DECODE_MESSAGE,
+        imageDecodeMessage,
         decodeImage,
         fitWithin,
         type DecodedImage,
     } from "@/lib/image-source";
+    import { ui, uiLocale } from "@/lib/i18n-client";
+
+    const t = ui().imageUploader;
+    const locale = uiLocale();
 
     document
         .querySelectorAll<HTMLElement>("[data-image-uploader]")
@@ -298,7 +303,7 @@ const defaultHint = crop
                         false,
                         err instanceof Error
                             ? err.message
-                            : "Error al subir la imagen.",
+                            : t.uploadFailed,
                     );
                 } finally {
                     uploading.classList.add("hidden");
@@ -355,9 +360,7 @@ const defaultHint = crop
                             Math.round(Math.max(width, height) * 0.75),
                         ));
                     }
-                    throw new Error(
-                        "La imagen es demasiado pesada. Intenta con una foto más pequeña.",
-                    );
+                    throw new Error(t.tooHeavy);
                 } finally {
                     decoded.release();
                 }
@@ -375,14 +378,14 @@ const defaultHint = crop
                             false,
                             err instanceof Error
                                 ? err.message
-                                : IMAGE_DECODE_MESSAGE,
+                                : imageDecodeMessage(locale),
                         );
                         return;
                     }
                 }
                 await send(
                     payload,
-                    "Imagen lista. Guarda los cambios para publicarla.",
+                    t.imageReady,
                 );
             }
 
@@ -393,8 +396,8 @@ const defaultHint = crop
                 // In original mode an oversized file is recoverable (it gets
                 // scaled down), so only the format check is fatal there.
                 const problem = cropMode
-                    ? validateImageUpload(file)
-                    : validateImageType(file);
+                    ? validateImageUpload(file, locale)
+                    : validateImageType(file, locale);
                 if (problem) {
                     flash(false, problem);
                     input.value = "";
@@ -413,34 +416,31 @@ const defaultHint = crop
                     const clerk = (window as any).Clerk;
                     const organization = clerk?.organization;
                     if (!organization?.setLogo) {
-                        throw new Error(
-                            "No se pudo acceder a tu organización. Recarga la página.",
-                        );
+                        throw new Error(t.noOrganization);
                     }
                     const updated = await organization.setLogo({ file });
                     const imageUrl = updated?.imageUrl || organization.imageUrl;
                     if (!imageUrl)
-                        throw new Error("Clerk no devolvió la URL del logo.");
+                        throw new Error(t.clerkNoUrl);
                     return imageUrl;
                 }
                 const fd = new FormData();
                 fd.append("file", file);
                 fd.append("kind", kind);
+                fd.append("locale", locale);
                 const res = await fetch("/api/upload", {
                     method: "POST",
                     body: fd,
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok)
-                    throw new Error(
-                        data?.error || "No se pudo subir la imagen.",
-                    );
+                    throw new Error(data?.error || t.storeFailed);
                 return data.url;
             }
 
             removeBtn.addEventListener("click", () => {
                 setUrl("");
-                flash(true, "Se quitará al guardar los cambios.");
+                flash(true, t.willBeRemoved);
             });
 
             // Lets a host page load a value in — needed when one uploader is
@@ -459,7 +459,7 @@ const defaultHint = crop
                 msg.classList.add("hidden");
                 await send(
                     file,
-                    "Logo listo. Guarda los cambios para publicarlo.",
+                    t.logoReady,
                 );
             });
 
@@ -532,7 +532,7 @@ const defaultHint = crop
                 try {
                     decoded = await decodeImage(file);
                 } catch {
-                    flash(false, IMAGE_DECODE_MESSAGE);
+                    flash(false, imageDecodeMessage(locale));
                     input.value = "";
                     return;
                 }
@@ -636,11 +636,11 @@ const defaultHint = crop
                     canvas.toBlob(resolve, outputType, 0.9),
                 );
                 if (!blob) {
-                    flash(false, "No se pudo procesar la imagen.");
+                    flash(false, t.processFailed);
                     return;
                 }
                 if (blob.size > MAX_IMAGE_BYTES) {
-                    flash(false, "La imagen supera el máximo de 5 MB.");
+                    flash(false, ui().upload.tooLarge);
                     return;
                 }
                 const ext = outputType === "image/png" ? "png" : "jpg";
@@ -651,7 +651,7 @@ const defaultHint = crop
                 closeModal();
                 await send(
                     file,
-                    "Imagen lista. Guarda los cambios para publicarla.",
+                    t.imageReady,
                 );
             });
         });

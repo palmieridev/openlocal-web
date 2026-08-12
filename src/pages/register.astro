@@ -1,32 +1,36 @@
 ---
 import { Icon } from "astro-icon/components";
 import AuthLayout from "@/layouts/AuthLayout.astro";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
 
 // Two distinct signup flows: shoppers get a plain account (no organization),
 // businesses continue to onboarding where the API creates their Clerk org.
 const paths = [
   {
-    href: "/register/shopper",
+    href: localePath(locale, "/register/shopper"),
     icon: "lucide:shopping-bag",
-    title: "Quiero comprar",
-    desc: "Descubre productos y negocios locales cerca de ti.",
-    cta: "Crear cuenta de comprador",
+    title: t.auth.shopperTitle,
+    desc: t.auth.shopperDesc,
+    cta: t.auth.shopperCta,
   },
   {
-    href: "/register/business",
+    href: localePath(locale, "/register/business"),
     icon: "lucide:store",
-    title: "Tengo un negocio",
-    desc: "Publica tu catálogo, controla inventario y vende.",
-    cta: "Registrar mi negocio",
+    title: t.auth.businessTitle,
+    desc: t.auth.businessDesc,
+    cta: t.auth.businessCta,
   },
 ];
 ---
 
-<AuthLayout title="Crear cuenta — Openlocal">
+<AuthLayout title={t.auth.registerTitle}>
   <div class="w-full max-w-2xl">
     <div class="text-center">
-      <h1 class="font-heading text-2xl font-semibold">Crea tu cuenta</h1>
-      <p class="mt-1 text-sm text-text-secondary">¿Cómo quieres usar Openlocal?</p>
+      <h1 class="font-heading text-2xl font-semibold">{t.auth.registerHeading}</h1>
+      <p class="mt-1 text-sm text-text-secondary">{t.auth.registerSubtitle}</p>
     </div>
 
     <div class="mt-6 grid gap-4 sm:grid-cols-2">
@@ -49,8 +53,10 @@ const paths = [
     </div>
 
     <p class="mt-6 text-center text-sm text-text-muted">
-      ¿Ya tienes cuenta?
-      <a href="/login" class="font-medium text-accent hover:underline">Inicia sesión</a>
+      {t.auth.haveAccount}
+      <a href={localePath(locale, "/login")} class="font-medium text-accent hover:underline">
+        {t.auth.signIn}
+      </a>
     </p>
   </div>
 </AuthLayout>

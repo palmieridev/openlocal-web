@@ -7,55 +7,61 @@ import ProductCard from "@/components/ui/ProductCard.astro";
 import { publicApi } from "@/lib/api/client";
 import { text, humanize } from "@/lib/format";
 import { publicPriceNote } from "@/lib/variants";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
+const url = (href: string) => localePath(locale, href);
 
 const [businesses, products] = await Promise.all([
   publicApi.listBusinesses({ limit: 6 }),
   publicApi.searchProducts({ limit: 8 }),
 ]);
 
+// `q` is the query sent to the API, which indexes the owners' own Spanish
+// copy — only the label is translated.
 const categories = [
-  { label: "Hecho a mano", icon: "lucide:hand", q: "handmade" },
-  { label: "Comida", icon: "lucide:utensils", q: "comida" },
-  { label: "Hogar", icon: "lucide:lamp", q: "hogar" },
-  { label: "Moda", icon: "lucide:shirt", q: "moda" },
-  { label: "Belleza", icon: "lucide:sparkles", q: "belleza" },
-  { label: "Plantas", icon: "lucide:flower-2", q: "plantas" },
+  { label: t.home.categoryHandmade, icon: "lucide:hand", q: "handmade" },
+  { label: t.home.categoryFood, icon: "lucide:utensils", q: "comida" },
+  { label: t.home.categoryHome, icon: "lucide:lamp", q: "hogar" },
+  { label: t.home.categoryFashion, icon: "lucide:shirt", q: "moda" },
+  { label: t.home.categoryBeauty, icon: "lucide:sparkles", q: "belleza" },
+  { label: t.home.categoryPlants, icon: "lucide:flower-2", q: "plantas" },
 ];
 
 const stats = [
-  { value: products.length ? `${products.length}+` : "—", label: "productos" },
-  { value: businesses.length ? `${businesses.length}+` : "—", label: "negocios" },
-  { value: `${categories.length}`, label: "categorías" },
+  { value: products.length ? `${products.length}+` : "—", label: t.home.statProducts },
+  { value: businesses.length ? `${businesses.length}+` : "—", label: t.home.statBusinesses },
+  { value: `${categories.length}`, label: t.home.statCategories },
 ];
 ---
 
 <PublicLayout
-  title="Openlocal — Descubre negocios locales"
-  description="Encuentra productos de negocios locales cerca de ti y apoya el comercio de tu colonia."
+  title={t.home.title}
+  description={t.home.description}
 >
   <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
     {/* Hero */}
     <section class="grid overflow-hidden rounded-2xl bg-surface-inverse text-text-inverse md:grid-cols-[1.4fr_1fr]">
       <div class="flex flex-col justify-center gap-6 p-8 sm:p-12">
         <h1 class="font-heading text-3xl font-semibold leading-[1.1] sm:text-[42px]">
-          Descubre productos de negocios locales cerca de ti
+          {t.home.heroTitle}
         </h1>
         <p class="max-w-md text-[15px] text-text-inverse/70">
-          Explora tiendas de tu colonia, compara precios y contacta directo por
-          WhatsApp. Apoya al comercio local.
+          {t.home.heroBody}
         </p>
 
-        <form action="/marketplace" method="get" class="flex max-w-lg gap-2">
+        <form action={url("/marketplace")} method="get" class="flex max-w-lg gap-2">
           <div class="flex flex-1 items-center gap-2 rounded-full bg-surface-card px-4 py-3">
             <Icon name="lucide:search" class="text-text-muted" width={18} height={18} />
             <input
               type="search"
               name="q"
-              placeholder="Busca productos, negocios o categorías…"
+              placeholder={t.home.searchPlaceholder}
               class="w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
             />
           </div>
-          <Button type="submit" variant="primary" size="lg">Buscar</Button>
+          <Button type="submit" variant="primary" size="lg">{t.home.search}</Button>
         </form>
 
         <div class="flex gap-8 pt-2">
@@ -83,7 +89,7 @@ const stats = [
       <div class="flex flex-wrap gap-2">
         {categories.map((c) => (
           <a
-            href={`/marketplace?q=${c.q}`}
+            href={url(`/marketplace?q=${c.q}`)}
             class="flex items-center gap-2 rounded-full border border-border bg-surface-card px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:border-accent hover:text-text-primary"
           >
             <Icon name={c.icon} class="text-accent" width={16} height={16} />
@@ -96,9 +102,9 @@ const stats = [
     {/* Featured businesses */}
     <section class="mt-12">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="font-heading text-xl font-semibold">Negocios destacados</h2>
-        <a href="/marketplace" class="text-sm font-medium text-accent hover:underline">
-          Ver todos
+        <h2 class="font-heading text-xl font-semibold">{t.home.featuredBusinesses}</h2>
+        <a href={url("/marketplace")} class="text-sm font-medium text-accent hover:underline">
+          {t.home.seeAll}
         </a>
       </div>
 
@@ -113,10 +119,10 @@ const stats = [
               serviceAreas={b.service_areas}
               logoUrl={b.logo_url}
               tags={[
-                b.pickup_available ? "Recoge en tienda" : null,
-                b.delivery_available ? "Envío" : null,
+                b.pickup_available ? t.business.pickup : null,
+                b.delivery_available ? t.business.delivery : null,
               ].filter(Boolean) as string[]}
-              href={`/business/${b.slug}`}
+              href={url(`/business/${b.slug}`)}
               hours={b.hours}
               timezone={b.timezone}
             />
@@ -125,10 +131,10 @@ const stats = [
       ) : (
         <div class="rounded-2xl border border-dashed border-border bg-surface-card/50 p-10 text-center">
           <p class="text-sm text-text-secondary">
-            Aún no hay negocios publicados. ¿Tienes uno?
+            {t.home.noBusinesses}
           </p>
-          <Button variant="primary" size="sm" href="/register/business" class="mt-4">
-            Registra tu negocio
+          <Button variant="primary" size="sm" href={url("/register/business")} class="mt-4">
+            {t.home.registerBusiness}
           </Button>
         </div>
       )}
@@ -137,9 +143,9 @@ const stats = [
     {/* Handmade / latest products */}
     <section class="mt-12">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="font-heading text-xl font-semibold">Hecho a mano</h2>
-        <a href="/marketplace?q=handmade" class="text-sm font-medium text-accent hover:underline">
-          Ver más
+        <h2 class="font-heading text-xl font-semibold">{t.home.handmade}</h2>
+        <a href={url("/marketplace?q=handmade")} class="text-sm font-medium text-accent hover:underline">
+          {t.home.seeMore}
         </a>
       </div>
 
@@ -154,13 +160,13 @@ const stats = [
               priceNote={publicPriceNote(p)}
               stockStatus={p.public_stock_status}
               imageUrl={p.image_url}
-              href={`/business/${p.business_slug}`}
+              href={url(`/business/${p.business_slug}`)}
             />
           ))}
         </div>
       ) : (
         <div class="rounded-2xl border border-dashed border-border bg-surface-card/50 p-10 text-center text-sm text-text-secondary">
-          Pronto verás productos de negocios locales aquí.
+          {t.home.noProducts}
         </div>
       )}
     </section>
@@ -169,13 +175,15 @@ const stats = [
     <section class="mt-12 overflow-hidden rounded-2xl border border-border bg-surface-card">
       <div class="grid items-center gap-6 p-8 md:grid-cols-[1fr_1.2fr]">
         <div class="flex flex-col gap-4">
-          <h2 class="font-heading text-2xl font-semibold">Explora en el mapa</h2>
-          <p class="text-sm text-text-secondary">
-            Encuentra negocios y productos cerca de tu ubicación. Filtra por
-            distancia, disponibilidad y tipo de tienda.
-          </p>
-          <Button variant="primary" href="/marketplace?map=1" icon="lucide:map" class="self-start">
-            Abrir el mapa
+          <h2 class="font-heading text-2xl font-semibold">{t.home.mapTitle}</h2>
+          <p class="text-sm text-text-secondary">{t.home.mapBody}</p>
+          <Button
+            variant="primary"
+            href={url("/marketplace?map=1")}
+            icon="lucide:map"
+            class="self-start"
+          >
+            {t.home.openMap}
           </Button>
         </div>
         <div class="relative h-56 overflow-hidden rounded-xl bg-surface-secondary">
@@ -194,22 +202,19 @@ const stats = [
       <div class="grid gap-6 p-8 sm:p-12 md:grid-cols-[1.3fr_1fr] md:items-center">
         <div class="flex flex-col gap-4">
           <h2 class="font-heading text-2xl font-semibold sm:text-3xl">
-            ¿Tienes un negocio local? Súmate gratis.
+            {t.home.ctaTitle}
           </h2>
-          <p class="max-w-md text-sm text-text-inverse/80">
-            Publica tu catálogo, controla tu inventario con código de barras y
-            recibe clientes de tu zona. Sin comisiones por venta.
-          </p>
-          <Button variant="inverse" href="/register/business" class="self-start">
-            Registrar mi negocio
+          <p class="max-w-md text-sm text-text-inverse/80">{t.home.ctaBody}</p>
+          <Button variant="inverse" href={url("/register/business")} class="self-start">
+            {t.home.ctaButton}
           </Button>
         </div>
         <ul class="flex flex-col gap-3">
           {[
-            "Tienda pública con tu catálogo",
-            "Inventario y escáner de código de barras",
-            "Analítica ABC, Pareto y punto de reorden",
-            "Contacto directo por WhatsApp",
+            t.home.perkCatalog,
+            t.home.perkInventory,
+            t.home.perkAnalytics,
+            t.home.perkWhatsapp,
           ].map((item) => (
             <li class="flex items-center gap-3 text-sm text-text-inverse/90">
               <Icon name="lucide:check" class="shrink-0 text-text-inverse" width={18} height={18} />

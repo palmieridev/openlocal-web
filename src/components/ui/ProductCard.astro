@@ -2,6 +2,7 @@
 import { Icon } from "astro-icon/components";
 import Badge from "./Badge.astro";
 import { formatPrice, formatDistance, stockMeta } from "@/lib/format";
+import { interpolate, useT } from "@/i18n";
 import type { PublicStockStatus } from "@/types/api";
 
 interface Props {
@@ -37,7 +38,9 @@ const note = priceNote?.trim() ?? "";
 // zoom trigger only appears on cards that are not themselves a link.
 const zoomable = lightbox && !href && !!imageUrl;
 
-const stock = stockMeta(stockStatus);
+const locale = Astro.locals.locale;
+const t = useT(locale);
+const stock = stockMeta(stockStatus, locale);
 const dist = formatDistance(distanceKm);
 const Tag = href ? "a" : "div";
 ---
@@ -73,9 +76,9 @@ const Tag = href ? "a" : "div";
         type="button"
         class="absolute inset-0 z-0 flex cursor-zoom-in items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent"
         data-lightbox-src={imageUrl}
-        data-lightbox-alt={`Imagen de ${name}`}
+        data-lightbox-alt={interpolate(t.product.imageAlt, { name })}
         data-lightbox-caption={[name, meta].filter(Boolean).join(" · ")}
-        aria-label={`Ver imagen completa de ${name}`}
+        aria-label={interpolate(t.product.viewFullImage, { name })}
       >
         <span class="rounded-full bg-black/45 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
           <Icon name="lucide:zoom-in" width={18} height={18} />
@@ -95,7 +98,7 @@ const Tag = href ? "a" : "div";
 
     <div class="mt-2 flex items-center justify-between">
       <span class="font-data text-lg font-semibold text-text-primary">
-        {formatPrice(price, currency)}
+        {formatPrice(price, currency, locale)}
       </span>
       {dist && (
         <span class="flex items-center gap-1 text-xs text-text-muted">

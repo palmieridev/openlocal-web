@@ -5,7 +5,13 @@ import StatTile from "@/components/ui/StatTile.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
+import { localePath, useT } from "@/i18n";
 import type { LowStockRow, Product, StockLevel, StockMovement } from "@/types/api";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
+const d = t.dashboard;
+const to = (href: string) => localePath(locale, href);
 
 const { token, businessId } = await getServerAuth(Astro);
 
@@ -32,25 +38,29 @@ if (token && businessId) {
 const ready = Boolean(token && businessId) && !loadError;
 
 const stats = [
-  { label: "Productos", value: String(products.length), icon: "lucide:package" },
-  { label: "SKUs con stock", value: String(levels.length), icon: "lucide:boxes" },
-  { label: "Bajo stock", value: String(low.length), icon: "lucide:triangle-alert" },
-  { label: "Movimientos recientes", value: String(movements.length), icon: "lucide:arrow-left-right" },
+  { label: d.statProducts, value: String(products.length), icon: "lucide:package" },
+  { label: d.statStockedSkus, value: String(levels.length), icon: "lucide:boxes" },
+  { label: d.statLowStock, value: String(low.length), icon: "lucide:triangle-alert" },
+  {
+    label: d.statRecentMovements,
+    value: String(movements.length),
+    icon: "lucide:arrow-left-right",
+  },
 ];
 
 const movementLabel: Record<string, string> = {
-  purchase: "Compra",
-  production: "Producción",
-  sale: "Venta",
-  loss: "Merma",
-  sample: "Muestra",
-  adjustment: "Ajuste",
-  IN_PURCHASE: "Compra",
-  IN_PRODUCTION: "Producción",
-  OUT_SALE: "Venta",
-  OUT_LOSS: "Merma",
-  IN_ADJUSTMENT: "Ajuste",
-  OUT_ADJUSTMENT: "Ajuste",
+  purchase: t.movements.purchase,
+  production: t.movements.production,
+  sale: t.movements.sale,
+  loss: t.movements.loss,
+  sample: t.movements.sample,
+  adjustment: t.movements.adjustment,
+  IN_PURCHASE: t.movements.purchase,
+  IN_PRODUCTION: t.movements.production,
+  OUT_SALE: t.movements.sale,
+  OUT_LOSS: t.movements.loss,
+  IN_ADJUSTMENT: t.movements.adjustment,
+  OUT_ADJUSTMENT: t.movements.adjustment,
 };
 const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION", "IN_ADJUSTMENT"]);
 ---
@@ -63,8 +73,8 @@ const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION
   ) : (
     <div class="mx-auto max-w-6xl px-6 py-8">
       <div>
-        <h1 class="font-heading text-2xl font-semibold">Hola 👋</h1>
-        <p class="mt-1 text-sm text-text-secondary">Resumen de tu negocio.</p>
+        <h1 class="font-heading text-2xl font-semibold">{d.greeting}</h1>
+        <p class="mt-1 text-sm text-text-secondary">{d.summary}</p>
       </div>
 
       <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -75,8 +85,13 @@ const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION
         {/* Recent movements */}
         <div class="ol-card overflow-hidden">
           <div class="flex items-center justify-between border-b border-border px-5 py-3">
-            <h2 class="font-heading font-semibold">Movimientos recientes</h2>
-            <a href="/dashboard/inventory" class="text-sm font-medium text-accent hover:underline">Ver todos</a>
+            <h2 class="font-heading font-semibold">{d.recentMovements}</h2>
+            <a
+              href={to("/dashboard/inventory")}
+              class="text-sm font-medium text-accent hover:underline"
+            >
+              {d.seeAll}
+            </a>
           </div>
           {movements.length > 0 ? (
             <ul class="divide-y divide-border">
@@ -99,15 +114,20 @@ const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION
               })}
             </ul>
           ) : (
-            <p class="px-5 py-8 text-center text-sm text-text-muted">Sin movimientos todavía.</p>
+            <p class="px-5 py-8 text-center text-sm text-text-muted">{d.noMovements}</p>
           )}
         </div>
 
         {/* Low stock */}
         <div class="ol-card overflow-hidden">
           <div class="flex items-center justify-between border-b border-border px-5 py-3">
-            <h2 class="font-heading font-semibold">Bajo stock</h2>
-            <a href="/dashboard/analytics/low-stock" class="text-sm font-medium text-accent hover:underline">Ver todos</a>
+            <h2 class="font-heading font-semibold">{d.lowStock}</h2>
+            <a
+              href={to("/dashboard/analytics/low-stock")}
+              class="text-sm font-medium text-accent hover:underline"
+            >
+              {d.seeAll}
+            </a>
           </div>
           {low.length > 0 ? (
             <ul class="divide-y divide-border">
@@ -122,7 +142,7 @@ const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION
               ))}
             </ul>
           ) : (
-            <p class="px-5 py-8 text-center text-sm text-text-muted">Todo en orden. Sin alertas.</p>
+            <p class="px-5 py-8 text-center text-sm text-text-muted">{d.allGood}</p>
           )}
         </div>
       </div>

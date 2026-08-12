@@ -2,11 +2,15 @@
 import PublicLayout from "@/layouts/PublicLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import { Icon } from "astro-icon/components";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
 ---
 
 <PublicLayout
-  title="Página no encontrada — Openlocal"
-  description="La página que buscas no existe o fue movida."
+  title={t.errors.notFoundTitle}
+  description={t.errors.notFoundMeta}
 >
   <section class="mx-auto flex max-w-xl flex-col items-center px-4 py-24 text-center sm:py-32">
     <div class="mb-6 flex size-16 items-center justify-center rounded-full bg-accent-soft">
@@ -14,15 +18,14 @@ import { Icon } from "astro-icon/components";
     </div>
     <p class="font-mono text-sm text-text-muted">404</p>
     <h1 class="mt-2 text-2xl font-semibold text-text-primary sm:text-3xl">
-      Página no encontrada
+      {t.errors.notFoundHeading}
     </h1>
     <p class="mt-3 text-sm text-text-secondary sm:text-base">
-      La página que buscas no existe o fue movida. Explora el marketplace para
-      descubrir negocios locales cerca de ti.
+      {t.errors.notFoundBody}
     </p>
     <div class="mt-8 flex flex-wrap justify-center gap-3">
-      <Button href="/marketplace" icon="lucide:store">Ir al marketplace</Button>
-      <Button href="/" variant="secondary">Volver al inicio</Button>
+      <Button href={localePath(locale, "/marketplace")} icon="lucide:store">{t.errors.goMarketplace}</Button>
+      <Button href={localePath(locale, "/")} variant="secondary">{t.errors.backHome}</Button>
     </div>
   </section>
 </PublicLayout>

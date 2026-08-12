@@ -34,6 +34,7 @@ const hasHours = Array.isArray(hours) && hours.length > 0 && Boolean(timezone);
 
 <script>
   import { isOpenNow, openMeta } from "@/lib/hours";
+  import { uiLocale } from "@/lib/i18n-client";
   import type { BusinessHour } from "@/types/api";
 
   // One pass for every badge on the page; Astro dedupes this module script.
@@ -45,7 +46,7 @@ const hasHours = Array.isArray(hours) && hours.length > 0 && Boolean(timezone);
       } catch {
         return;
       }
-      const meta = openMeta(isOpenNow(hours, badge.dataset.timezone));
+      const meta = openMeta(isOpenNow(hours, badge.dataset.timezone), uiLocale());
       if (!meta) return; // unknown → stay hidden rather than claim "cerrado"
 
       badge.classList.remove("hidden");

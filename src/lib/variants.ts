@@ -1,5 +1,6 @@
 import type { MarketplaceProduct, NullString, PublicProduct, Variant } from "@/types/api";
 import { text } from "./format";
+import { DEFAULT_LOCALE, interpolate, useT, type Locale } from "@/i18n";
 
 /**
  * Variant detail helpers (`description` + `price_note`).
@@ -53,12 +54,17 @@ export function publicPriceNote(
 }
 
 /** Validation message for the owner form, or null when both fields are fine. */
-export function variantDetailsError(description: string, priceNote: string): string | null {
+export function variantDetailsError(
+  description: string,
+  priceNote: string,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  const t = useT(locale).variantLimits;
   if (description.trim().length > VARIANT_DESCRIPTION_MAX) {
-    return `La descripción de la variante no puede pasar de ${VARIANT_DESCRIPTION_MAX} caracteres.`;
+    return interpolate(t.descriptionTooLong, { max: VARIANT_DESCRIPTION_MAX });
   }
   if (priceNote.trim().length > VARIANT_PRICE_NOTE_MAX) {
-    return `La nota de precio no puede pasar de ${VARIANT_PRICE_NOTE_MAX} caracteres.`;
+    return interpolate(t.priceNoteTooLong, { max: VARIANT_PRICE_NOTE_MAX });
   }
   return null;
 }

@@ -1,16 +1,20 @@
 ---
 import { Icon } from "astro-icon/components";
 import Button from "@/components/ui/Button.astro";
+import { useT } from "@/i18n";
 
 interface Props {
   businessId: string;
 }
 const { businessId } = Astro.props;
 
+const dict = useT(Astro.locals.locale);
+const t = dict.movementModal;
+
 const segs: [string, string][] = [
-  ["entrada", "Entrada"],
-  ["salida", "Salida"],
-  ["ajuste", "Ajuste"],
+  ["entrada", t.segIn],
+  ["salida", t.segOut],
+  ["ajuste", t.segAdjust],
 ];
 ---
 
@@ -19,8 +23,13 @@ const segs: [string, string][] = [
     <input type="hidden" name="movement_id" />
     <input type="hidden" name="variant_id" />
     <div class="flex items-center justify-between">
-      <h2 id="mv-title" class="font-heading font-semibold">Registrar movimiento</h2>
-      <button type="button" id="mv-close" class="text-text-muted hover:text-text-secondary" aria-label="Cerrar">
+      <h2 id="mv-title" class="font-heading font-semibold">{t.title}</h2>
+      <button
+        type="button"
+        id="mv-close"
+        class="text-text-muted hover:text-text-secondary"
+        aria-label={dict.common.close}
+      >
         <Icon name="lucide:x" width={18} height={18} />
       </button>
     </div>
@@ -46,41 +55,47 @@ const segs: [string, string][] = [
     </div>
 
     <div id="mv-motivo-wrap">
-      <label class="ol-label" for="mv-motivo">Motivo</label>
+      <label class="ol-label" for="mv-motivo">{t.reason}</label>
       <select class="ol-select" id="mv-motivo" name="movement_type"></select>
     </div>
 
     <div class="grid grid-cols-2 gap-3">
       <div>
-        <label class="ol-label" for="mv-qty">Cantidad</label>
+        <label class="ol-label" for="mv-qty">{t.quantity}</label>
         <input class="ol-input font-data" id="mv-qty" name="quantity" inputmode="decimal" value="1" required />
       </div>
       <div id="mv-cost-wrap">
-        <label class="ol-label" for="mv-cost">Costo unitario</label>
+        <label class="ol-label" for="mv-cost">{t.unitCost}</label>
         <input class="ol-input font-data" id="mv-cost" name="unit_cost" inputmode="decimal" placeholder="0.00" />
       </div>
     </div>
 
     <div>
-      <label class="ol-label" for="mv-notes">Notas / origen</label>
-      <input class="ol-input" id="mv-notes" name="notes" placeholder="Opcional" />
+      <label class="ol-label" for="mv-notes">{t.notes}</label>
+      <input class="ol-input" id="mv-notes" name="notes" placeholder={t.optional} />
     </div>
 
     <p id="mv-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
 
     <div class="flex items-center justify-between border-t border-border pt-4">
       <button type="button" id="mv-delete" class="hidden items-center gap-1.5 text-sm font-semibold text-danger hover:underline">
-        <Icon name="lucide:trash-2" width={15} height={15} /> Eliminar
+        <Icon name="lucide:trash-2" width={15} height={15} /> {t.delete}
       </button>
       <div class="ml-auto flex items-center gap-2">
-        <Button type="button" variant="secondary" id="mv-cancel">Cancelar</Button>
-        <Button type="submit" variant="primary" id="mv-submit"><span data-label>Guardar</span></Button>
+        <Button type="button" variant="secondary" id="mv-cancel">{dict.common.cancel}</Button>
+        <Button type="submit" variant="primary" id="mv-submit">
+          <span data-label>{dict.common.save}</span>
+        </Button>
       </div>
     </div>
   </form>
 </div>
 
 <script>
+  import { ui } from "@/lib/i18n-client";
+
+  const t = ui().movementModal;
+
   interface OpenOpts {
     variantId: string;
     variantName?: string;
@@ -118,9 +133,15 @@ const segs: [string, string][] = [
     const delBtn = document.getElementById("mv-delete") as HTMLButtonElement;
 
     const MOTIVOS: Record<string, [string, string][]> = {
-      entrada: [["IN_PURCHASE", "Compra"], ["IN_PRODUCTION", "Producción"]],
-      salida: [["OUT_SALE", "Venta"], ["OUT_LOSS", "Merma"]],
-      ajuste: [["adjustment", "Ajuste"]],
+      entrada: [
+        ["IN_PURCHASE", ui().movements.purchase],
+        ["IN_PRODUCTION", ui().movements.production],
+      ],
+      salida: [
+        ["OUT_SALE", ui().movements.sale],
+        ["OUT_LOSS", ui().movements.loss],
+      ],
+      ajuste: [["adjustment", ui().movements.adjustment]],
     };
     const TYPE_SEG: Record<string, string> = {
       purchase: "entrada", production: "entrada",
@@ -164,7 +185,7 @@ const segs: [string, string][] = [
       if (keepType) motivoSel.value = FORM_TYPE[keepType] ?? keepType;
       motivoWrap.classList.toggle("hidden", MOTIVOS[k].length < 2);
       costWrap.classList.toggle("hidden", k !== "entrada");
-      qty.placeholder = k === "ajuste" ? "-3 o 5" : "1";
+      qty.placeholder = k === "ajuste" ? t.adjustPlaceholder : "1";
     }
 
     function resetMsg() { msg.classList.add("hidden"); msg.textContent = ""; }
@@ -182,10 +203,10 @@ const segs: [string, string][] = [
       resetMsg();
       variantInput.value = o.variantId;
       idInput.value = o.movementId ?? "";
-      vName.textContent = o.variantName || o.variantSku || "Variante";
+      vName.textContent = o.variantName || o.variantSku || t.variantFallback;
       vSku.textContent = o.variantSku || "";
       const editing = !!o.movementId;
-      title.textContent = editing ? "Editar movimiento" : "Registrar movimiento";
+      title.textContent = editing ? t.editTitle : t.title;
       delBtn.classList.toggle("hidden", !editing);
       delBtn.classList.toggle("flex", editing);
 
@@ -212,7 +233,7 @@ const segs: [string, string][] = [
       e.preventDefault();
       const label = submitBtn.querySelector("[data-label]") as HTMLElement;
       submitBtn.disabled = true;
-      label.textContent = "Guardando…";
+      label.textContent = ui().common.saving;
       resetMsg();
       const fd = new FormData(form);
       const id = String(fd.get("movement_id") || "");
@@ -233,31 +254,31 @@ const segs: [string, string][] = [
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "No se pudo guardar el movimiento.");
+        if (!res.ok) throw new Error(data?.error || t.saveFailed);
         window.location.reload();
       } catch (err) {
         msg.className = "rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger";
-        msg.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        msg.textContent = err instanceof Error ? err.message : t.unexpected;
         msg.classList.remove("hidden");
         submitBtn.disabled = false;
-        label.textContent = "Guardar";
+        label.textContent = ui().common.save;
       }
     });
 
     delBtn.addEventListener("click", async () => {
       const id = idInput.value;
-      if (!id || !confirm("¿Eliminar este movimiento? El stock se recalculará.")) return;
+      if (!id || !confirm(t.confirmDelete)) return;
       delBtn.setAttribute("disabled", "true");
       try {
         const res = await fetch(`/api/movements/${id}?business_id=${businessId}`, { method: "DELETE" });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data?.error || "No se pudo eliminar.");
+          throw new Error(data?.error || t.deleteFailed);
         }
         window.location.reload();
       } catch (err) {
         msg.className = "rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger";
-        msg.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        msg.textContent = err instanceof Error ? err.message : t.unexpected;
         msg.classList.remove("hidden");
         delBtn.removeAttribute("disabled");
       }

@@ -1,5 +1,6 @@
 ---
 import "@/styles/global.css";
+import { LOCALES, clientDict, localePath, useT } from "@/i18n";
 
 interface Props {
   title?: string;
@@ -8,25 +9,47 @@ interface Props {
   bodyClass?: string;
 }
 
+const locale = Astro.locals.locale;
+const t = useT(locale);
+
 const {
-  title = "Openlocal — Comercio local",
-  description = "Descubre productos de negocios locales cerca de ti.",
+  title = t.meta.title,
+  description = t.meta.description,
   bodyClass = "",
 } = Astro.props;
+
+// After the i18n rewrite `Astro.url` is the unprefixed route, which is exactly
+// the shape `localePath()` wants; `originPathname` keeps the /en prefix and is
+// what the visitor actually sees, so canonical uses it.
+const site = Astro.site ?? new URL(Astro.url.origin);
+// Astro normalises both paths with a trailing slash; the served URLs have none.
+const trim = (path: string) => path.replace(/(.)\/$/, "$1");
+const route = trim(Astro.url.pathname);
+const canonical = new URL(trim(Astro.originPathname), site);
 ---
 
 <!doctype html>
-<html lang="es">
+<html lang={locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    <link rel="canonical" href={canonical.href} />
+    {LOCALES.map((l) => (
+      <link rel="alternate" hreflang={l} href={new URL(localePath(l, route), site).href} />
+    ))}
+    <link rel="alternate" hreflang="x-default" href={new URL(route, site).href} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content={locale === "es" ? "es_MX" : "en_US"} />
     <meta name="generator" content={Astro.generator} />
+    <script
+      is:inline
+      set:html={`window.__OL_LOCALE=${JSON.stringify(locale)};window.__OL_I18N=${JSON.stringify(clientDict(locale))}`}
+    />
   </head>
   <body class={`min-h-screen bg-surface-primary text-text-primary ${bodyClass}`}>
     <slot />
