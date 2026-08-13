@@ -45,10 +45,14 @@ const categories = supportCategories(articles);
 const related = relatedSupportArticles(articles, article);
 const { Content, headings } = await render(article.entry);
 
+// The frontmatter `updated` is a plain calendar date, so it parses as UTC
+// midnight. Formatting it in the server's zone (UTC-6 here) would render the
+// previous day, so pin the formatter to UTC.
 const updated = new Intl.DateTimeFormat(intlLocale(locale), {
   day: "numeric",
   month: "short",
   year: "numeric",
+  timeZone: "UTC",
 }).format(article.data.updated);
 
 // The same slug serves both locales, so the switch is just the other prefix.
