@@ -741,6 +741,122 @@ export const es = {
     viewFull: "Ver la imagen completa",
     fallbackCaption: "Imagen",
   },
+  /**
+   * Centro de ayuda (`/soporte`). El texto de los artículos vive en los MDX de
+   * `src/content/support/`, aquí sólo va el marco de la interfaz.
+   */
+  support: {
+    title: "Centro de ayuda — Openlocal",
+    description:
+      "Guías cortas y tours guiados para montar tu negocio en Openlocal.",
+    nav: "Soporte",
+    kicker: "CENTRO DE AYUDA",
+    heading: "¿En qué podemos ayudarte?",
+    subheading:
+      "Guías cortas y tours guiados para montar tu negocio en Openlocal.",
+    browseTitle: "Explora por tema",
+    popularTitle: "Lo más consultado",
+    viewAll: "Ver todos",
+    breadcrumb: "Soporte",
+    empty: "Todavía no hay artículos en esta sección.",
+    countOne: "{count} artículo",
+    countOther: "{count} artículos",
+    tourCountOne: "{count} tour",
+    tourCountOther: "{count} tours",
+    librarySummary: "{articles} · {tours}",
+    /** Los ids son slugs fijos (van en la URL); sólo se traduce la etiqueta. */
+    categories: {
+      "primeros-pasos": {
+        label: "Primeros pasos",
+        description:
+          "Crea tu cuenta, da de alta el negocio y publica tu tienda.",
+      },
+      "productos-y-variantes": {
+        label: "Productos y variantes",
+        description: "Catálogo, precios, fotos y variantes con existencias.",
+      },
+      inventario: {
+        label: "Inventario",
+        description: "Movimientos de stock, escáner de códigos y niveles.",
+      },
+      analitica: {
+        label: "Analítica",
+        description: "Bajo stock, EOQ y decisiones de reabastecimiento.",
+      },
+      "tienda-publica": {
+        label: "Tu tienda pública",
+        description: "Horarios, zona de servicio, portada y WhatsApp.",
+      },
+      "cuenta-y-equipo": {
+        label: "Cuenta y equipo",
+        description: "Sesión, organización, roles y datos del negocio.",
+      },
+    },
+    search: {
+      label: "Buscar en el centro de ayuda",
+      placeholder: "Busca: variantes, inventario, horarios…",
+      shortcut: "⌘K",
+      empty: "Sin resultados para “{query}”.",
+      emptyHint: "Prueba con otras palabras o escríbenos.",
+      resultsOne: "{count} resultado",
+      resultsOther: "{count} resultados",
+      clear: "Limpiar búsqueda",
+    },
+    tours: {
+      title: "Tours guiados",
+      description:
+        "Los artículos marcados con este ícono abren tu panel y te señalan cada paso, botón por botón. Puedes pausarlo cuando quieras.",
+      badge: "Tour guiado",
+      articleBadge: "Artículo",
+      start: "Iniciar tour",
+      stepsOne: "{count} paso",
+      stepsOther: "{count} pasos",
+      bannerTitle: "Tour guiado: {title}",
+      bannerHint: "Abre tu panel y te señala cada paso.",
+      asideTitle: "¿Prefieres verlo?",
+      asideDescription: "Te llevamos por el panel señalando cada paso.",
+      signedOutHint: "Inicia sesión para seguir el tour en tu panel.",
+      skip: "Saltar tour",
+      back: "Atrás",
+      next: "Siguiente",
+      done: "Listo",
+      progress: "Paso {current} de {total}",
+      keyboardHint: "Esc para salir · ← → para navegar",
+      missing: "Ese tour ya no está disponible.",
+    },
+    contact: {
+      title: "¿Sigues atorado?",
+      description:
+        "Escríbenos y te respondemos el mismo día hábil, en español o inglés.",
+      whatsapp: "Escribir por WhatsApp",
+      email: "soporte@openlocal.mx",
+    },
+    status: {
+      ok: "Todos los sistemas operativos",
+    },
+    article: {
+      updated: "Actualizado {date}",
+      readingTime: "{count} min de lectura",
+      otherLocale: "Read in English",
+      toc: "EN ESTA GUÍA",
+      tocMobile: "En esta guía",
+      related: "Continúa con",
+      editOnGithub: "Editar esta página",
+      draft: "Borrador",
+    },
+    feedback: {
+      question: "¿Te resultó útil esta guía?",
+      yes: "Sí",
+      no: "No",
+      thanks: "¡Gracias! Nos ayuda a mejorar la guía.",
+      commentLabel: "¿Qué faltó?",
+      commentPlaceholder: "Cuéntanos qué esperabas encontrar (opcional).",
+      send: "Enviar",
+      sending: "Enviando…",
+      error: "No pudimos registrar tu respuesta. Intenta de nuevo.",
+      openIssue: "Reportar en GitHub",
+    },
+  },
 };
 
 /** Shape every locale dictionary must implement. */

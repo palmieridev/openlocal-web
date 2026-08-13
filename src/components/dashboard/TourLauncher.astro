@@ -1,0 +1,56 @@
+---
+/**
+ * Launches a guided tour when the dashboard is opened with `?tour=<id>` — the
+ * link every support article's tour button points at.
+ *
+ * driver.js and the tour prose are dynamic-imported, so a normal dashboard
+ * visit downloads neither.
+ */
+---
+
+<div
+  id="ol-tour-toast"
+  hidden
+  role="status"
+  class="fixed bottom-4 left-1/2 z-[10000] -translate-x-1/2 rounded-full bg-surface-inverse px-4 py-2 text-xs font-medium text-text-inverse shadow-lg"
+>
+</div>
+
+<script>
+  import { TOUR_PARAM, isTourId } from "@/lib/tours";
+  import { ui } from "@/lib/i18n-client";
+
+  const url = new URL(window.location.href);
+  const requested = url.searchParams.get(TOUR_PARAM);
+
+  if (requested) {
+    // Drop the param first: a refresh (or a shared URL) should not replay the
+    // tour, and the dashboard route itself does not need it.
+    url.searchParams.delete(TOUR_PARAM);
+    window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+
+    const toast = document.getElementById("ol-tour-toast");
+    const notify = (message: string) => {
+      if (!toast) return;
+      toast.textContent = message;
+      toast.hidden = false;
+      window.setTimeout(() => (toast.hidden = true), 4000);
+    };
+
+    if (!isTourId(requested)) {
+      notify(ui().support.tours.missing);
+    } else {
+      const start = async () => {
+        try {
+          const { runTour } = await import("@/lib/tours/runner");
+          const started = await runTour(requested);
+          if (!started) notify(ui().support.tours.missing);
+        } catch {
+          notify(ui().support.tours.missing);
+        }
+      };
+      // Let the page settle so anchors exist and are measurable.
+      window.requestAnimationFrame(() => window.setTimeout(start, 150));
+    }
+  }
+</script>

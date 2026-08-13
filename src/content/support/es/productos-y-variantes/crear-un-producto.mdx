@@ -1,0 +1,54 @@
+---
+title: Crea tu primer producto
+description: Del formulario de alta a un producto visible en tu tienda, con su primera variante.
+category: productos-y-variantes
+order: 0
+updated: 2026-08-12
+readingMinutes: 5
+tour: crear-producto
+---
+
+import productoNuevo from "../../../../assets/soporte/panel-producto-nuevo.png";
+import panelProductos from "../../../../assets/soporte/panel-productos.png";
+
+Un producto en Openlocal es el artículo (por ejemplo "Vela de soya") y una variante es la versión concreta que vendes (200 g, aroma lavanda, $180). El precio y las existencias viven en la variante, no en el producto.
+
+## 1. Crea el producto
+
+En **Productos → Nuevo producto** llena nombre, tipo y descripción. El nombre genera el slug con el que el producto se identifica en tu tienda.
+
+<Figure
+  src={productoNuevo}
+  alt="Formulario de alta de producto con los campos de nombre, tipo y unidad"
+  caption="Formulario de nuevo producto."
+/>
+
+## 2. Agrega al menos una variante
+
+Sin variante, el producto no puede aparecer en la tienda aunque esté marcado como público. En la variante defines:
+
+- **Precio** en pesos, y opcionalmente una nota corta junto al precio (por ejemplo "por pieza" o "mínimo 3").
+- **SKU y código de barras**, si los manejas; son los que lee el escáner.
+- **Estado público de existencias**: la etiqueta que ve el cliente (disponible, pocas piezas, agotado, bajo pedido).
+
+<Callout tone="warning" title="La etiqueta no se calcula sola">
+El estado público de existencias es un valor **manual** de la variante, no un reflejo automático de tu inventario. Si registras una venta, la etiqueta no cambia por su cuenta.
+</Callout>
+
+## 3. Publícalo
+
+Marca el producto como público y guárdalo. La combinación que lo hace visible es: producto público **+** al menos una variante.
+
+## 4. Revisa la columna "Público"
+
+En la lista de productos, esa columna te dice de un vistazo qué está visible en la tienda. Los filtros de arriba separan borradores de publicados, y el buscador filtra por nombre, marca o slug mientras escribes.
+
+<Figure
+  src={panelProductos}
+  alt="Lista de productos con los filtros, el buscador y la columna Público"
+  caption="Catálogo: filtros, buscador y la columna Público."
+/>
+
+## Fotos
+
+Por ahora la portada del **negocio** se sube desde Ajustes. Las imágenes por producto todavía no se pueden cargar desde el panel: el campo existe en la API sólo como lectura.

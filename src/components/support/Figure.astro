@@ -1,0 +1,20 @@
+---
+import { Image } from "astro:assets";
+import type { ImageMetadata } from "astro";
+
+interface Props {
+  /** Imported from `src/assets/soporte/…` inside the MDX file. */
+  src: ImageMetadata;
+  alt: string;
+  caption?: string;
+}
+
+const { src, alt, caption } = Astro.props;
+---
+
+<figure class="not-prose">
+  <div class="overflow-hidden rounded-xl border border-border bg-surface-card">
+    <Image src={src} alt={alt} widths={[640, 960, 1280]} sizes="(min-width: 1024px) 760px, 100vw" loading="lazy" class="w-full" />
+  </div>
+  {caption && <figcaption class="mt-2 text-xs text-text-muted">{caption}</figcaption>}
+</figure>

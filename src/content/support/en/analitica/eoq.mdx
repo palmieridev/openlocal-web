@@ -1,0 +1,42 @@
+---
+title: Work out your economic order quantity (EOQ)
+description: What EOQ is, which numbers it needs, and how to read the result without the formula.
+category: analitica
+order: 1
+updated: 2026-08-12
+readingMinutes: 6
+---
+
+import panelEoq from "../../../../assets/soporte/panel-eoq.png";
+
+EOQ ("economic order quantity") answers one very concrete question: **how big should each purchase be?**
+
+Ordering little and often costs you in freight, time and trips. Ordering a lot at once ties up cash and risks stock going off. EOQ is the middle point between those two costs.
+
+## The numbers it uses
+
+- **Demand**: how much of that variant you sell in a period. It comes from your stock-out movements.
+- **Order cost**: what it costs to place one order regardless of size (freight, travel, time).
+- **Holding cost**: what it costs to keep one unit for the period (space, capital, expiry).
+
+## Reading the result
+
+<Figure
+  src={panelEoq}
+  alt="EOQ calculator with the demand, order cost and holding cost fields"
+  caption="Analytics → EOQ."
+/>
+
+The output is an order size, not a purchase order. If EOQ suggests 40 units and your supplier sells cases of 24, order 48 or 24 — the number is a guide, not a rule.
+
+A very large EOQ almost always means the order cost is overstated. A very small one means the holding cost came out too high.
+
+## Thin data, thin answer
+
+<Callout tone="warning" title="It assumes demand like the demand you recorded">
+With only a few weeks of movements, treat the result as a first approximation and revisit it once you have more history.
+</Callout>
+
+## How often to revisit
+
+When supplier prices change, when your sales rhythm shifts noticeably, or at least once a season.

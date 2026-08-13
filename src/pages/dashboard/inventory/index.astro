@@ -170,7 +170,7 @@ const nfmt = new Intl.NumberFormat(intlLocale(locale));
           <p class="mt-0.5 text-sm text-text-muted">{t.subtitle}</p>
         </div>
         <div class="flex gap-2">
-          <Button variant="primary" size="sm" icon="lucide:plus" data-open-picker>
+          <Button variant="primary" size="sm" icon="lucide:plus" data-open-picker data-tour="movement-new">
             {t.logMovement}
           </Button>
         </div>
@@ -210,7 +210,7 @@ const nfmt = new Intl.NumberFormat(intlLocale(locale));
 
         {/* Fixed toolbar: view tabs + search + export */}
         <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <nav id="inv-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
+          <nav id="inv-tabs" data-tour="inventory-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
             <button
               type="button"
               data-tab="existencias"
@@ -242,7 +242,7 @@ const nfmt = new Intl.NumberFormat(intlLocale(locale));
           </div>
         </div>
 
-        <div id="panel-existencias" class="mt-4">
+        <div id="panel-existencias" class="mt-4" data-tour="stock-table">
           <ExistenciasTable rows={existRows} />
         </div>
         <div id="panel-movimientos" class="mt-4 hidden">

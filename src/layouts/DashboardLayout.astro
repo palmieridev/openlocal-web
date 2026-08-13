@@ -2,6 +2,7 @@
 import { Icon } from "astro-icon/components";
 import { UserButton } from "@clerk/astro/components";
 import BaseLayout from "./BaseLayout.astro";
+import TourLauncher from "@/components/dashboard/TourLauncher.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { localePath, useT } from "@/i18n";
@@ -31,13 +32,16 @@ try {
 
 // Scanner is not a top-level destination — it lives inside Inventario and
 // Analítica (where scanning a SKU is actionable), not in the global sidebar.
+// `tour` is the `data-tour` anchor the guided tours target. Written out in full
+// (rather than derived from `key`) so it stays greppable — `tours.test.ts`
+// fails the build when a tour points at an anchor no longer in the markup.
 const nav = [
-  { key: "inicio", label: t.navHome, icon: "lucide:layout-dashboard", href: to("/dashboard") },
-  { key: "productos", label: t.navProducts, icon: "lucide:package", href: to("/dashboard/products") },
-  { key: "inventario", label: t.navInventory, icon: "lucide:boxes", href: to("/dashboard/inventory") },
-  { key: "analitica", label: t.navAnalytics, icon: "lucide:chart-column", href: to("/dashboard/analytics") },
-  { key: "tienda", label: t.navStorefront, icon: "lucide:globe", href: storeHref || "#", external: true },
-  { key: "ajustes", label: t.navSettings, icon: "lucide:settings", href: to("/dashboard/settings") },
+  { key: "inicio", tour: "nav-inicio", label: t.navHome, icon: "lucide:layout-dashboard", href: to("/dashboard") },
+  { key: "productos", tour: "nav-productos", label: t.navProducts, icon: "lucide:package", href: to("/dashboard/products") },
+  { key: "inventario", tour: "nav-inventario", label: t.navInventory, icon: "lucide:boxes", href: to("/dashboard/inventory") },
+  { key: "analitica", tour: "nav-analitica", label: t.navAnalytics, icon: "lucide:chart-column", href: to("/dashboard/analytics") },
+  { key: "tienda", tour: "nav-tienda", label: t.navStorefront, icon: "lucide:globe", href: storeHref || "#", external: true },
+  { key: "ajustes", tour: "nav-ajustes", label: t.navSettings, icon: "lucide:settings", href: to("/dashboard/settings") },
 ];
 ---
 
@@ -82,6 +86,7 @@ const nav = [
         {nav.map((n) => (
           <a
             href={n.href}
+            data-tour={n.tour}
             {...n.external && n.href !== "#" ? { target: "_blank", rel: "noreferrer" } : {}}
             class:list={[
               "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
@@ -109,6 +114,8 @@ const nav = [
       <slot />
     </div>
   </div>
+
+  <TourLauncher />
 
   <script>
     const btn = document.getElementById("ol-sidebar-btn");

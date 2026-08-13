@@ -131,6 +131,10 @@ export function clientDict(locale: Locale | string | undefined) {
     imageUploader: t.imageUploader,
     upload: t.upload,
     settings: t.settings,
+    // The support search, feedback and tour islands are vanilla scripts; the
+    // per-step tour prose is *not* here, it is dynamic-imported per tour so it
+    // never rides along on unrelated pages (see `src/lib/tours/`).
+    support: t.support,
   };
 }
 

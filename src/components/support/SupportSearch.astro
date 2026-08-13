@@ -1,0 +1,170 @@
+---
+import { Icon } from "astro-icon/components";
+import { localePath, useT } from "@/i18n";
+import { SUPPORT_ROOT } from "@/lib/support";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).support;
+const indexUrl = localePath(locale, `${SUPPORT_ROOT}/search.json`);
+---
+
+<div class="w-full max-w-xl" data-support-search data-index={indexUrl}>
+  <div class="relative">
+    <Icon
+      name="lucide:search"
+      class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-text-muted"
+      width={17}
+      height={17}
+    />
+    <input
+      type="search"
+      id="support-search"
+      autocomplete="off"
+      aria-label={t.search.label}
+      aria-controls="support-search-results"
+      placeholder={t.search.placeholder}
+      class="ol-input w-full rounded-full py-3 pl-11 pr-16 shadow-sm"
+    />
+    <kbd
+      class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 rounded-md bg-surface-secondary px-1.5 py-0.5 font-data text-[11px] text-text-muted"
+      data-shortcut
+    >
+      {t.search.shortcut}
+    </kbd>
+  </div>
+
+  <div
+    id="support-search-results"
+    class="mt-2 hidden overflow-hidden rounded-2xl border border-border bg-surface-card text-left shadow-lg"
+    role="listbox"
+  >
+  </div>
+</div>
+
+<script>
+  import { ui } from "@/lib/i18n-client";
+  import { interpolate, pluralize } from "@/i18n";
+
+  interface Doc {
+    title: string;
+    description: string;
+    category: string;
+    path: string;
+    tour: string | null;
+    minutes: number;
+  }
+
+  const root = document.querySelector<HTMLElement>("[data-support-search]");
+  const input = root?.querySelector<HTMLInputElement>("input");
+  const panel = document.getElementById("support-search-results");
+
+  if (root && input && panel) {
+    // Bound inside the guard so the narrowing survives into the closures below.
+    const results = panel;
+    const t = ui().support;
+    const indexUrl = root.dataset.index ?? "/soporte/search.json";
+    const prefix = indexUrl.replace(/\/search\.json$/, "");
+    let docs: Doc[] | null = null;
+    let loading: Promise<void> | null = null;
+
+    const normalize = (value: string) =>
+      value
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "");
+
+    function load(): Promise<void> {
+      loading ??= fetch(indexUrl)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data: Doc[]) => {
+          docs = data;
+        })
+        .catch(() => {
+          docs = [];
+        });
+      return loading;
+    }
+
+    /** Title hits outrank description hits; everything else is alphabetical. */
+    function score(doc: Doc, query: string): number {
+      const title = normalize(doc.title);
+      const description = normalize(doc.description);
+      if (title.startsWith(query)) return 0;
+      if (title.includes(query)) return 1;
+      if (description.includes(query)) return 2;
+      if (normalize(doc.category).includes(query)) return 3;
+      return Number.POSITIVE_INFINITY;
+    }
+
+    function render(query: string) {
+      if (!docs) return;
+      const needle = normalize(query.trim());
+      if (!needle) {
+        results.classList.add("hidden");
+        results.innerHTML = "";
+        return;
+      }
+
+      const matches = docs
+        .map((doc) => ({ doc, rank: score(doc, needle) }))
+        .filter((entry) => Number.isFinite(entry.rank))
+        .sort((a, b) => a.rank - b.rank || a.doc.title.localeCompare(b.doc.title))
+        .slice(0, 8);
+
+      results.classList.remove("hidden");
+
+      if (matches.length === 0) {
+        results.innerHTML = `<p class="px-4 py-6 text-center text-sm text-text-muted">${interpolate(
+          t.search.empty,
+          { query },
+        )}<br><span class="text-xs">${t.search.emptyHint}</span></p>`;
+        return;
+      }
+
+      const header = `<p class="border-b border-border px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">${pluralize(
+        matches.length,
+        t.search.resultsOne,
+        t.search.resultsOther,
+      )}</p>`;
+
+      results.innerHTML =
+        header +
+        matches
+          .map(({ doc }) => {
+            const badge = doc.tour ? t.tours.badge : t.tours.articleBadge;
+            const href = `${prefix}${doc.path.replace(/^\/soporte/, "")}`;
+            return `<a href="${href}" role="option" class="flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0 hover:bg-surface-secondary">
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-sm font-semibold text-text-primary">${doc.title}</span>
+                <span class="block truncate text-xs text-text-muted">${badge} · ${doc.minutes} min</span>
+              </span>
+            </a>`;
+          })
+          .join("");
+    }
+
+    input.addEventListener("focus", () => void load(), { once: true });
+    input.addEventListener("input", () => {
+      void load().then(() => render(input.value));
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        input.value = "";
+        render("");
+        input.blur();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        input.focus();
+        input.select();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!root.contains(event.target as Node)) results.classList.add("hidden");
+    });
+  }
+</script>

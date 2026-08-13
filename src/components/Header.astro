@@ -12,6 +12,7 @@ const path = Astro.url.pathname;
 const links = [
   { href: "/", label: t.nav.home },
   { href: "/marketplace", label: t.nav.marketplace },
+  { href: "/soporte", label: t.support.nav },
 ];
 const isActive = (href: string) =>
   href === "/" ? path === "/" : path.startsWith(href);

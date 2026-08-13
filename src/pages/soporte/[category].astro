@@ -1,0 +1,65 @@
+---
+import { getCollection } from "astro:content";
+
+import SupportLayout from "@/layouts/SupportLayout.astro";
+import ArticleRow from "@/components/support/ArticleRow.astro";
+import SupportSideNav from "@/components/support/SupportSideNav.astro";
+import { interpolate, localePath, useT } from "@/i18n";
+import { isSupportCategory, supportArticles, supportCategories } from "@/lib/support";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).support;
+const url = (href: string) => localePath(locale, href);
+
+const { category } = Astro.params;
+if (!isSupportCategory(category)) {
+  return Astro.rewrite("/404");
+}
+
+const entries = await getCollection("support");
+const articles = supportArticles(entries, locale, {
+  includeDrafts: import.meta.env.DEV,
+});
+const categories = supportCategories(articles);
+const current = categories.find((entry) => entry.id === category)!;
+const label = t.categories[category].label;
+---
+
+<SupportLayout
+  title={`${label} — ${t.title}`}
+  description={t.categories[category].description}
+  crumbs={[{ label }]}
+>
+  <div class="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[250px_1fr]">
+    <aside class="hidden lg:block">
+      <SupportSideNav categories={categories} currentCategory={category} />
+    </aside>
+
+    <div>
+      <h1 class="font-heading text-2xl font-semibold sm:text-3xl">{label}</h1>
+      <p class="mt-2 max-w-2xl text-sm text-text-secondary">
+        {t.categories[category].description}
+      </p>
+
+      <div class="mt-6 flex flex-col gap-2.5">
+        {
+          current.articles.length > 0 ? (
+            current.articles.map((article) => (
+              <ArticleRow
+                href={url(article.path)}
+                title={article.data.title}
+                tour={Boolean(article.data.tour)}
+                meta={`${article.data.tour ? t.tours.badge : t.tours.articleBadge} · ${interpolate(
+                  t.article.readingTime,
+                  { count: article.data.readingMinutes },
+                )}`}
+              />
+            ))
+          ) : (
+            <p class="ol-card px-4 py-6 text-center text-sm text-text-muted">{t.empty}</p>
+          )
+        }
+      </div>
+    </div>
+  </div>
+</SupportLayout>

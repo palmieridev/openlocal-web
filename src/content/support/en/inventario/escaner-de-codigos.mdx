@@ -1,0 +1,28 @@
+---
+title: Use the barcode scanner
+description: Scan a variant's barcode from your phone to record movements faster.
+category: inventario
+order: 1
+updated: 2026-08-12
+readingMinutes: 3
+---
+
+The scanner uses the device camera to find a variant by its barcode or SKU, without hunting through the list.
+
+## Where it lives
+
+The scan button sits inside **Inventory** and **Products**, where scanning a code leads to a concrete action. It is not in the sidebar, because scanning on its own is not a destination.
+
+## Requirements
+
+- A browser with camera permission. It asks the first time; if you decline, you have to re-enable it in the site settings.
+- In production the camera only works over HTTPS. On your own machine, `localhost` counts as a secure origin too.
+- The variant must have its barcode or SKU saved.
+
+## When the code is not found
+
+You get the option to search manually. The usual causes are a variant without a saved code, or a printed code that belongs to the supplier's packaging rather than the one you entered.
+
+<Callout tone="note" title="Light and focus">
+Reading improves a lot with even light and the code about 15 cm from the camera. If the packaging is glossy, tilt the product to avoid the glare.
+</Callout>

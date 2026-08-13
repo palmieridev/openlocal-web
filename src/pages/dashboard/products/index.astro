@@ -82,7 +82,12 @@ const tabs = [
         </div>
         <div class="flex items-center gap-2">
           <Button variant="secondary" icon="lucide:scan-barcode" data-open-scanner>{t.scan}</Button>
-          <Button variant="primary" icon="lucide:plus" href={to("/dashboard/products/new")}>
+          <Button
+            variant="primary"
+            icon="lucide:plus"
+            href={to("/dashboard/products/new")}
+            data-tour="product-new"
+          >
             {t.newProduct}
           </Button>
         </div>
@@ -123,7 +128,7 @@ const tabs = [
 
       {/* Tabs + search */}
       <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <nav id="product-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
+        <nav id="product-tabs" data-tour="product-filters" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
           {tabs.map((t, i) => (
             <button
               type="button"
@@ -142,6 +147,7 @@ const tabs = [
             <Icon name="lucide:search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" width={16} height={16} />
             <input
               id="product-search"
+              data-tour="product-search"
               type="search"
               placeholder={t.searchPlaceholder}
               class="ol-input w-full rounded-full pl-9 sm:w-64"
@@ -152,7 +158,7 @@ const tabs = [
       </div>
 
       {products.length > 0 ? (
-        <div class="ol-card mt-4 overflow-hidden">
+        <div class="ol-card mt-4 overflow-hidden" data-tour="product-table">
           <div class="flex items-center justify-between border-b border-border px-5 py-4">
             <div>
               <h2 class="font-heading font-semibold">{t.catalogTitle}</h2>

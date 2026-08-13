@@ -77,7 +77,7 @@ const inbound = new Set(["purchase", "production", "IN_PURCHASE", "IN_PRODUCTION
         <p class="mt-1 text-sm text-text-secondary">{d.summary}</p>
       </div>
 
-      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-tour="stats">
         {stats.map((s) => <StatTile label={s.label} value={s.value} icon={s.icon} />)}
       </div>
 

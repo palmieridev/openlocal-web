@@ -1,0 +1,54 @@
+---
+title: Create your first product
+description: From the new-product form to a product visible in your storefront, with its first variant.
+category: productos-y-variantes
+order: 0
+updated: 2026-08-12
+readingMinutes: 5
+tour: crear-producto
+---
+
+import productoNuevo from "../../../../assets/soporte/panel-producto-nuevo.png";
+import panelProductos from "../../../../assets/soporte/panel-productos.png";
+
+In Openlocal a product is the item ("Soy candle") and a variant is the specific version you sell (200 g, lavender, $180). Price and stock live on the variant, not on the product.
+
+## 1. Create the product
+
+In **Products → New product**, fill in name, type and description. The name generates the slug that identifies the product in your storefront.
+
+<Figure
+  src={productoNuevo}
+  alt="New product form with the name, type and unit fields"
+  caption="The new-product form."
+/>
+
+## 2. Add at least one variant
+
+Without a variant the product cannot appear in the storefront, even when marked public. On the variant you set:
+
+- **Price** in pesos, plus an optional short note next to it (for example "per piece" or "minimum 3").
+- **SKU and barcode**, if you use them; these are what the scanner reads.
+- **Public stock status**: the label customers see (available, low stock, out of stock, made to order).
+
+<Callout tone="warning" title="The label is not computed">
+Public stock status is a **manual** field on the variant, not a reflection of your inventory. Recording a sale does not change the label on its own.
+</Callout>
+
+## 3. Publish it
+
+Mark the product as public and save. The combination that makes it visible is: public product **+** at least one variant.
+
+## 4. Check the "Public" column
+
+In the product list, that column tells you at a glance what is visible in the storefront. The filters above separate drafts from published items, and the search box filters by name, brand or slug as you type.
+
+<Figure
+  src={panelProductos}
+  alt="Product list with the filters, the search box and the Public column"
+  caption="The catalogue: filters, search and the Public column."
+/>
+
+## Photos
+
+For now the **business** cover is uploaded from Settings. Per-product images cannot be uploaded from the dashboard yet: the field exists in the API as read-only.
