@@ -5,16 +5,31 @@ import Button from "@/components/ui/Button.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import { getServerAuth } from "@/lib/api/server";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).products;
+const to = (href: string) => localePath(locale, href);
 
 const { businessId } = await getServerAuth(Astro);
 
 // product_type must match the API enum (stocked_product | made_to_order_product | unique_item).
 const productTypes = [
-  ["stocked_product", "Producto con inventario"],
-  ["made_to_order_product", "Bajo pedido"],
-  ["unique_item", "Pieza única"],
+  ["stocked_product", t.typeStockedLong],
+  ["made_to_order_product", t.typeMadeToOrder],
+  ["unique_item", t.typeUnique],
 ];
-const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
+// Values are stored on the product, so they stay in Spanish; only the option
+// text follows the UI language.
+const units = [
+  ["pieza", t.unitPiece],
+  ["kg", t.unitKg],
+  ["g", t.unitG],
+  ["litro", t.unitLiter],
+  ["metro", t.unitMeter],
+  ["par", t.unitPair],
+  ["caja", t.unitBox],
+];
 ---
 
 <DashboardLayout active="productos">
@@ -25,67 +40,70 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
       {/* Action bar */}
       <div class="flex flex-wrap items-start justify-between gap-4 border-b border-border bg-surface-card px-4 py-4 sm:px-8 sm:py-5">
         <div>
-          <h1 class="font-heading text-2xl font-semibold">Nuevo producto</h1>
-          <p class="mt-1 text-sm text-text-secondary">Crea la ficha · luego agrega variantes y precio</p>
+          <h1 class="font-heading text-2xl font-semibold">{t.newTitle}</h1>
+          <p class="mt-1 text-sm text-text-secondary">{t.newSubtitle}</p>
         </div>
         <Button variant="primary" icon="lucide:check" type="submit" form="product-form">
-          <span data-label>Crear producto</span>
+          <span data-label>{t.createProduct}</span>
         </Button>
       </div>
 
       <div class="mx-auto max-w-6xl px-4 py-6 sm:px-8">
-        <a href="/dashboard/products" class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary">
-          <Icon name="lucide:arrow-left" width={15} height={15} /> Productos
+        <a
+          href={to("/dashboard/products")}
+          class="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-secondary"
+        >
+          <Icon name="lucide:arrow-left" width={15} height={15} /> {t.title}
         </a>
 
       <div class="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
         {/* Form */}
         <form id="product-form" data-business-id={businessId} class="ol-card flex flex-col gap-4 p-6">
           <div>
-            <h2 class="font-heading font-semibold">Detalles del producto</h2>
-            <p class="text-sm text-text-secondary">Lo que verán los compradores en tu tienda.</p>
+            <h2 class="font-heading font-semibold">{t.detailsTitle}</h2>
+            <p class="text-sm text-text-secondary">{t.detailsIntro}</p>
           </div>
           <div>
-            <label class="ol-label" for="name">Nombre *</label>
-            <input class="ol-input" id="name" name="name" required placeholder="Bolsa tejida a mano" />
+            <label class="ol-label" for="name">{t.name}</label>
+            <input class="ol-input" id="name" name="name" required placeholder={t.namePlaceholder} />
           </div>
           <div class="grid gap-3 sm:grid-cols-2">
             <div>
-              <label class="ol-label" for="product_type">Tipo</label>
+              <label class="ol-label" for="product_type">{t.type}</label>
               <select class="ol-select" id="product_type" name="product_type">
                 {productTypes.map(([v, l]) => <option value={v}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label class="ol-label" for="unit">Unidad</label>
+              <label class="ol-label" for="unit">{t.unit}</label>
               <select class="ol-select" id="unit" name="unit">
-                {units.map((u) => <option value={u}>{u}</option>)}
+                {units.map(([v, l]) => <option value={v}>{l}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label class="ol-label" for="brand">Marca</label>
-            <input class="ol-input" id="brand" name="brand" placeholder="Opcional" />
+            <label class="ol-label" for="brand">{t.brand}</label>
+            <input class="ol-input" id="brand" name="brand" placeholder={t.optional} />
           </div>
           <div>
-            <label class="ol-label" for="description">Descripción</label>
+            <label class="ol-label" for="description">{t.description}</label>
             <textarea class="ol-textarea" id="description" name="description" rows="3"></textarea>
           </div>
           <div class="flex gap-6 border-t border-border pt-4">
             <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="is_handmade" /> Hecho a mano
+              <input type="checkbox" name="is_handmade" /> {t.isHandmade}
             </label>
             <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="is_public" checked /> Visible en tienda
+              <input type="checkbox" name="is_public" checked /> {t.isPublic}
             </label>
           </div>
 
           <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
 
           <div class="flex justify-end gap-2">
-            <Button variant="secondary" href="/dashboard/products">Cancelar</Button>
+            <Button variant="secondary" href={to("/dashboard/products")}>{t.cancel}</Button>
             <Button type="submit" variant="primary" id="submit-btn">
-              <span data-label>Crear producto</span>
+              <span data-label>{t.createProduct}</span>
             </Button>
           </div>
         </form>
@@ -94,23 +112,20 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
         <div class="flex flex-col gap-6">
           <div class="ol-card p-5">
             <div class="mb-4">
-              <h2 class="font-heading font-semibold">Vista en tienda</h2>
-              <p class="text-sm text-text-secondary">Así te ven los compradores</p>
+              <h2 class="font-heading font-semibold">{t.previewTitle}</h2>
+              <p class="text-sm text-text-secondary">{t.previewIntro}</p>
             </div>
             <div id="preview">
-              <ProductCard name="Nombre del producto" meta="Tu marca" price="" />
+              <ProductCard name={t.previewName} meta={t.previewBrand} price="" />
             </div>
           </div>
 
           <div class="rounded-2xl border border-border bg-accent-soft/60 p-4">
             <div class="flex items-center gap-2">
               <Icon name="lucide:info" class="text-accent" width={16} height={16} />
-              <h3 class="font-heading text-sm font-semibold">¿Y el precio?</h3>
+              <h3 class="font-heading text-sm font-semibold">{t.priceTitle}</h3>
             </div>
-            <p class="mt-2 text-[13px] leading-relaxed text-text-secondary">
-              Después de crear la ficha agregarás una variante con SKU y precio. Una variante visible basta para que el
-              producto aparezca en tu tienda.
-            </p>
+            <p class="mt-2 text-[13px] leading-relaxed text-text-secondary">{t.priceBody}</p>
           </div>
         </div>
       </div>
@@ -120,6 +135,10 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
 </DashboardLayout>
 
 <script>
+  import { localePath } from "@/i18n";
+  import { ui, uiLocale } from "@/lib/i18n-client";
+
+  const t = ui().products;
   const form = document.getElementById("product-form") as HTMLFormElement | null;
   if (form) {
     const errEl = document.getElementById("form-error") as HTMLElement;
@@ -135,10 +154,10 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
     const brandEl = form.querySelector<HTMLInputElement>("#brand");
     const descEl = form.querySelector<HTMLTextAreaElement>("#description");
     function syncPreview() {
-      if (previewName) previewName.textContent = nameEl?.value.trim() || "Nombre del producto";
+      if (previewName) previewName.textContent = nameEl?.value.trim() || t.previewName;
       if (previewMeta) {
         const meta = [brandEl?.value.trim(), descEl?.value.trim()].filter(Boolean).join(" · ");
-        previewMeta.textContent = meta || "Tu marca";
+        previewMeta.textContent = meta || t.previewBrand;
       }
     }
     form.addEventListener("input", syncPreview);
@@ -147,7 +166,7 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
       e.preventDefault();
       errEl.classList.add("hidden");
       btn.disabled = true;
-      label.textContent = "Guardando…";
+      label.textContent = ui().common.saving;
       const fd = new FormData(form);
       const payload = {
         business_id: businessId,
@@ -167,15 +186,14 @@ const units = ["pieza", "kg", "g", "litro", "metro", "par", "caja"];
           body: JSON.stringify(payload),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "No se pudo crear el producto.");
-        window.location.href = `/dashboard/products/${data.id}`;
+        if (!res.ok) throw new Error(data?.error || t.createFailed);
+        window.location.href = localePath(uiLocale(), `/dashboard/products/${data.id}`);
       } catch (err) {
-        errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+        errEl.textContent = err instanceof Error ? err.message : t.unexpected;
         errEl.classList.remove("hidden");
         btn.disabled = false;
-        label.textContent = "Crear producto";
+        label.textContent = t.createProduct;
       }
     });
   }
 </script>
-</content>

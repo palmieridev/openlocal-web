@@ -1,12 +1,19 @@
 ---
+import { localePath, useT } from "@/i18n";
+
 interface Props {
   active: "abc" | "low-stock" | "eoq";
 }
 const { active } = Astro.props;
+
+const locale = Astro.locals.locale;
+const d = useT(locale).dashboard;
+const to = (href: string) => localePath(locale, href);
+
 const tabs = [
-  { key: "abc", label: "ABC / Pareto", href: "/dashboard/analytics" },
-  { key: "low-stock", label: "Bajo stock", href: "/dashboard/analytics/low-stock" },
-  { key: "eoq", label: "EOQ", href: "/dashboard/analytics/eoq" },
+  { key: "abc", label: d.tabAbc, href: to("/dashboard/analytics") },
+  { key: "low-stock", label: d.tabLowStock, href: to("/dashboard/analytics/low-stock") },
+  { key: "eoq", label: d.tabEoq, href: to("/dashboard/analytics/eoq") },
 ];
 ---
 

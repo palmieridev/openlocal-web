@@ -1,0 +1,39 @@
+---
+import type { MarkdownHeading } from "astro";
+import { useT } from "@/i18n";
+
+interface Props {
+  headings: MarkdownHeading[];
+  class?: string;
+}
+
+const { headings, class: extra = "" } = Astro.props;
+const t = useT(Astro.locals.locale).support.article;
+
+// Only h2/h3 — deeper levels turn the rail into a second article.
+const items = headings.filter((h) => h.depth === 2 || h.depth === 3);
+---
+
+{
+  items.length > 0 && (
+    <nav class:list={["ol-card p-4", extra]} aria-label={t.tocMobile}>
+      <p class="text-[11px] font-semibold tracking-wide text-text-muted">{t.toc}</p>
+      <ul class="mt-2.5 flex flex-col gap-2">
+        {items.map((heading) => (
+          <li class="flex items-center gap-2.5">
+            <span class="h-3.5 w-0.5 shrink-0 rounded-full bg-border" />
+            <a
+              href={`#${heading.slug}`}
+              class:list={[
+                "min-w-0 text-xs leading-snug text-text-secondary hover:text-accent",
+                heading.depth === 3 && "pl-2",
+              ]}
+            >
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}

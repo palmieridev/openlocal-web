@@ -1,0 +1,38 @@
+---
+import { Icon } from "astro-icon/components";
+import TourButton from "./TourButton.astro";
+import { interpolate, pluralize, useT } from "@/i18n";
+import { TOURS, isTourId } from "@/lib/tours";
+
+interface Props {
+  tour: string;
+  /** Article title, used in the banner heading. */
+  title: string;
+}
+
+const { tour, title } = Astro.props;
+const t = useT(Astro.locals.locale).support.tours;
+
+const valid = isTourId(tour);
+const steps = valid ? TOURS[tour].steps.length : 0;
+const stepLabel = pluralize(steps, t.stepsOne, t.stepsOther);
+---
+
+{
+  valid && (
+    <aside class="flex flex-col gap-4 rounded-2xl border border-accent bg-accent-soft p-5 sm:flex-row sm:items-center">
+      <span class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent">
+        <Icon name="lucide:route" class="text-text-inverse" width={20} height={20} />
+      </span>
+      <div class="min-w-0 flex-1">
+        <p class="font-heading text-base font-semibold text-text-primary">
+          {interpolate(t.bannerTitle, { title })}
+        </p>
+        <p class="mt-0.5 text-sm text-text-secondary">
+          {t.bannerHint} {stepLabel}.
+        </p>
+      </div>
+      <TourButton tour={tour} class="shrink-0" />
+    </aside>
+  )
+}

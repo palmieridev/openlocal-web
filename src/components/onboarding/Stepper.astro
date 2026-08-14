@@ -1,12 +1,14 @@
 ---
 import { Icon } from "astro-icon/components";
+import { useT } from "@/i18n";
 
 interface Props {
   /** Active step, 1-indexed. */
   current: 1 | 2 | 3;
 }
 const { current } = Astro.props;
-const steps = ["Perfil y ubicación", "Productos", "Publicar"];
+const t = useT(Astro.locals.locale).onboarding;
+const steps = [t.step1, t.step2, t.step3];
 ---
 
 <div class="flex flex-wrap items-center justify-center gap-x-2 gap-y-3">

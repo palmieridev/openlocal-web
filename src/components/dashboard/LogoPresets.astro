@@ -1,5 +1,6 @@
 ---
 import { Icon } from "astro-icon/components";
+import { useT } from "@/i18n";
 import { BUSINESS_TYPE_ICONS, presetsFor } from "@/lib/logo-presets";
 
 /**
@@ -17,7 +18,8 @@ interface Props {
   label?: string;
 }
 
-const { businessType, name = "", label = "O elige uno de estos" } = Astro.props;
+const iu = useT(Astro.locals.locale).imageUploader;
+const { businessType, name = "", label = iu.presetsLabel } = Astro.props;
 const presets = presetsFor(businessType, name);
 // Every type's icon is rendered up front and toggled client-side, so the tiles
 // can follow the business-type select while the owner is still filling it in.
@@ -39,7 +41,7 @@ const activeType = normalisedType in BUSINESS_TYPE_ICONS ? normalisedType : "ret
         data-bg={preset.palette.bg}
         data-fg={preset.palette.fg}
         aria-pressed="false"
-        title={preset.kind === "icon" ? "Usar este símbolo" : "Usar estas iniciales"}
+        title={preset.kind === "icon" ? iu.usePreset : iu.useInitials}
         class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border transition-[outline] outline-2 outline-offset-2 outline-transparent hover:outline-accent aria-pressed:outline-accent"
         style={`background-color:${preset.palette.bg};color:${preset.palette.fg}`}
       >

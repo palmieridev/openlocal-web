@@ -1,0 +1,47 @@
+---
+import Button from "@/components/ui/Button.astro";
+import { localePath, useT } from "@/i18n";
+import { TOURS, isTourId, tourHref } from "@/lib/tours";
+
+interface Props {
+  /** Tour id from `src/lib/tours/index.ts`. */
+  tour: string;
+  variant?: "primary" | "secondary" | "inverse";
+  size?: "sm" | "md" | "lg";
+  block?: boolean;
+  class?: string;
+}
+
+const {
+  tour,
+  variant = "primary",
+  size = "md",
+  block = false,
+  class: extra = "",
+} = Astro.props;
+
+const locale = Astro.locals.locale;
+const t = useT(locale).support.tours;
+
+// An article can outlive a tour: render nothing rather than a dead link.
+const valid = isTourId(tour);
+const href = valid ? localePath(locale, tourHref(tour)) : "";
+const steps = valid ? TOURS[tour].steps.length : 0;
+---
+
+{
+  valid && (
+    <Button
+      href={href}
+      variant={variant}
+      size={size}
+      block={block}
+      icon="lucide:play"
+      class={extra}
+      data-tour-start={tour}
+      data-tour-steps={steps}
+    >
+      {t.start}
+    </Button>
+  )
+}

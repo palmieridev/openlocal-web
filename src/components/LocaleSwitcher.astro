@@ -1,0 +1,56 @@
+---
+import { LOCALES, LOCALE_COOKIE, localePath, useT } from "@/i18n";
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = "" } = Astro.props;
+
+const current = Astro.locals.locale;
+const t = useT(current);
+// `Astro.url` is post-rewrite (never carries the /en prefix), so it is the
+// right base for building the other locale's URL.
+const route = `${Astro.url.pathname}${Astro.url.search}`;
+---
+
+<div
+  class:list={["flex items-center gap-0.5 rounded-full bg-surface-secondary p-0.5", className]}
+  role="group"
+  aria-label={t.locale.label}
+  data-locale-switcher
+  data-cookie={LOCALE_COOKIE}
+>
+  {LOCALES.map((l) => (
+    <a
+      href={localePath(l, route)}
+      hreflang={l}
+      lang={l}
+      data-locale={l}
+      aria-current={l === current ? "true" : undefined}
+      class:list={[
+        "rounded-full px-2.5 py-1 text-xs font-medium uppercase transition-colors",
+        l === current
+          ? "bg-surface-primary text-text-primary shadow-sm"
+          : "text-text-secondary hover:text-text-primary",
+      ]}
+    >
+      {l}
+      <span class="sr-only">{l === "es" ? t.locale.es : t.locale.en}</span>
+    </a>
+  ))}
+</div>
+
+<script>
+  // Remember the choice so the landing page redirect honours it next visit.
+  // Navigation itself is a plain link, so this works without JS too.
+  document.querySelectorAll<HTMLElement>("[data-locale-switcher]").forEach((group) => {
+    const cookie = group.dataset.cookie ?? "ol_lang";
+    group.querySelectorAll<HTMLAnchorElement>("a[data-locale]").forEach((link) => {
+      link.addEventListener("click", () => {
+        const value = link.dataset.locale ?? "";
+        document.cookie = `${cookie}=${value}; path=/; max-age=31536000; samesite=lax`;
+      });
+    });
+  });
+</script>

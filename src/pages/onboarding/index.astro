@@ -5,65 +5,79 @@ import Button from "@/components/ui/Button.astro";
 import Stepper from "@/components/onboarding/Stepper.astro";
 import LogoPresets from "@/components/dashboard/LogoPresets.astro";
 import ServiceAreaEditor from "@/components/dashboard/ServiceAreaEditor.astro";
+import { useT } from "@/i18n";
+
+const t = useT(Astro.locals.locale).onboarding;
 
 // Step 1 of onboarding. POST /api/businesses creates the Clerk org + business
 // and sets the business cookie; we then activate the org client-side and move on
 // to the (optional) product step.
+// The values are the API's own enum slugs; only the labels are translated.
 const businessTypes = [
-  ["retail", "Tienda / Retail"],
-  ["artesanias", "Artesanías"],
-  ["comida", "Comida"],
-  ["servicios", "Servicios"],
-  ["moda", "Moda"],
-  ["belleza", "Belleza"],
-  ["hogar", "Hogar"],
-  ["otro", "Otro"],
+  ["retail", t.typeRetail],
+  ["artesanias", t.typeCrafts],
+  ["comida", t.typeFood],
+  ["servicios", t.typeServices],
+  ["moda", t.typeFashion],
+  ["belleza", t.typeBeauty],
+  ["hogar", t.typeHome],
+  ["otro", t.typeOther],
 ];
 ---
 
-<AuthLayout title="Configura tu negocio — Openlocal">
+<AuthLayout title={t.profileTitle}>
   <div class="flex w-full max-w-xl flex-col gap-6">
     <Stepper current={1} />
 
     <form id="biz-form" class="ol-card w-full p-8">
-      <h1 class="font-heading text-xl font-semibold">Perfil de tu negocio</h1>
-      <p class="mt-1 text-sm text-text-secondary">
-        Esta información aparecerá en tu tienda pública y en el marketplace. Podrás editar todo después.
-      </p>
+      <h1 class="font-heading text-xl font-semibold">{t.profileHeading}</h1>
+      <p class="mt-1 text-sm text-text-secondary">{t.profileIntro}</p>
 
       <div class="mt-6 flex flex-col gap-5">
         <section class="flex flex-col gap-4">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Perfil</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">{t.sectionProfile}</h2>
           <div>
-            <label class="ol-label" for="name">Nombre del negocio *</label>
-            <input class="ol-input" id="name" name="name" required maxlength="160" placeholder="Tejidos Roma" />
+            <label class="ol-label" for="name">{t.name}</label>
+            <input
+              class="ol-input"
+              id="name"
+              name="name"
+              required
+              maxlength="160"
+              placeholder={t.namePlaceholder}
+            />
           </div>
           <div>
-            <label class="ol-label" for="business_type">Tipo de negocio</label>
+            <label class="ol-label" for="business_type">{t.businessType}</label>
             <select class="ol-select" id="business_type" name="business_type">
               {businessTypes.map(([v, l]) => <option value={v}>{l}</option>)}
             </select>
           </div>
           <div>
-            <label class="ol-label" for="description">Descripción</label>
-            <textarea class="ol-textarea" id="description" name="description" rows="3" placeholder="Qué vendes y qué te hace especial."></textarea>
+            <label class="ol-label" for="description">{t.description}</label>
+            <textarea
+              class="ol-textarea"
+              id="description"
+              name="description"
+              rows="3"
+              placeholder={t.descriptionPlaceholder}></textarea>
           </div>
           <div>
-            <label class="ol-label" for="logo">Logo del negocio</label>
+            <label class="ol-label" for="logo">{t.logo}</label>
             <div class="flex items-center gap-4">
               <span id="logo-preview" class="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-secondary text-text-muted">
                 <Icon name="lucide:image" width={22} height={22} />
               </span>
               <div class="flex flex-col gap-1">
                 <input type="file" id="logo" name="logo" accept="image/png,image/jpeg,image/webp" class="hidden" />
-                <Button type="button" variant="secondary" size="sm" icon="lucide:upload" id="logo-btn" class="self-start">Subir logo</Button>
-                <p class="text-xs text-text-muted">PNG, JPG o WebP · máx 5 MB.</p>
+                <Button type="button" variant="secondary" size="sm" icon="lucide:upload" id="logo-btn" class="self-start">{t.uploadLogo}</Button>
+                <p class="text-xs text-text-muted">{t.logoHint}</p>
               </div>
             </div>
             {/* Owners without a logo yet can start with a generated mark; the
                 monogram follows the name field as it is typed. */}
             <div class="mt-4">
-              <LogoPresets label="¿Aún no tienes logo? Elige uno" />
+              <LogoPresets label={t.logoPresets} />
             </div>
           </div>
         </section>
@@ -72,10 +86,8 @@ const businessTypes = [
         <ServiceAreaEditor mode="fixed" />
 
         <section class="flex flex-col gap-4" data-fixed-only>
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Ubicación</h2>
-          <p class="-mt-2 text-sm text-text-secondary">
-            Arrastra el marcador a la ubicación de tu negocio. Así apareces en el mapa del marketplace.
-          </p>
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">{t.sectionLocation}</h2>
+          <p class="-mt-2 text-sm text-text-secondary">{t.locationIntro}</p>
 
           <div class="overflow-hidden rounded-xl border border-border">
             <div id="loc-map" class="h-64 w-full"></div>
@@ -85,37 +97,37 @@ const businessTypes = [
             id="loc-geolocate"
             class="self-start text-sm font-medium text-accent hover:underline"
           >
-            📍 Usar mi ubicación
+            {t.useMyLocation}
           </button>
           <input type="hidden" id="latitude" name="latitude" />
           <input type="hidden" id="longitude" name="longitude" />
 
           <div>
-            <label class="ol-label" for="address">Dirección</label>
-            <input class="ol-input" id="address" name="address" placeholder="Calle y número" />
+            <label class="ol-label" for="address">{t.address}</label>
+            <input class="ol-input" id="address" name="address" placeholder={t.addressPlaceholder} />
           </div>
           <div>
-            <label class="ol-label" for="neighborhood">Colonia</label>
+            <label class="ol-label" for="neighborhood">{t.neighborhood}</label>
             <input class="ol-input" id="neighborhood" name="neighborhood" placeholder="Roma Norte" />
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div>
-              <label class="ol-label" for="city">Ciudad</label>
+              <label class="ol-label" for="city">{t.city}</label>
               <input class="ol-input" id="city" name="city" value="CDMX" />
             </div>
             <div>
-              <label class="ol-label" for="state">Estado</label>
+              <label class="ol-label" for="state">{t.state}</label>
               <input class="ol-input" id="state" name="state" value="CDMX" />
             </div>
             <div>
-              <label class="ol-label" for="postal_code">CP</label>
+              <label class="ol-label" for="postal_code">{t.postalCode}</label>
               <input class="ol-input" id="postal_code" name="postal_code" inputmode="numeric" placeholder="06700" />
             </div>
           </div>
         </section>
 
         <section class="flex flex-col gap-4">
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">Contacto y entrega</h2>
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-text-muted">{t.sectionContact}</h2>
           <div>
             <label class="ol-label" for="whatsapp">WhatsApp</label>
             <input class="ol-input" id="whatsapp" name="whatsapp" inputmode="tel" placeholder="+52 55 1234 5678" />
@@ -125,13 +137,15 @@ const businessTypes = [
                 business. Delivery stays available in every mode: shipping a
                 package is not the same as working at the customer's address. */}
             <label class="flex items-center gap-2 text-sm text-text-secondary" data-pickup-label>
-              <input type="checkbox" name="pickup_available" id="pickup_available" checked /> Recoge en tienda
+              <input type="checkbox" name="pickup_available" id="pickup_available" checked />
+              {useT(Astro.locals.locale).business.pickup}
             </label>
             <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="delivery_available" /> Envío a domicilio
+              <input type="checkbox" name="delivery_available" />
+              {useT(Astro.locals.locale).storefront.deliveryHome}
             </label>
             <p class="hidden text-xs text-text-muted" data-pickup-note>
-              Un negocio móvil no tiene local, así que no se ofrece recoger en tienda.
+              {t.pickupNote}
             </p>
           </div>
         </section>
@@ -140,7 +154,7 @@ const businessTypes = [
       <p id="biz-error" class="mt-4 hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
 
       <Button type="submit" variant="primary" block class="mt-6" id="biz-submit">
-        <span data-label>Continuar</span>
+        <span data-label>{t.continue}</span>
         <Icon name="lucide:arrow-right" width={16} height={16} />
       </Button>
     </form>
@@ -158,7 +172,12 @@ const businessTypes = [
     validateServiceAreas,
     type ServiceAreaFormRow,
   } from "@/lib/service-areas";
+  import { localePath } from "@/i18n";
+  import { ui, uiLocale } from "@/lib/i18n-client";
   import type { LocationMode } from "@/types/api";
+
+  const t = ui().onboarding;
+  const locale = uiLocale();
 
   const form = document.getElementById("biz-form") as HTMLFormElement;
   const errEl = document.getElementById("biz-error") as HTMLElement;
@@ -225,7 +244,7 @@ const businessTypes = [
   async function reverseGeocode(lat: number, lng: number) {
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=es`,
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&accept-language=${locale}`,
       );
       if (!res.ok) return;
       const a = (await res.json())?.address ?? {};
@@ -298,7 +317,7 @@ const businessTypes = [
     const file = logoInput.files?.[0];
     if (!file) return;
     if (file.size > MAX_LOGO) {
-      errEl.textContent = "El logo supera 5 MB. Elige una imagen más ligera.";
+      errEl.textContent = t.logoTooBig;
       errEl.classList.remove("hidden");
       logoInput.value = "";
       return;
@@ -347,10 +366,10 @@ const businessTypes = [
 
     // A fixed or hybrid business is placed on the map, so it needs a pin.
     if (hasFixedLocation(mode) && (!latEl.value || !lngEl.value)) {
-      fail("Marca la ubicación de tu negocio en el mapa.", mapEl);
+      fail(t.markLocation, mapEl);
       return;
     }
-    const areaProblem = validateServiceAreas(areaRows, mode);
+    const areaProblem = validateServiceAreas(areaRows, mode, locale);
     if (areaProblem) {
       fail(areaProblem, document.querySelector("[data-location-editor]"));
       return;
@@ -358,7 +377,7 @@ const businessTypes = [
 
     btn.disabled = true;
     const original = label.textContent;
-    label.textContent = "Creando…";
+    label.textContent = ui().common.creating;
 
     const fixed = hasFixedLocation(mode);
     const str = (key: string) => String(fd.get(key) || "").trim();
@@ -392,7 +411,7 @@ const businessTypes = [
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || "No se pudo crear el negocio.");
+      if (!res.ok) throw new Error(data?.error || t.createFailed);
 
       // Activate the new Clerk organization before hitting business-scoped routes.
       const clerk = (window as any).Clerk;
@@ -421,9 +440,9 @@ const businessTypes = [
         }
       }
 
-      window.location.href = "/onboarding/products";
+      window.location.href = localePath(locale, "/onboarding/products");
     } catch (err) {
-      errEl.textContent = err instanceof Error ? err.message : "Error inesperado.";
+      errEl.textContent = err instanceof Error ? err.message : t.unexpected;
       errEl.classList.remove("hidden");
       btn.disabled = false;
       label.textContent = original;

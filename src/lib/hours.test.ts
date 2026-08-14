@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { BusinessHour } from "@/types/api";
 import {
   buildHoursPayload,
+  dayLabels,
   formatDayRange,
   groupedSchedule,
   isOpenNow,
@@ -327,5 +328,37 @@ describe("hours are optional (on-demand businesses)", () => {
   it("shows no badge and no schedule when hours are absent", () => {
     expect(isOpenNow([], CDMX, cdmx(5, 12))).toBeNull();
     expect(openMeta(isOpenNow([], CDMX, cdmx(5, 12)))).toBeNull();
+  });
+});
+
+describe("locale-aware hours labels", () => {
+  it("translates day names and the open/closed badge", () => {
+    expect(dayLabels("en")[0]).toBe("Monday");
+    expect(dayLabels("es")[0]).toBe("Lunes");
+    expect(openMeta(true, "en")?.label).toBe("Open");
+    expect(openMeta(false, "en")?.label).toBe("Closed");
+    expect(openMeta(null, "en")).toBeNull();
+  });
+
+  it("keeps each language's day-run grammar", () => {
+    const week = [0, 1, 2, 3, 4].map((day) => ({
+      day_of_week: day,
+      opens_at: "09:00",
+      closes_at: "18:00",
+      is_closed: false,
+    }));
+    expect(groupedSchedule(week, "es")[0].label).toBe("Lunes a viernes");
+    expect(groupedSchedule(week, "en")[0].label).toBe("Monday to Friday");
+
+    const twoDays = week.slice(0, 2);
+    expect(groupedSchedule(twoDays, "es")[0].label).toBe("Lunes y martes");
+    expect(groupedSchedule(twoDays, "en")[0].label).toBe("Monday and Tuesday");
+  });
+
+  it("translates the closed range and validation messages", () => {
+    expect(formatDayRange({ day_of_week: 0, opens_at: null, closes_at: null, is_closed: true }, "en")).toBe("Closed");
+    const rows = [{ day_of_week: 0, opens_at: "09:00", closes_at: "", is_closed: false }];
+    expect(validateHoursRows(rows, "en")).toBe("Monday: the opening or closing time is missing.");
+    expect(validateHoursRows(rows, "es")).toBe("Lunes: falta la hora de apertura o de cierre.");
   });
 });

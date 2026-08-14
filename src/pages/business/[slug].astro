@@ -19,6 +19,10 @@ import {
   serviceAreaLabels,
   servesAtCustomerLocation,
 } from "@/lib/service-areas";
+import { interpolate, localePath, pluralize, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
 
 const { slug } = Astro.params;
 const business = slug ? await publicApi.getBusiness(slug) : null;
@@ -34,7 +38,7 @@ const products = business ? await publicApi.getBusinessProducts(business.slug) :
 const locationMode = businessLocationMode(business);
 const showsAddress = hasFixedLocation(locationMode);
 const travels = servesAtCustomerLocation(locationMode);
-const areaLabels = travels ? serviceAreaLabels(business?.service_areas) : [];
+const areaLabels = travels ? serviceAreaLabels(business?.service_areas, locale) : [];
 
 const hasCoords = hasMapPin(business);
 const lat = hasCoords ? Number(business!.latitude) : null;
@@ -69,32 +73,35 @@ const brands = [...new Set(products.map((p) => text(p.brand)).filter(Boolean))];
 // Small header tags from the fulfilment flags we actually have.
 // Weekly schedule is static data, so it renders server-side. Only the
 // open/closed badge is client-computed (it would go stale in a cached page).
-const schedule = business?.hours?.length ? groupedSchedule(business.hours) : [];
+const schedule = business?.hours?.length ? groupedSchedule(business.hours, locale) : [];
 const todayIndex = business?.timezone ? (zonedNow(business.timezone)?.day ?? -1) : -1;
 
 const headerTags = [
-  travels && locationModeLabel(locationMode),
-  business?.pickup_available && allowsPickup(locationMode) && "Recoge en tienda",
-  business?.delivery_available && "Envío a domicilio",
+  travels && locationModeLabel(locationMode, locale),
+  business?.pickup_available && allowsPickup(locationMode) && t.business.pickup,
+  business?.delivery_available && t.storefront.deliveryHome,
 ].filter(Boolean) as string[];
 ---
 
 {
   !business ? (
-    <PublicLayout title="Negocio no encontrado">
+    <PublicLayout title={t.storefront.notFoundTitle}>
       <div class="mx-auto flex max-w-md flex-col items-center gap-4 px-4 py-24 text-center">
         <Icon name="lucide:store" class="text-text-muted" width={48} height={48} />
-        <h1 class="font-heading text-2xl font-semibold">Negocio no encontrado</h1>
-        <p class="text-sm text-text-secondary">
-          No encontramos esta tienda. Puede que el enlace haya cambiado.
-        </p>
-        <Button variant="primary" href="/marketplace">Explorar marketplace</Button>
+        <h1 class="font-heading text-2xl font-semibold">{t.storefront.notFoundTitle}</h1>
+        <p class="text-sm text-text-secondary">{t.storefront.notFoundBody}</p>
+        <Button variant="primary" href={localePath(locale, "/marketplace")}>
+          {t.storefront.exploreMarketplace}
+        </Button>
       </div>
     </PublicLayout>
   ) : (
     <PublicLayout
       title={`${business.name} — Openlocal`}
-      description={business.description || `Productos de ${business.name} en Openlocal.`}
+      description={
+        business.description ||
+        interpolate(t.storefront.metaDescription, { name: business.name })
+      }
     >
       <div class="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Cover */}
@@ -127,7 +134,7 @@ const headerTags = [
                   {business.status === "active" && (
                     <span class="inline-flex items-center gap-1 rounded-full bg-surface-secondary px-2.5 py-1 text-[11px] font-semibold text-text-secondary">
                       <Icon name="lucide:badge-check" width={13} height={13} class="text-accent" />
-                      Verificado
+                      {t.storefront.verified}
                     </span>
                   )}
                 </div>
@@ -152,7 +159,7 @@ const headerTags = [
                   )}
                   <span class="flex items-center gap-1">
                     <Icon name="lucide:package" width={13} height={13} class="text-accent" />
-                    {products.length} productos
+                    {pluralize(products.length, t.product.countOne, t.product.countOther)}
                   </span>
                 </div>
                 {headerTags.length > 0 && (
@@ -168,10 +175,10 @@ const headerTags = [
             <div class="flex gap-2 sm:flex-col sm:items-stretch">
               {waHref && (
                 <Button variant="whatsapp" href={waHref} icon="lucide:message-circle">
-                  Contactar por WhatsApp
+                  {t.storefront.contactWhatsapp}
                 </Button>
               )}
-              <Button variant="secondary" icon="lucide:bookmark">Guardar</Button>
+              <Button variant="secondary" icon="lucide:bookmark">{t.storefront.save}</Button>
             </div>
           </div>
         </div>
@@ -185,19 +192,19 @@ const headerTags = [
           <section>
             <div class="mb-4 flex items-center justify-between gap-3">
               <h2 class="font-heading text-lg font-semibold">
-                Productos <span class="text-text-muted">({products.length})</span>
+                {t.storefront.products} <span class="text-text-muted">({products.length})</span>
               </h2>
               {products.length > 1 && (
                 <div class="relative shrink-0">
                   <select
                     id="sort-select"
                     class="appearance-none rounded-full border border-border bg-surface-card py-2 pl-8 pr-8 text-sm text-text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-                    aria-label="Ordenar productos"
+                    aria-label={t.storefront.sortLabel}
                   >
-                    <option value="featured">Destacados</option>
-                    <option value="price-asc">Precio: menor a mayor</option>
-                    <option value="price-desc">Precio: mayor a menor</option>
-                    <option value="name">Nombre A–Z</option>
+                    <option value="featured">{t.storefront.sortFeatured}</option>
+                    <option value="price-asc">{t.storefront.sortPriceAsc}</option>
+                    <option value="price-desc">{t.storefront.sortPriceDesc}</option>
+                    <option value="name">{t.storefront.sortName}</option>
                   </select>
                   <Icon name="lucide:arrow-up-down" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary" width={14} height={14} />
                   <Icon name="lucide:chevron-down" class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted" width={14} height={14} />
@@ -208,7 +215,7 @@ const headerTags = [
             {brands.length > 1 && (
               <div id="chip-bar" class="mb-5 flex flex-wrap gap-2">
                 <button type="button" data-brand="" class="chip rounded-full border border-accent bg-accent px-4 py-2 text-sm font-medium text-text-inverse transition-colors">
-                  Todos
+                  {t.storefront.allBrands}
                 </button>
                 {brands.map((b) => (
                   <button type="button" data-brand={b} class="chip rounded-full border border-border bg-surface-card px-4 py-2 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary">
@@ -250,7 +257,7 @@ const headerTags = [
                               aria-expanded="false"
                               aria-controls={panelId}
                             >
-                              <span>Ver detalles</span>
+                              <span>{t.storefront.showDetails}</span>
                               <Icon
                                 name="lucide:chevron-down"
                                 class="shrink-0 transition-transform"
@@ -263,7 +270,7 @@ const headerTags = [
                               {variantDescription ? (
                                 <div>
                                   <p class="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
-                                    {p.variant_name || "Variante"}
+                                    {p.variant_name || t.storefront.variantFallback}
                                   </p>
                                   <p class="mt-1 whitespace-pre-line">{variantDescription}</p>
                                 </div>
@@ -281,7 +288,7 @@ const headerTags = [
               </div>
             ) : (
               <div class="rounded-2xl border border-dashed border-border bg-surface-card/50 p-10 text-center text-sm text-text-secondary">
-                Esta tienda aún no tiene productos públicos.
+                {t.storefront.noProducts}
               </div>
             )}
           </section>
@@ -292,7 +299,9 @@ const headerTags = [
               <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
                 <div class="flex items-center justify-between border-b border-border px-4 py-3">
                   <span class="text-sm font-semibold">
-                    {locationMode === "mobile" ? "Horario de atención" : "Horario"}
+                    {locationMode === "mobile"
+                      ? t.storefront.scheduleMobile
+                      : t.storefront.schedule}
                   </span>
                   <OpenBadge hours={business.hours} timezone={business.timezone} />
                 </div>
@@ -319,7 +328,9 @@ const headerTags = [
                 exist. */}
             {showsAddress && (
               <div class="overflow-hidden rounded-2xl border border-border bg-surface-card">
-                <div class="border-b border-border px-4 py-3 text-sm font-semibold">Ubicación</div>
+                <div class="border-b border-border px-4 py-3 text-sm font-semibold">
+                  {t.storefront.location}
+                </div>
                 {hasCoords ? (
                   <div id="biz-map" class="h-40 w-full" data-lat={lat} data-lng={lng}></div>
                 ) : (
@@ -342,7 +353,7 @@ const headerTags = [
                       class="flex items-center justify-center gap-2 rounded-full border border-border py-2.5 text-[13px] font-semibold text-text-primary transition-colors hover:bg-surface-secondary"
                     >
                       <Icon name="lucide:navigation" width={15} height={15} />
-                      Cómo llegar
+                      {t.storefront.directions}
                     </a>
                   </div>
                 )}
@@ -352,17 +363,17 @@ const headerTags = [
             {travels && (
               <div class="rounded-2xl border border-border bg-surface-card">
                 <div class="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
-                  <span class="text-sm font-semibold">Zonas de servicio</span>
+                  <span class="text-sm font-semibold">{t.storefront.serviceAreas}</span>
                   <span class="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-[11px] font-semibold text-accent">
                     <Icon name="lucide:truck" width={13} height={13} />
-                    {locationModeLabel(locationMode)}
+                    {locationModeLabel(locationMode, locale)}
                   </span>
                 </div>
                 <div class="px-4 py-3 text-[13px] text-text-secondary">
                   <p>
                     {locationMode === "mobile"
-                      ? "Este negocio no tiene local: va a la ubicación del cliente."
-                      : "Además de su local, este negocio da servicio en la ubicación del cliente."}
+                      ? t.storefront.mobileOnly
+                      : t.storefront.hybridReach}
                   </p>
                   {areaLabels.length > 0 ? (
                     <ul class="mt-2 flex flex-col gap-1.5">
@@ -375,7 +386,7 @@ const headerTags = [
                     </ul>
                   ) : (
                     <p class="mt-2 text-text-muted">
-                      Consulta por WhatsApp si llega a tu zona.
+                      {t.storefront.askCoverage}
                     </p>
                   )}
                 </div>
@@ -383,7 +394,9 @@ const headerTags = [
             )}
 
             <div class="rounded-2xl border border-border bg-surface-card">
-              <div class="border-b border-border px-4 py-3 text-sm font-semibold">Entrega y pago</div>
+              <div class="border-b border-border px-4 py-3 text-sm font-semibold">
+                {t.storefront.fulfilment}
+              </div>
               <ul class="flex flex-col gap-2 px-4 py-3 text-[13px] text-text-secondary">
                 {allowsPickup(locationMode) && (
                   <li class="flex items-center gap-2">
@@ -393,13 +406,13 @@ const headerTags = [
                       width={15}
                       height={15}
                     />
-                    Recoge en tienda
+                    {t.business.pickup}
                   </li>
                 )}
                 {travels && (
                   <li class="flex items-center gap-2">
                     <Icon name="lucide:check" class="text-success" width={15} height={15} />
-                    Servicio en tu ubicación
+                    {t.storefront.serviceAtYourPlace}
                   </li>
                 )}
                 <li class="flex items-center gap-2">
@@ -409,18 +422,20 @@ const headerTags = [
                     width={15}
                     height={15}
                   />
-                  Envío a domicilio
+                  {t.storefront.deliveryHome}
                 </li>
                 <li class="flex items-center gap-2">
                   <Icon name="lucide:message-circle" class="text-accent" width={15} height={15} />
-                  Pedidos por WhatsApp
+                  {t.storefront.ordersWhatsapp}
                 </li>
               </ul>
             </div>
 
             {(business.phone || business.email || business.website) && (
               <div class="rounded-2xl border border-border bg-surface-card">
-                <div class="border-b border-border px-4 py-3 text-sm font-semibold">Contacto</div>
+                <div class="border-b border-border px-4 py-3 text-sm font-semibold">
+                  {t.storefront.contact}
+                </div>
                 <ul class="flex flex-col gap-2 px-4 py-3 text-[13px] text-text-secondary">
                   {business.phone && (
                     <li class="flex items-center gap-2">
@@ -438,7 +453,7 @@ const headerTags = [
                     <li class="flex items-center gap-2">
                       <Icon name="lucide:globe" class="text-accent" width={15} height={15} />
                       <a href={business.website} class="hover:text-text-primary" target="_blank" rel="noopener">
-                        Sitio web
+                        {t.storefront.website}
                       </a>
                     </li>
                   )}
@@ -494,6 +509,9 @@ const headerTags = [
 
 <script>
   // Storefront catalog: client-side sort + brand-chip filtering.
+  import { ui } from "@/lib/i18n-client";
+
+  const t = ui().storefront;
   const grid = document.getElementById("product-grid");
   if (grid) {
     const items = () => Array.from(grid.querySelectorAll<HTMLElement>(".product-item"));
@@ -524,7 +542,7 @@ const headerTags = [
         toggle.setAttribute("aria-expanded", open ? "false" : "true");
         panel.hidden = open;
         chevron?.classList.toggle("rotate-180", !open);
-        if (label) label.textContent = open ? "Ver detalles" : "Ocultar detalles";
+        if (label) label.textContent = open ? t.showDetails : t.hideDetails;
       });
     });
 

@@ -20,6 +20,11 @@ import {
   shopperAreaQuery,
   shopperAreaSearchParams,
 } from "@/lib/shopper-area";
+import { interpolate, localePath, pluralize, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
+const path = (href: string) => localePath(locale, href);
 
 const url = Astro.url;
 const q = url.searchParams.get("q") ?? "";
@@ -35,12 +40,14 @@ const areaParams = shopperAreaQuery(area);
 
 // Links that must keep the current search + area.
 const keep = shopperAreaSearchParams(area, new URLSearchParams(q ? { q } : {}));
-const listHref = `/marketplace${keep.toString() ? `?${keep}` : ""}`;
+const listHref = path(`/marketplace${keep.toString() ? `?${keep}` : ""}`);
 const mapParams = new URLSearchParams(keep);
 mapParams.set("map", "1");
-const mapHref = `/marketplace?${mapParams}`;
+const mapHref = path(`/marketplace?${mapParams}`);
 const clearAreaParams = shopperAreaSearchParams(emptyShopperArea(), url.searchParams);
-const clearAreaHref = `/marketplace${clearAreaParams.toString() ? `?${clearAreaParams}` : ""}`;
+const clearAreaHref = path(
+  `/marketplace${clearAreaParams.toString() ? `?${clearAreaParams}` : ""}`,
+);
 
 // Map opens at street level (~zoom 16) so pins are readable. Fetch all eligible
 // marker businesses initially: the Leaflet island fits them before geolocation
@@ -83,40 +90,42 @@ const markers = mapBusinesses
   }));
 
 const filters = [
-  { label: "Hecho a mano", href: contextualSearchHref("handmade") },
-  { label: "Recoge en tienda", icon: "lucide:shopping-bag" },
-  { label: "En stock", icon: "lucide:check" },
-  { label: "Envío", icon: "lucide:truck" },
+  { label: t.marketplace.filterHandmade, href: contextualSearchHref("handmade") },
+  { label: t.marketplace.filterPickup, icon: "lucide:shopping-bag" },
+  { label: t.marketplace.filterInStock, icon: "lucide:check" },
+  { label: t.marketplace.filterDelivery, icon: "lucide:truck" },
 ];
 
 function contextualSearchHref(nextQuery: string): string {
   const params = shopperAreaSearchParams(area, new URLSearchParams({ q: nextQuery }));
   if (mapOpen) params.set("map", "1");
-  return `/marketplace?${params}`;
+  return path(`/marketplace?${params}`);
 }
 
 /** The fields of the area form, narrowest last so the labels read in order. */
 const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: string }> = [
-  { name: "state", label: "Estado", placeholder: "CDMX" },
-  { name: "municipality", label: "Municipio / alcaldía", placeholder: "Cuauhtémoc" },
-  { name: "city", label: "Ciudad", placeholder: "Ciudad de México" },
-  { name: "neighborhood", label: "Colonia", placeholder: "Roma Norte" },
-  { name: "postal_code", label: "CP", placeholder: "06700" },
+  { name: "state", label: t.marketplace.areaState, placeholder: "CDMX" },
+  { name: "municipality", label: t.marketplace.areaMunicipality, placeholder: "Cuauhtémoc" },
+  { name: "city", label: t.marketplace.areaCity, placeholder: "Ciudad de México" },
+  { name: "neighborhood", label: t.marketplace.areaNeighborhood, placeholder: "Roma Norte" },
+  { name: "postal_code", label: t.marketplace.areaPostalCode, placeholder: "06700" },
 ];
 ---
 
-<PublicLayout title={q ? `“${q}” — Marketplace` : "Marketplace — Openlocal"}>
+<PublicLayout
+  title={q ? interpolate(t.marketplace.titleQuery, { query: q }) : t.marketplace.title}
+>
   {/* Search + filter bar */}
   <div class="border-b border-border bg-surface-primary/80 backdrop-blur">
     <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6">
-      <form action="/marketplace" method="get" class="flex gap-2">
+      <form action={path("/marketplace")} method="get" class="flex gap-2">
         <div class="flex flex-1 items-center gap-2 rounded-full border border-border bg-surface-card px-4 py-2.5">
           <Icon name="lucide:search" class="text-text-muted" width={18} height={18} />
           <input
             type="search"
             name="q"
             value={q}
-            placeholder="Busca productos, negocios o categorías…"
+            placeholder={t.marketplace.searchPlaceholder}
             class="w-full bg-transparent text-sm outline-none placeholder:text-text-muted"
           />
         </div>
@@ -128,7 +137,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           type="submit"
           class="rounded-full bg-accent px-5 text-sm font-medium text-text-inverse hover:bg-accent/90"
         >
-          Buscar
+          {t.marketplace.search}
         </button>
       </form>
 
@@ -146,11 +155,11 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           aria-controls="area-panel"
         >
           <Icon name="lucide:locate" width={14} height={14} class="text-accent" />
-          {areaActive ? areaLabel : "Cerca de mí"}
+          {areaActive ? areaLabel : t.marketplace.nearMe}
         </button>
         {areaActive && (
           <a href={clearAreaHref} class="text-[13px] font-medium text-text-muted hover:underline">
-            Quitar zona
+            {t.marketplace.clearArea}
           </a>
         )}
         {filters.map((f) => (
@@ -167,13 +176,13 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
             href={listHref}
             class:list={["rounded-full px-3 py-1", !mapOpen ? "bg-surface-secondary text-text-primary" : "text-text-secondary"]}
           >
-            Lista
+            {t.marketplace.viewList}
           </a>
           <a
             href={mapHref}
             class:list={["rounded-full px-3 py-1", mapOpen ? "bg-surface-secondary text-text-primary" : "text-text-secondary"]}
           >
-            Mapa
+            {t.marketplace.viewMap}
           </a>
         </div>
       </div>
@@ -183,7 +192,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           pre-fills the fields, which stay editable. */}
       <form
         id="area-panel"
-        action="/marketplace"
+        action={path("/marketplace")}
         method="get"
         class="flex flex-col gap-3 rounded-2xl border border-border bg-surface-card p-4"
         hidden={!areaActive}
@@ -193,14 +202,13 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
         <input type="hidden" name="country" id="area-country" value={area.country || "MX"} />
 
         <div class="flex flex-wrap items-baseline justify-between gap-2">
-          <p class="text-sm font-semibold">¿Dónde quieres que te atiendan?</p>
+          <p class="text-sm font-semibold">{t.marketplace.areaTitle}</p>
           <button type="button" id="area-locate" class="text-[13px] font-medium text-accent hover:underline">
-            📍 Usar mi ubicación
+            {t.marketplace.areaLocate}
           </button>
         </div>
         <p class="text-[13px] text-text-secondary">
-          Filtramos negocios con local en tu zona y negocios móviles que llegan hasta ahí. Puedes
-          escribir la zona a mano si prefieres.
+          {t.marketplace.areaHelp}
         </p>
 
         <div class="grid gap-3 sm:grid-cols-3">
@@ -226,10 +234,10 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
             type="submit"
             class="rounded-full bg-accent px-5 py-2 text-sm font-medium text-text-inverse hover:bg-accent/90"
           >
-            Aplicar zona
+            {t.marketplace.areaApply}
           </button>
           <a href={clearAreaHref} class="text-sm font-medium text-text-secondary hover:underline">
-            Limpiar
+            {t.marketplace.areaClear}
           </a>
         </div>
       </form>
@@ -239,9 +247,17 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
   <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6">
     <div class="mb-4 flex items-baseline justify-between">
       <h1 class="font-heading text-lg font-semibold">
-        {products.length} {products.length === 1 ? "resultado" : "resultados"}
-        {q && <span class="text-text-muted"> para “{q}”</span>}
-        {areaActive && <span class="text-text-muted"> en {areaLabel}</span>}
+        {pluralize(products.length, t.marketplace.resultOne, t.marketplace.resultOther)}
+        {q && (
+          <span class="text-text-muted">
+            {interpolate(t.marketplace.forQuery, { query: q })}
+          </span>
+        )}
+        {areaActive && (
+          <span class="text-text-muted">
+            {interpolate(t.marketplace.inArea, { area: areaLabel })}
+          </span>
+        )}
       </h1>
     </div>
 
@@ -255,7 +271,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           <section class="mb-6">
             <div class="mb-3 flex items-baseline justify-between gap-3">
               <h2 class="font-heading text-base font-semibold">
-                Negocios que llegan a ti
+                {t.marketplace.reachTitle}
                 <span class="text-text-muted"> ({reachBusinesses.length})</span>
               </h2>
               {areaActive && <span class="text-xs text-text-muted">{areaLabel}</span>}
@@ -270,7 +286,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
                   serviceAreas={b.service_areas}
                   logoUrl={b.logo_url}
                   whatsapp={b.whatsapp}
-                  href={`/business/${b.slug}`}
+                  href={path(`/business/${b.slug}`)}
                   hours={b.hours}
                   timezone={b.timezone}
                 />
@@ -295,7 +311,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
                 priceNote={publicPriceNote(p)}
                 stockStatus={p.public_stock_status}
                 imageUrl={p.image_url}
-                href={`/business/${p.business_slug}`}
+                href={path(`/business/${p.business_slug}`)}
               />
             ))}
           </div>
@@ -303,10 +319,15 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           <div class="rounded-2xl border border-dashed border-border bg-surface-card/50 p-12 text-center">
             <Icon name="lucide:search-x" class="mx-auto text-text-muted" width={32} height={32} />
             <p class="mt-3 text-sm text-text-secondary">
-              {q ? `Sin resultados para “${q}”.` : "Todavía no hay productos publicados."}
+              {q
+                ? interpolate(t.marketplace.noResultsQuery, { query: q })
+                : t.marketplace.noResults}
             </p>
-            <a href="/marketplace" class="mt-2 inline-block text-sm font-medium text-accent hover:underline">
-              Limpiar búsqueda
+            <a
+              href={path("/marketplace")}
+              class="mt-2 inline-block text-sm font-medium text-accent hover:underline"
+            >
+              {t.marketplace.clearSearch}
             </a>
           </div>
         )}
@@ -319,7 +340,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
             class="flex items-center gap-2 border-b border-border bg-surface-primary px-3 py-2 text-sm text-text-secondary"
           >
             <input type="checkbox" id="open-now-filter" />
-            Abiertos ahora
+            {t.marketplace.openNow}
             <span id="open-now-count" class="ml-auto text-xs text-text-muted"></span>
           </label>
           <div
@@ -340,6 +361,9 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
   // form: the fields stay editable and the form is a plain GET, so a wrong or
   // unavailable lookup still leaves the shopper able to type their zone.
   import { shopperAreaFromNominatim, SHOPPER_AREA_KEYS } from "@/lib/shopper-area";
+  import { ui, uiLocale } from "@/lib/i18n-client";
+
+  const t = ui().marketplace;
 
   const toggle = document.getElementById("area-toggle");
   const panel = document.getElementById("area-panel") as HTMLFormElement | null;
@@ -369,25 +393,25 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
 
   document.getElementById("area-locate")?.addEventListener("click", () => {
     if (!navigator.geolocation) {
-      note("Tu navegador no comparte la ubicación. Escribe tu zona a mano.");
+      note(t.geoUnsupported);
       return;
     }
-    note("Buscando tu zona…");
+    note(t.geoSearching);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords;
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=es`,
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&accept-language=${uiLocale()}`,
           );
           if (!res.ok) throw new Error("reverse geocode failed");
           fill(shopperAreaFromNominatim((await res.json())?.address));
-          note("Revisa la zona y aplica el filtro.");
+          note(t.geoReview);
         } catch {
-          note("No pudimos detectar tu zona. Escríbela a mano.");
+          note(t.geoFailed);
         }
       },
-      () => note("No pudimos acceder a tu ubicación. Escribe tu zona a mano."),
+      () => note(t.geoDenied),
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 600_000 },
     );
   });
@@ -399,7 +423,12 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
       import L from "leaflet";
       import "leaflet/dist/leaflet.css";
       import { isOpenNow, openMeta } from "@/lib/hours";
+      import { interpolate, localePath } from "@/i18n";
+      import { ui, uiLocale } from "@/lib/i18n-client";
       import type { BusinessHour } from "@/types/api";
+
+      const t = ui().marketplace;
+      const locale = uiLocale();
 
       const el = document.getElementById("map");
       const dataEl = document.getElementById("map-data");
@@ -435,10 +464,11 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
             html: `<span class="map-pin">${m.label}</span>`,
             iconSize: [0, 0],
           });
-          const meta = openMeta(isOpenNow(m.hours, m.timezone));
+          const meta = openMeta(isOpenNow(m.hours, m.timezone), locale);
           const status = meta ? `<br/><small>${meta.label}</small>` : "";
+          const href = localePath(locale, `/business/${m.slug}`);
           const layer = L.marker([m.lat, m.lng], { icon: pin }).bindPopup(
-            `<strong>${m.name}</strong>${status}<br/><a href="/business/${m.slug}">Ver tienda</a>`,
+            `<strong>${m.name}</strong>${status}<br/><a href="${href}">${t.viewShop}</a>`,
           );
           return { marker: m, layer };
         });
@@ -473,7 +503,9 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
           }
 
           if (countEl) {
-            countEl.textContent = onlyOpen ? `${shown} de ${layers.length}` : "";
+            countEl.textContent = onlyOpen
+              ? interpolate(t.openCount, { shown, total: layers.length })
+              : "";
           }
           if (bounds.length > 1 && !userLocated) map.fitBounds(bounds, { padding: [40, 40] });
         }

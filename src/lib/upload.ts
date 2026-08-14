@@ -2,6 +2,8 @@
  * Image upload validation shared by the BFF upload route and its unit tests.
  * Kept pure (no Blob/Astro imports) so the rules are testable in isolation.
  */
+import { DEFAULT_LOCALE, useT, type Locale } from "@/i18n";
+
 
 /** Max accepted image size. Covers store logos/covers comfortably. */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -31,25 +33,32 @@ export interface UploadCandidate {
  * recoverable: the uploader shrinks it (whole frame, no crop) instead of
  * refusing it.
  */
-export function validateImageType(file: UploadCandidate): string | null {
+export function validateImageType(
+  file: UploadCandidate,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  const t = useT(locale).upload;
   if (!imageExtension(file.type)) {
-    return "Formato no admitido. Usa JPG, PNG, WebP o AVIF.";
+    return t.unsupportedFormat;
   }
   if (file.size <= 0) {
-    return "El archivo está vacío.";
+    return t.emptyFile;
   }
   return null;
 }
 
 /**
- * Returns a user-facing (Spanish) error message when the file is not an
- * acceptable image, or null when it passes. Messages surface directly in the UI.
+ * Returns a user-facing error message when the file is not an acceptable
+ * image, or null when it passes. Messages surface directly in the UI.
  */
-export function validateImageUpload(file: UploadCandidate): string | null {
-  const problem = validateImageType(file);
+export function validateImageUpload(
+  file: UploadCandidate,
+  locale: Locale = DEFAULT_LOCALE,
+): string | null {
+  const problem = validateImageType(file, locale);
   if (problem) return problem;
   if (file.size > MAX_IMAGE_BYTES) {
-    return "La imagen supera el máximo de 5 MB.";
+    return useT(locale).upload.tooLarge;
   }
   return null;
 }

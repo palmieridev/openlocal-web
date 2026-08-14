@@ -1,0 +1,54 @@
+---
+import { Icon } from "astro-icon/components";
+import PublicLayout from "./PublicLayout.astro";
+import { localePath, useT } from "@/i18n";
+import { SUPPORT_ROOT } from "@/lib/support";
+
+interface Crumb {
+  label: string;
+  /** Unprefixed route; the last crumb usually has none. */
+  href?: string;
+}
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Crumbs after the "Soporte" root. */
+  crumbs?: Crumb[];
+}
+
+const { title, description, crumbs = [] } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).support;
+const url = (href: string) => localePath(locale, href);
+
+const trail: Crumb[] = [{ label: t.breadcrumb, href: SUPPORT_ROOT }, ...crumbs];
+---
+
+<PublicLayout title={title ?? t.title} description={description ?? t.description}>
+  <nav
+    aria-label={t.breadcrumb}
+    class="border-b border-border bg-surface-card"
+  >
+    <ol class="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-3 text-sm sm:px-6">
+      {
+        trail.map((crumb, i) => (
+          <li class="flex items-center gap-2">
+            {i > 0 && (
+              <Icon name="lucide:chevron-right" class="text-text-muted" width={14} height={14} />
+            )}
+            {crumb.href && i < trail.length - 1 ? (
+              <a href={url(crumb.href)} class="text-text-muted hover:text-text-primary">
+                {crumb.label}
+              </a>
+            ) : (
+              <span class="font-semibold text-text-primary">{crumb.label}</span>
+            )}
+          </li>
+        ))
+      }
+    </ol>
+  </nav>
+
+  <slot />
+</PublicLayout>

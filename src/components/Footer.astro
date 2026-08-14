@@ -1,29 +1,36 @@
 ---
 import { Icon } from "astro-icon/components";
+import LocaleSwitcher from "@/components/LocaleSwitcher.astro";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale);
+const url = (href: string) => localePath(locale, href);
 
 const year = new Date().getFullYear();
 const cols = [
   {
-    title: "Explorar",
+    title: t.footer.explore,
     links: [
-      { href: "/marketplace", label: "Marketplace" },
-      { href: "/marketplace?map=1", label: "Mapa" },
-      { href: "/marketplace?filter=handmade", label: "Hecho a mano" },
+      { href: "/marketplace", label: t.footer.marketplace },
+      { href: "/marketplace?map=1", label: t.footer.map },
+      { href: "/marketplace?filter=handmade", label: t.footer.handmade },
     ],
   },
   {
-    title: "Para negocios",
+    title: t.footer.forBusinesses,
     links: [
-      { href: "/register/business", label: "Vender en Openlocal" },
-      { href: "/dashboard", label: "Panel de control" },
-      { href: "/login", label: "Iniciar sesión" },
+      { href: "/register/business", label: t.footer.sellOnOpenlocal },
+      { href: "/dashboard", label: t.footer.dashboard },
+      { href: "/soporte", label: t.support.nav },
+      { href: "/login", label: t.footer.signIn },
     ],
   },
   {
-    title: "Proyecto",
+    title: t.footer.project,
     links: [
-      { href: "https://github.com/palmieridev/openlocal-api", label: "Código abierto" },
-      { href: "/", label: "Acerca de" },
+      { href: "https://github.com/palmieridev/openlocal-api", label: t.footer.openSource },
+      { href: "/", label: t.footer.about },
     ],
   },
 ];
@@ -32,16 +39,14 @@ const cols = [
 <footer class="mt-16 border-t border-border bg-surface-secondary">
   <div class="mx-auto grid max-w-7xl gap-8 px-4 py-12 sm:px-6 md:grid-cols-[1.5fr_repeat(3,1fr)]">
     <div class="flex flex-col gap-3">
-      <a href="/" class="flex items-center gap-2">
+      <a href={url("/")} class="flex items-center gap-2">
         <span class="flex size-8 items-center justify-center rounded-lg bg-accent">
           <Icon name="lucide:store" class="text-text-inverse" width={18} height={18} />
         </span>
         <span class="font-heading text-lg font-semibold">OpenLocal</span>
       </a>
-      <p class="max-w-xs text-sm text-text-secondary">
-        Hub de comercio local de código abierto: inventario, tiendas y
-        descubrimiento de productos cerca de ti.
-      </p>
+      <p class="max-w-xs text-sm text-text-secondary">{t.footer.tagline}</p>
+      <LocaleSwitcher class="self-start" />
     </div>
 
     {cols.map((col) => (
@@ -50,7 +55,7 @@ const cols = [
         <ul class="flex flex-col gap-2">
           {col.links.map((l) => (
             <li>
-              <a href={l.href} class="text-sm text-text-secondary hover:text-text-primary">
+              <a href={url(l.href)} class="text-sm text-text-secondary hover:text-text-primary">
                 {l.label}
               </a>
             </li>
@@ -62,7 +67,7 @@ const cols = [
 
   <div class="border-t border-border">
     <div class="mx-auto max-w-7xl px-4 py-5 text-xs text-text-muted sm:px-6">
-      © {year} Openlocal · Hecho para negocios locales en México 🇲🇽
+      © {year} Openlocal · {t.footer.madeFor}
     </div>
   </div>
 </footer>

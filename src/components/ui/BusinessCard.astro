@@ -9,6 +9,7 @@ import {
   normalizeLocationMode,
   servesAtCustomerLocation,
 } from "@/lib/service-areas";
+import { pluralize, useT } from "@/i18n";
 import type { BusinessHour, LocationMode, ServiceArea } from "@/types/api";
 
 interface Props {
@@ -46,15 +47,21 @@ const {
   serviceAreas,
 } = Astro.props;
 
+const locale = Astro.locals.locale;
+const t = useT(locale);
 const mode = normalizeLocationMode(locationMode);
 const mobile = mode === "mobile";
-const coverage = servesAtCustomerLocation(mode) ? formatServiceAreas(serviceAreas) : "";
+const coverage = servesAtCustomerLocation(mode)
+  ? formatServiceAreas(serviceAreas, 2, locale)
+  : "";
 // A mobile business has no address, so it shows no neighborhood; the coverage
 // line below carries the reach instead.
 const typeLine = [type, mobile ? "" : neighborhood].filter(Boolean).join(" · ");
 const dist = formatDistance(distanceKm);
 const countLine = [
-  productCount != null ? `${productCount} productos` : null,
+  productCount != null
+    ? pluralize(productCount, t.product.countOne, t.product.countOther)
+    : null,
   dist || null,
 ]
   .filter(Boolean)
@@ -93,7 +100,7 @@ const waHref = whatsapp ? `https://wa.me/${whatsapp.replace(/[^\d]/g, "")}` : nu
       <p class="flex items-start gap-1.5 text-[12px] text-text-secondary">
         <Icon name="lucide:truck" class="mt-0.5 shrink-0 text-accent" width={13} height={13} />
         <span>
-          <span class="font-medium">{locationModeLabel(mode)}</span>
+          <span class="font-medium">{locationModeLabel(mode, locale)}</span>
           {coverage ? ` · ${coverage}` : ""}
         </span>
       </p>

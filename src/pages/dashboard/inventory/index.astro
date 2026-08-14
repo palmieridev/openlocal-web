@@ -12,7 +12,12 @@ import StatTile from "@/components/ui/StatTile.astro";
 import Button from "@/components/ui/Button.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
+import { interpolate, intlLocale, useT } from "@/i18n";
 import type { Product, StockMovement, StockLevel, Variant } from "@/types/api";
+
+const locale = Astro.locals.locale;
+const dict = useT(locale);
+const t = dict.inventory;
 
 const { token, businessId } = await getServerAuth(Astro);
 
@@ -74,29 +79,35 @@ const existRows: ExistRow[] = levels.map((l) => {
 // Movimientos rows.
 type Cat = "entrada" | "salida" | "ajuste" | "produccion";
 const catMeta: Record<Cat, { label: string; badge: string }> = {
-  entrada: { label: "Entrada", badge: "bg-success-soft text-success" },
-  salida: { label: "Salida", badge: "bg-danger-soft text-danger" },
-  ajuste: { label: "Ajuste", badge: "bg-warning-soft text-warning" },
-  produccion: { label: "Producción", badge: "bg-accent-soft text-accent" },
+  entrada: { label: t.catIn, badge: "bg-success-soft text-success" },
+  salida: { label: t.catOut, badge: "bg-danger-soft text-danger" },
+  ajuste: { label: t.catAdjust, badge: "bg-warning-soft text-warning" },
+  produccion: { label: t.catProduction, badge: "bg-accent-soft text-accent" },
 };
+const mv = dict.movements;
 const typeMap: Record<string, { cat: Cat; origen: string; inbound: boolean }> = {
-  purchase: { cat: "entrada", origen: "Compra", inbound: true },
-  production: { cat: "produccion", origen: "Producción", inbound: true },
-  sale: { cat: "salida", origen: "Venta", inbound: false },
-  loss: { cat: "salida", origen: "Merma", inbound: false },
-  sample: { cat: "salida", origen: "Muestra", inbound: false },
-  adjustment: { cat: "ajuste", origen: "Ajuste", inbound: false },
-  IN_PURCHASE: { cat: "entrada", origen: "Compra", inbound: true },
-  IN_PRODUCTION: { cat: "produccion", origen: "Producción", inbound: true },
-  OUT_SALE: { cat: "salida", origen: "Venta", inbound: false },
-  OUT_LOSS: { cat: "salida", origen: "Merma", inbound: false },
-  IN_ADJUSTMENT: { cat: "ajuste", origen: "Ajuste", inbound: true },
-  OUT_ADJUSTMENT: { cat: "ajuste", origen: "Ajuste", inbound: false },
+  purchase: { cat: "entrada", origen: mv.purchase, inbound: true },
+  production: { cat: "produccion", origen: mv.production, inbound: true },
+  sale: { cat: "salida", origen: mv.sale, inbound: false },
+  loss: { cat: "salida", origen: mv.loss, inbound: false },
+  sample: { cat: "salida", origen: mv.sample, inbound: false },
+  adjustment: { cat: "ajuste", origen: mv.adjustment, inbound: false },
+  IN_PURCHASE: { cat: "entrada", origen: mv.purchase, inbound: true },
+  IN_PRODUCTION: { cat: "produccion", origen: mv.production, inbound: true },
+  OUT_SALE: { cat: "salida", origen: mv.sale, inbound: false },
+  OUT_LOSS: { cat: "salida", origen: mv.loss, inbound: false },
+  IN_ADJUSTMENT: { cat: "ajuste", origen: mv.adjustment, inbound: true },
+  OUT_ADJUSTMENT: { cat: "ajuste", origen: mv.adjustment, inbound: false },
 };
 
 const fmtDate = (s?: string) =>
   s
-    ? new Date(s).toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+    ? new Date(s).toLocaleDateString(intlLocale(locale), {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
     : "";
 
 function signedQty(m: StockMovement, inbound: boolean): { text: string; tone: "up" | "down" } {
@@ -142,7 +153,7 @@ const today = new Date().toDateString();
 const todays = movements.filter((m) => m.created_at && new Date(m.created_at).toDateString() === today);
 const todayIn = todays.filter((m) => typeMap[String(m.movement_type)]?.inbound).length;
 const todayOut = todays.length - todayIn;
-const nfmt = new Intl.NumberFormat("es-MX");
+const nfmt = new Intl.NumberFormat(intlLocale(locale));
 ---
 
 <DashboardLayout active="inventario">
@@ -155,38 +166,83 @@ const nfmt = new Intl.NumberFormat("es-MX");
       {/* Full-width top bar */}
       <div class="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-surface-card px-4 py-4 sm:px-8 sm:py-5">
         <div>
-          <h1 class="font-heading text-2xl font-semibold">Inventario</h1>
-          <p class="mt-0.5 text-sm text-text-muted">Existencias y movimientos · entradas, salidas y ajustes</p>
+          <h1 class="font-heading text-2xl font-semibold">{t.title}</h1>
+          <p class="mt-0.5 text-sm text-text-muted">{t.subtitle}</p>
         </div>
         <div class="flex gap-2">
-          <Button variant="primary" size="sm" icon="lucide:plus" data-open-picker>Registrar movimiento</Button>
+          <Button variant="primary" size="sm" icon="lucide:plus" data-open-picker data-tour="movement-new">
+            {t.logMovement}
+          </Button>
         </div>
       </div>
 
       <div class="mx-auto max-w-6xl px-4 py-6 sm:px-8">
         <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatTile label="Unidades en stock" value={nfmt.format(unitsOnHand)} icon="lucide:boxes" delta={`${levels.length} variantes`} deltaTone="neutral" />
-          <StatTile label="Productos activos" value={nfmt.format(levels.length)} icon="lucide:package" delta="Con existencias" deltaTone="neutral" />
-          <StatTile label="Bajo stock" value={nfmt.format(lowCount)} icon="lucide:triangle-alert" delta="Requieren reorden" deltaTone={lowCount > 0 ? "down" : "neutral"} />
-          <StatTile label="Movimientos hoy" value={nfmt.format(todays.length)} icon="lucide:arrow-left-right" delta={`${todayIn} entradas · ${todayOut} salidas`} deltaTone="neutral" />
+          <StatTile
+            label={t.statUnits}
+            value={nfmt.format(unitsOnHand)}
+            icon="lucide:boxes"
+            delta={interpolate(t.statVariants, { count: levels.length })}
+            deltaTone="neutral"
+          />
+          <StatTile
+            label={t.statActiveProducts}
+            value={nfmt.format(levels.length)}
+            icon="lucide:package"
+            delta={t.statWithStock}
+            deltaTone="neutral"
+          />
+          <StatTile
+            label={t.statLowStock}
+            value={nfmt.format(lowCount)}
+            icon="lucide:triangle-alert"
+            delta={t.statNeedReorder}
+            deltaTone={lowCount > 0 ? "down" : "neutral"}
+          />
+          <StatTile
+            label={t.statMovementsToday}
+            value={nfmt.format(todays.length)}
+            icon="lucide:arrow-left-right"
+            delta={interpolate(t.statInOut, { in: todayIn, out: todayOut })}
+            deltaTone="neutral"
+          />
         </div>
 
         {/* Fixed toolbar: view tabs + search + export */}
         <div class="mt-6 flex flex-wrap items-center justify-between gap-3">
-          <nav id="inv-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
-            <button type="button" data-tab="existencias" class="rounded-full bg-surface-secondary px-4 py-1.5 text-text-primary transition-colors">Existencias</button>
-            <button type="button" data-tab="movimientos" class="rounded-full px-4 py-1.5 text-text-secondary transition-colors hover:text-text-primary">Movimientos</button>
+          <nav id="inv-tabs" data-tour="inventory-tabs" class="flex flex-wrap gap-1 rounded-full border border-border bg-surface-card p-1 text-sm font-medium">
+            <button
+              type="button"
+              data-tab="existencias"
+              class="rounded-full bg-surface-secondary px-4 py-1.5 text-text-primary transition-colors"
+            >
+              {t.tabStock}
+            </button>
+            <button
+              type="button"
+              data-tab="movimientos"
+              class="rounded-full px-4 py-1.5 text-text-secondary transition-colors hover:text-text-primary"
+            >
+              {t.tabMovements}
+            </button>
           </nav>
           <div class="flex w-full items-center gap-2 sm:w-auto">
             <div class="relative flex-1 sm:flex-initial">
               <Icon name="lucide:search" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" width={16} height={16} />
-              <input id="inv-search" type="search" placeholder="Buscar producto o SKU" class="ol-input w-full rounded-full pl-9 sm:w-64" />
+              <input
+                id="inv-search"
+                type="search"
+                placeholder={t.searchPlaceholder}
+                class="ol-input w-full rounded-full pl-9 sm:w-64"
+              />
             </div>
-            <Button variant="secondary" icon="lucide:download" id="export-csv" class="shrink-0">Exportar CSV</Button>
+            <Button variant="secondary" icon="lucide:download" id="export-csv" class="shrink-0">
+              {t.exportCsv}
+            </Button>
           </div>
         </div>
 
-        <div id="panel-existencias" class="mt-4">
+        <div id="panel-existencias" class="mt-4" data-tour="stock-table">
           <ExistenciasTable rows={existRows} />
         </div>
         <div id="panel-movimientos" class="mt-4 hidden">
@@ -201,6 +257,9 @@ const nfmt = new Intl.NumberFormat("es-MX");
 </DashboardLayout>
 
 <script>
+  import { ui } from "@/lib/i18n-client";
+
+  const t = ui().inventory;
   const tabsEl = document.getElementById("inv-tabs");
   const searchEl = document.getElementById("inv-search") as HTMLInputElement | null;
   const panelExist = document.getElementById("panel-existencias");
@@ -278,8 +337,8 @@ const nfmt = new Intl.NumberFormat("es-MX");
     const esc = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
     const existMode = active === "existencias";
     const header = existMode
-      ? ["Producto", "SKU", "En mano", "Reorden", "Estado"]
-      : ["Producto", "SKU", "Tipo", "Cantidad", "Origen", "Fecha"];
+      ? [t.colProduct, t.csvSku, t.colOnHand, t.colReorder, t.colStatus]
+      : [t.colProduct, t.csvSku, t.colType, t.colQuantity, t.colSource, t.colDate];
     const lines = [header.map(esc).join(",")];
     for (const row of rowsFor()) {
       if (row.classList.contains("hidden")) continue;
@@ -291,7 +350,7 @@ const nfmt = new Intl.NumberFormat("es-MX");
           row.dataset.sku ?? "",
           (tds[1]?.textContent ?? "").trim(),
           (tds[2]?.textContent ?? "").trim(),
-          row.dataset.low === "1" ? "Bajo" : "OK",
+          row.dataset.low === "1" ? t.low : t.ok,
         ];
       } else {
         cells = (JSON.parse(row.dataset.csv ?? "[]") as string[]).map((c) => c.replace("−", "-"));
@@ -302,7 +361,8 @@ const nfmt = new Intl.NumberFormat("es-MX");
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${existMode ? "existencias" : "movimientos"}-${new Date().toISOString().slice(0, 10)}.csv`;
+    const stem = existMode ? t.csvStockFile : t.csvMovementsFile;
+    a.download = `${stem}-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   });

@@ -1,0 +1,36 @@
+---
+title: Cómo leer el reporte de bajo stock
+description: Qué significa cada columna del reporte y qué hacer con lo que aparece ahí.
+category: analitica
+order: 0
+updated: 2026-08-12
+readingMinutes: 3
+---
+
+import bajoStock from "../../../../assets/soporte/panel-bajo-stock.png";
+
+El reporte de bajo stock lista las variantes cuya existencia quedó por debajo de su punto de reorden. Es la lista de compras del día.
+
+## Qué necesita para funcionar
+
+Existencias reales. Como el nivel de stock se crea con el primer movimiento, una variante sin movimientos nunca aparece en el reporte, aunque esté publicada y agotada en la práctica.
+
+<Figure
+  src={bajoStock}
+  alt="Reporte de bajo stock con las variantes por debajo de su punto de reorden"
+  caption="Analítica → Bajo stock."
+/>
+
+## Cómo usarlo
+
+1. Revisa el reporte antes de hacer pedidos, no después.
+2. Para cada variante, confirma si la salida fue venta o merma: cambia la urgencia.
+3. Si algo aparece siempre, su punto de reorden probablemente está mal calibrado.
+
+## Bajo stock vs. la etiqueta pública
+
+Son cosas distintas. El reporte mira tu inventario real; la etiqueta que ve el cliente ("agotado", "pocas piezas") es un valor manual de la variante. Cuando el reporte marque algo en rojo, actualiza también la etiqueta si ya no hay piezas.
+
+<Callout tone="note" title="Siguiente paso">
+Cuando tengas claro *qué* reponer, EOQ te ayuda a decidir *cuánto* pedir en cada compra.
+</Callout>

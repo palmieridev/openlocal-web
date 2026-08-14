@@ -1,0 +1,41 @@
+---
+title: Registra entradas y salidas de inventario
+description: Cómo anotar compras, ventas, ajustes y mermas para que tus existencias reflejen la realidad.
+category: inventario
+order: 0
+updated: 2026-08-12
+readingMinutes: 5
+tour: registrar-movimiento
+---
+
+import panelInventario from "../../../../assets/soporte/panel-inventario.png";
+
+El inventario de Openlocal se lleva por movimientos: no editas un número de existencias, registras lo que pasó y el sistema calcula el saldo.
+
+## Registrar un movimiento
+
+En **Inventario → Registrar movimiento** eliges la variante, el tipo y la cantidad.
+
+Los tipos disponibles son entradas (compra, devolución, ajuste positivo) y salidas (venta, merma, ajuste negativo). Elegir el tipo correcto importa: la analítica de reabastecimiento distingue una venta de una merma.
+
+<Callout tone="warning" title="El primer movimiento crea el nivel de stock">
+Una variante no tiene fila de existencias hasta que registras su primer movimiento. Por eso un producto recién publicado aparece en la tienda pero no en Existencias.
+</Callout>
+
+## Existencias y Movimientos
+
+La pestaña **Existencias** muestra cuánto tienes ahora, por variante. La pestaña **Movimientos** muestra el historial que lo explica: qué entró, qué salió, cuándo y de qué tipo.
+
+<Figure
+  src={panelInventario}
+  alt="Pantalla de inventario con las pestañas Existencias y Movimientos y la tabla de existencias"
+  caption="Inventario: pestañas Existencias y Movimientos, con el saldo por variante."
+/>
+
+Si un número no cuadra, la respuesta casi siempre está en el historial: un movimiento con el tipo equivocado o capturado dos veces.
+
+## Buenas prácticas
+
+- Registra la compra el día que recibes la mercancía, no el día que la pagas.
+- Anota las mermas aunque duelan: sin ellas, el cálculo de reposición sugiere de menos.
+- Si haces un conteo físico, corrige con un ajuste en lugar de inventar una compra.
