@@ -132,6 +132,7 @@ describe("clientDict", () => {
       "settings",
       "stock",
       "storefront",
+      "support",
       "upload",
       "variantLimits",
     ]);

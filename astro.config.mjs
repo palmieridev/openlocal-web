@@ -5,6 +5,7 @@ import vercel from "@astrojs/vercel";
 import clerk from "@clerk/astro";
 import sentry from "@sentry/astro";
 import icon from "astro-icon";
+import mdx from "@astrojs/mdx";
 import tailwindcss from "@tailwindcss/vite";
 
 // Vercel sets VERCEL=1 at build time; local builds/preview keep the node adapter.
@@ -19,6 +20,9 @@ export default defineConfig({
   integrations: [
     clerk(),
     icon({ iconDir: "src/icons" }),
+    // Support-centre articles are authored as MDX so they can embed the tour
+    // buttons and callouts (see `src/content/support/`).
+    mdx(),
     // Error monitoring is opt-in: without a DSN the integration stays out of
     // the bundle entirely.
     ...(process.env.SENTRY_DSN
@@ -41,6 +45,12 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
+    optimizeDeps: {
+      // driver.js is only reached through a dynamic import inside the tour
+      // island, so vite never sees it while crawling entry points and serves a
+      // 504 "Outdated Optimize Dep" the first time a tour starts in dev.
+      include: ["driver.js"],
+    },
     server: {
       // Allow the ngrok tunnel host (dev only) — Vite blocks unknown hosts.
       allowedHosts: [".ngrok-free.dev"],

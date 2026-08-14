@@ -1,0 +1,42 @@
+---
+import { Icon } from "astro-icon/components";
+
+type Tone = "note" | "warning" | "success";
+
+interface Props {
+  tone?: Tone;
+  title?: string;
+}
+
+const { tone = "note", title } = Astro.props;
+
+const tones: Record<Tone, { box: string; icon: string; color: string }> = {
+  note: {
+    box: "bg-surface-secondary border-border",
+    icon: "lucide:info",
+    color: "text-text-secondary",
+  },
+  warning: {
+    box: "bg-warning-soft border-warning",
+    icon: "lucide:triangle-alert",
+    color: "text-warning",
+  },
+  success: {
+    box: "bg-success-soft border-success",
+    icon: "lucide:circle-check",
+    color: "text-success",
+  },
+};
+
+const style = tones[tone];
+---
+
+<aside class:list={["flex gap-3 rounded-xl border p-4", style.box]}>
+  <Icon name={style.icon} class={`mt-0.5 shrink-0 ${style.color}`} width={18} height={18} />
+  <div class="min-w-0 flex-1 text-sm leading-relaxed text-text-secondary">
+    {title && <p class="font-heading font-semibold text-text-primary">{title}</p>}
+    <div class:list={["ol-prose text-sm", title && "mt-1"]}>
+      <slot />
+    </div>
+  </div>
+</aside>

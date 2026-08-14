@@ -1,0 +1,41 @@
+---
+title: Record stock in and out
+description: How to log purchases, sales, adjustments and shrinkage so your stock levels match reality.
+category: inventario
+order: 0
+updated: 2026-08-12
+readingMinutes: 5
+tour: registrar-movimiento
+---
+
+import panelInventario from "../../../../assets/soporte/panel-inventario.png";
+
+Openlocal tracks inventory through movements: you do not edit a stock number, you record what happened and the system works out the balance.
+
+## Recording a movement
+
+In **Inventory → Log movement**, pick the variant, the type and the quantity.
+
+Types cover stock in (purchase, return, positive adjustment) and stock out (sale, shrinkage, negative adjustment). Picking the right one matters: restocking analytics treats a sale differently from shrinkage.
+
+<Callout tone="warning" title="The first movement creates the stock level">
+A variant has no stock row until you record its first movement. That is why a freshly published product shows in the storefront but not under Stock levels.
+</Callout>
+
+## Stock levels and Movements
+
+The **Stock levels** tab shows what you have right now, per variant. The **Movements** tab shows the history that explains it: what came in, what went out, when, and of which type.
+
+<Figure
+  src={panelInventario}
+  alt="Inventory screen with the Stock levels and Movements tabs and the stock table"
+  caption="Inventory: the Stock levels and Movements tabs, with the balance per variant."
+/>
+
+When a number looks wrong, the answer is almost always in the history: a movement with the wrong type, or entered twice.
+
+## Good habits
+
+- Record a purchase the day the goods arrive, not the day you pay for them.
+- Log shrinkage even when it stings: without it, restocking suggestions come out too low.
+- After a physical count, correct with an adjustment rather than inventing a purchase.

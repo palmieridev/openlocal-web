@@ -1,0 +1,40 @@
+---
+title: Calcula tu cantidad óptima de pedido (EOQ)
+description: Qué es el EOQ, qué datos necesita y cómo interpretar el resultado sin fórmulas.
+category: analitica
+order: 1
+updated: 2026-08-12
+readingMinutes: 6
+---
+
+import panelEoq from "../../../../assets/soporte/panel-eoq.png";
+
+EOQ ("cantidad económica de pedido") responde a una pregunta muy concreta: **¿de cuánto conviene que sea cada compra?**
+
+Pedir poco y muy seguido cuesta en fletes, tiempo y viajes. Pedir mucho de golpe cuesta en dinero parado y en mercancía que se echa a perder. El EOQ es el punto medio entre esos dos costos.
+
+## Qué datos usa
+
+- **Demanda**: cuánto vendes de esa variante en un periodo. Sale de tus movimientos de salida.
+- **Costo de pedido**: lo que te cuesta hacer un pedido, sin importar el tamaño (flete, traslado, tiempo).
+- **Costo de mantener**: lo que te cuesta tener una pieza guardada durante el periodo (espacio, capital, caducidad).
+
+## Cómo interpretarlo
+
+<Figure
+  src={panelEoq}
+  alt="Calculadora de EOQ con los campos de demanda, costo de pedido y costo de mantener"
+  caption="Analítica → EOQ."
+/>
+
+El resultado es un tamaño de pedido, no una orden de compra. Si el EOQ te sugiere 40 piezas y tu proveedor vende en cajas de 24, pide 48 o 24; el número es una guía, no una regla.
+
+Un EOQ muy grande casi siempre significa que estás sobreestimando el costo de pedido. Uno muy chico, que el costo de mantener quedó alto.
+
+<Callout tone="warning" title="Datos de menos, resultado de menos">
+El cálculo asume una demanda parecida a la que ya registraste. Con pocas semanas de movimientos, tómalo como una primera aproximación y revísalo cuando tengas más historial.
+</Callout>
+
+## Cada cuánto revisarlo
+
+Cuando cambie el precio del proveedor, cuando cambie de forma notoria tu ritmo de ventas, o al menos cada temporada.

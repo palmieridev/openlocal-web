@@ -1,0 +1,30 @@
+---
+import { Icon } from "astro-icon/components";
+
+interface Props {
+  href: string;
+  title: string;
+  meta: string;
+  /** Tour-backed articles get the route icon, in accent. */
+  tour?: boolean;
+}
+
+const { href, title, meta, tour = false } = Astro.props;
+---
+
+<a
+  href={href}
+  class="ol-card flex items-center gap-3 px-4 py-3.5 transition-colors hover:border-accent/40 hover:bg-surface-secondary/60"
+>
+  <Icon
+    name={tour ? "lucide:route" : "lucide:file-text"}
+    class={tour ? "shrink-0 text-accent" : "shrink-0 text-text-muted"}
+    width={16}
+    height={16}
+  />
+  <span class="min-w-0 flex-1">
+    <span class="block truncate text-sm font-semibold text-text-primary">{title}</span>
+    <span class="block text-xs text-text-muted">{meta}</span>
+  </span>
+  <Icon name="lucide:chevron-right" class="shrink-0 text-text-muted" width={16} height={16} />
+</a>

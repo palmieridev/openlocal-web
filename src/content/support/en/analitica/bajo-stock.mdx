@@ -1,0 +1,36 @@
+---
+title: How to read the low-stock report
+description: What each column of the report means, and what to do with what shows up there.
+category: analitica
+order: 0
+updated: 2026-08-12
+readingMinutes: 3
+---
+
+import bajoStock from "../../../../assets/soporte/panel-bajo-stock.png";
+
+The low-stock report lists the variants whose stock fell below their reorder point. It is your shopping list for the day.
+
+## What it needs to work
+
+Real stock levels. Because a stock level is created by the first movement, a variant with no movements never appears in the report — even if it is published and sold out in practice.
+
+<Figure
+  src={bajoStock}
+  alt="Low-stock report listing variants below their reorder point"
+  caption="Analytics → Low stock."
+/>
+
+## How to use it
+
+1. Check the report before placing orders, not after.
+2. For each variant, confirm whether the stock left as a sale or as shrinkage: it changes the urgency.
+3. If something is always on the list, its reorder point is probably mis-calibrated.
+
+## Low stock vs. the public label
+
+They are different things. The report looks at your real inventory; the label customers see ("out of stock", "low stock") is a manual field on the variant. When the report flags something, update the label too if there is nothing left.
+
+<Callout tone="note" title="Next step">
+Once you know *what* to restock, EOQ helps you decide *how much* to order each time.
+</Callout>

@@ -15,6 +15,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@astrojs/mdx": "^6.0.3",
     "@astrojs/node": "^10.1.4",
     "@astrojs/vercel": "^10.0.8",
     "@clerk/astro": "^3.4.20",
@@ -28,6 +29,7 @@
     "@vercel/blob": "^2.6.1",
     "astro": "^6.4.8",
     "astro-icon": "^1.1.5",
+    "driver.js": "^1.8.0",
     "html5-qrcode": "^2.3.8",
     "leaflet": "^1.9.4",
     "tailwindcss": "^4.3.1"
