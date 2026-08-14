@@ -3,8 +3,8 @@ title: Crea tu primer producto
 description: Del formulario de alta a un producto visible en tu tienda, con su primera variante.
 category: productos-y-variantes
 order: 0
-updated: 2026-08-13
-readingMinutes: 5
+updated: 2026-08-14
+readingMinutes: 6
 tour: crear-producto
 ---
 
@@ -30,6 +30,7 @@ Sin variante, el producto no puede aparecer en la tienda aunque esté marcado co
 - **Precio** en pesos, y opcionalmente una nota corta junto al precio (por ejemplo "por pieza" o "mínimo 3").
 - **SKU y código de barras**, si los manejas; son los que lee el escáner.
 - **Estado público de existencias**: la etiqueta que ve el cliente (disponible, pocas piezas, agotado, bajo pedido).
+- **Visible en tienda**: el interruptor con el ojito, encendido de fábrica. Apágalo para retirar sólo esa tarjeta.
 
 <Callout tone="warning" title="La etiqueta no se calcula sola">
 El estado público de existencias es un valor **manual** de la variante, no un reflejo automático de tu inventario. Si registras una venta, la etiqueta no cambia por su cuenta.
@@ -37,11 +38,25 @@ El estado público de existencias es un valor **manual** de la variante, no un r
 
 ## 3. Publícalo
 
-Marca el producto como público y guárdalo. La combinación que lo hace visible es: producto público **+** al menos una variante.
+Marca el producto como público y guárdalo. La combinación que lo hace visible es: producto público **+** al menos una variante también visible.
+
+Son **dos interruptores**: el del producto manda sobre todas sus variantes y el de cada variante decide su propia tarjeta.
+
+```text
+se ve en la tienda = producto visible Y variante visible
+```
+
+Así puedes retirar un solo color sin borrar la variante ni esconder el producto entero. Si escondes la última variante visible, el producto desaparece de tu tienda y de las búsquedas del marketplace: no se publican fichas vacías.
+
+<Callout tone="note" title="Esconder no es agotar">
+Esconder una variante la quita de la tienda. Marcarla como agotada la deja visible con su etiqueta. El **estado público de existencias** y la **visibilidad** son cosas distintas.
+</Callout>
 
 ## 4. Revisa la columna "Público"
 
-En la lista de productos, esa columna te dice de un vistazo qué está visible en la tienda. Los filtros de arriba separan borradores de publicados, y el buscador filtra por nombre o marca mientras escribes.
+En la lista de productos, esa columna cuenta las variantes que se ven en tu tienda: "3 de 4" significa tres tarjetas publicadas de cuatro variantes. Arriba, la tarjeta **Tarjetas publicadas en tienda** suma esas tarjetas de todo tu catálogo, no los productos.
+
+Los filtros de arriba usan lo mismo: **En tienda** son los productos con al menos una tarjeta visible y **Sin publicar** los que hoy no muestran ninguna (producto oculto, sin variantes o con todas escondidas). El buscador filtra por nombre o marca mientras escribes.
 
 <Figure
   src={panelProductos}
