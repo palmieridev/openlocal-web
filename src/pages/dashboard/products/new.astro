@@ -89,13 +89,18 @@ const units = [
             <label class="ol-label" for="description">{t.description}</label>
             <textarea class="ol-textarea" id="description" name="description" rows="3"></textarea>
           </div>
-          <div class="flex gap-6 border-t border-border pt-4">
-            <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="is_handmade" /> {t.isHandmade}
-            </label>
-            <label class="flex items-center gap-2 text-sm text-text-secondary">
-              <input type="checkbox" name="is_public" checked /> {t.isPublic}
-            </label>
+          <div class="border-t border-border pt-4">
+            <div class="flex gap-6">
+              <label class="flex items-center gap-2 text-sm text-text-secondary">
+                <input type="checkbox" name="is_handmade" /> {t.isHandmade}
+              </label>
+              <label class="flex items-center gap-2 text-sm text-text-secondary">
+                <input type="checkbox" name="is_public" checked /> {t.isPublic}
+              </label>
+            </div>
+            {/* The product flag is only the master switch — each variant carries
+                its own, and a card needs both. */}
+            <p class="mt-2 text-xs text-text-muted">{t.isPublicHint}</p>
           </div>
 
           <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>

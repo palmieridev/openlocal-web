@@ -41,9 +41,9 @@ export const tourCopy: TourCopy = {
           "Nuevo producto abre el formulario: nombre, categoría y descripción. Después le agregas variantes con precio y existencias.",
       },
       "product-filters": {
-        title: "Filtra por estado",
+        title: "Filtra por lo que se ve en tienda",
         description:
-          "Separa borradores de publicados. Un producto en borrador no aparece en tu tienda aunque tenga variantes.",
+          "En tienda son los productos con al menos una variante visible; Sin publicar, los que hoy no muestran ninguna tarjeta, ya sea porque el producto está oculto, porque no tiene variantes o porque las escondiste todas.",
       },
       "product-search": {
         title: "Busca sin scroll",
@@ -53,7 +53,7 @@ export const tourCopy: TourCopy = {
       "product-table": {
         title: "Revisa la columna Público",
         description:
-          "Ahí ves si el producto es visible en tu tienda. Recuerda: visible ≠ con inventario; el stock se lleva en Inventario.",
+          "Dice cuántas variantes se ven en tu tienda: «3 de 4» son tres tarjetas publicadas de cuatro variantes. Recuerda: visible ≠ con inventario; el stock se lleva en Inventario.",
       },
     },
   },

@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   VARIANT_DESCRIPTION_MAX,
   VARIANT_PRICE_NOTE_MAX,
+  isProductVisible,
+  isVariantVisible,
   normalizeVariantPayload,
+  productIsPublic,
+  variantIsPublic,
+  variantVisibility,
   publicPriceNote,
   publicVariantDescription,
   variantDescription,
@@ -90,6 +95,50 @@ describe("public rows", () => {
   });
 });
 
+describe("storefront visibility", () => {
+  const pub = { is_public: true };
+  const priv = { is_public: false };
+
+  it("reads an absent variant flag as visible (the column defaults to true)", () => {
+    expect(variantIsPublic(variant())).toBe(true);
+    expect(variantIsPublic(undefined)).toBe(true);
+    expect(variantIsPublic(variant({ is_public: false }))).toBe(false);
+  });
+
+  it("reads an absent product flag as hidden — it was never published", () => {
+    expect(productIsPublic({})).toBe(false);
+    expect(productIsPublic(null)).toBe(false);
+    expect(productIsPublic(pub)).toBe(true);
+  });
+
+  it("ANDs the two switches", () => {
+    expect(isVariantVisible(pub, variant())).toBe(true);
+    expect(isVariantVisible(pub, variant({ is_public: false }))).toBe(false);
+    expect(isVariantVisible(priv, variant())).toBe(false);
+    expect(isVariantVisible(priv, variant({ is_public: false }))).toBe(false);
+  });
+
+  it("counts visible cards against the variant total", () => {
+    const variants = [
+      variant({ id: "a" }),
+      variant({ id: "b", is_public: false }),
+      variant({ id: "c", is_public: true }),
+    ];
+    expect(variantVisibility(pub, variants)).toEqual({ visible: 2, total: 3 });
+    // The master switch hides every card without touching the variant flags.
+    expect(variantVisibility(priv, variants)).toEqual({ visible: 0, total: 3 });
+    expect(variantVisibility(pub, [])).toEqual({ visible: 0, total: 0 });
+    expect(variantVisibility(pub, undefined)).toEqual({ visible: 0, total: 0 });
+  });
+
+  it("drops a product with no visible card out of the storefront", () => {
+    expect(isProductVisible(pub, [variant()])).toBe(true);
+    expect(isProductVisible(pub, [variant({ is_public: false })])).toBe(false);
+    expect(isProductVisible(pub, [])).toBe(false);
+    expect(isProductVisible(priv, [variant()])).toBe(false);
+  });
+});
+
 describe("variantDetailsError", () => {
   it("accepts empty and normal text", () => {
     expect(variantDetailsError("", "")).toBeNull();
@@ -125,6 +174,24 @@ describe("normalizeVariantPayload", () => {
       description: null,
       price_note: null,
     });
+  });
+
+  it("passes the visibility boolean through", () => {
+    expect(normalizeVariantPayload({ sku: "S", is_public: false })).toEqual({
+      sku: "S",
+      is_public: false,
+    });
+    expect(normalizeVariantPayload({ is_public: true })).toEqual({ is_public: true });
+  });
+
+  it("coerces a checkbox-shaped is_public to the boolean the API expects", () => {
+    expect(normalizeVariantPayload({ is_public: "on" })).toEqual({ is_public: true });
+    expect(normalizeVariantPayload({ is_public: "false" })).toEqual({ is_public: false });
+  });
+
+  it("leaves an absent or null is_public alone — both mean 'unchanged'", () => {
+    expect(normalizeVariantPayload({ sku: "S" })).not.toHaveProperty("is_public");
+    expect(normalizeVariantPayload({ is_public: null })).toEqual({ is_public: null });
   });
 
   it("does not mutate the caller's object", () => {

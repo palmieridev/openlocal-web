@@ -9,7 +9,8 @@ import MovementEditModal from "@/components/dashboard/MovementEditModal.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { interpolate, localePath, pluralize, useT } from "@/i18n";
-import type { Product } from "@/types/api";
+import { variantVisibility } from "@/lib/variants";
+import type { Product, Variant } from "@/types/api";
 
 const locale = Astro.locals.locale;
 const dict = useT(locale);
@@ -23,6 +24,12 @@ let products: Product[] = [];
 let loadError = false;
 let skuCount = 0;
 let lowStockCount = 0;
+/**
+ * Variants per product, for the storefront-visibility column. Missing key =
+ * that product's variants could not be read, so the row shows the master
+ * switch alone instead of an invented "0 de 0".
+ */
+const variantsByProduct = new Map<string, Variant[]>();
 if (token && businessId) {
   const api = authedApi(token, businessId);
   // Products is the page; stats are best-effort (don't fail the page on them).
@@ -35,11 +42,34 @@ if (token && businessId) {
   else loadError = true;
   if (sl.status === "fulfilled") skuCount = sl.value.length;
   if (ls.status === "fulfilled") lowStockCount = ls.value.length;
+
+  // There is no bulk variant endpoint, so this is one call per product (the
+  // list is capped at 100). Best-effort: a failure only costs that row's count.
+  const variantLists = await Promise.allSettled(
+    products.map((prod) => api.listProductVariants(prod.id)),
+  );
+  variantLists.forEach((result, i) => {
+    if (result.status === "fulfilled") variantsByProduct.set(products[i].id, result.value);
+  });
 }
 
+/** Storefront visibility of a row: product master switch AND variant switch. */
+const visibilityOf = (p: Product) => {
+  const variants = variantsByProduct.get(p.id);
+  return variants ? variantVisibility(p, variants) : null;
+};
+
 const total = products.length;
-const published = products.filter((p) => p.is_public).length;
-const pubPct = total ? Math.round((published / total) * 100) : 0;
+// The storefront renders one card per visible variant, so the published tile
+// counts cards, not products.
+let publishedCards = 0;
+let totalCards = 0;
+for (const p of products) {
+  const v = visibilityOf(p);
+  if (!v) continue;
+  publishedCards += v.visible;
+  totalCards += v.total;
+}
 const activeCount = products.filter((p) => (p.status ?? "") === "active").length;
 
 const statusStyle: Record<string, string> = {
@@ -105,9 +135,9 @@ const tabs = [
         />
         <StatTile
           label={t.statPublished}
-          value={String(published)}
+          value={String(publishedCards)}
           icon="lucide:eye"
-          delta={interpolate(t.statPublishedPct, { pct: pubPct })}
+          delta={interpolate(t.statPublishedCards, { total: totalCards })}
           deltaTone="up"
         />
         <StatTile
@@ -179,11 +209,16 @@ const tabs = [
               </tr>
             </thead>
             <tbody id="product-rows" class="divide-y divide-border">
-              {products.map((p) => (
+              {products.map((p) => {
+                const vis = visibilityOf(p);
+                // "Visible" means at least one card reaches the storefront. With
+                // unknown variants fall back to the master switch alone.
+                const visible = vis ? vis.visible > 0 : Boolean(p.is_public);
+                return (
                 <tr
                   class="product-row hover:bg-surface-primary/50"
                   data-name={`${p.name} ${p.brand ?? ""} ${p.slug}`.toLowerCase()}
-                  data-public={p.is_public ? "1" : "0"}
+                  data-public={visible ? "1" : "0"}
                   data-status={p.status ?? "draft"}
                   data-type={p.product_type}
                 >
@@ -201,12 +236,20 @@ const tabs = [
                     </span>
                   </td>
                   <td class="px-5 py-3">
-                    <Icon
-                      name={p.is_public ? "lucide:eye" : "lucide:eye-off"}
-                      class={p.is_public ? "text-success" : "text-text-muted"}
-                      width={16}
-                      height={16}
-                    />
+                    <span class={`inline-flex items-center gap-1.5 ${visible ? "text-success" : "text-text-muted"}`}>
+                      <Icon
+                        name={visible ? "lucide:eye" : "lucide:eye-off"}
+                        width={16}
+                        height={16}
+                      />
+                      {vis && (
+                        <span class="font-data text-xs">
+                          {vis.total === 0
+                            ? t.colPublicNoVariants
+                            : interpolate(t.colPublicCount, { visible: vis.visible, total: vis.total })}
+                        </span>
+                      )}
+                    </span>
                   </td>
                   <td class="px-5 py-3 text-right">
                     <a
@@ -217,7 +260,8 @@ const tabs = [
                     </a>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
           </div>
@@ -255,10 +299,12 @@ const tabs = [
 
   function matchesTab(row: HTMLElement): boolean {
     switch (activeFilter) {
+      // Both tabs read storefront visibility, not `status`: a product is "in
+      // the shop" only while it has at least one visible variant card.
       case "published":
         return row.dataset.public === "1";
       case "draft":
-        return row.dataset.status === "draft";
+        return row.dataset.public !== "1";
       case "made_to_order":
         return (row.dataset.type ?? "").includes("made_to_order");
       case "unique":
@@ -303,7 +349,10 @@ const tabs = [
       const brand = row.dataset.name?.split(" ")[1] ?? "";
       const type = (cells[1]?.textContent ?? "").trim();
       const status = (cells[2]?.textContent ?? "").trim();
-      const pub = row.dataset.public === "1" ? t.csvYes : t.csvNo;
+      // The cell carries the "3 de 4" card count when it is known; fall back to
+      // a plain yes/no when the variants could not be read.
+      const pub =
+        (cells[3]?.textContent ?? "").trim() || (row.dataset.public === "1" ? t.csvYes : t.csvNo);
       const esc = (s: string) => `"${s.replace(/"/g, '""')}"`;
       lines.push([name, brand, type, status, pub].map(esc).join(","));
     }

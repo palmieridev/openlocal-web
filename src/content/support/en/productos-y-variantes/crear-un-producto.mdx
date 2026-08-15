@@ -3,8 +3,8 @@ title: Create your first product
 description: From the new-product form to a product visible in your storefront, with its first variant.
 category: productos-y-variantes
 order: 0
-updated: 2026-08-13
-readingMinutes: 5
+updated: 2026-08-14
+readingMinutes: 6
 tour: crear-producto
 ---
 
@@ -30,6 +30,7 @@ Without a variant the product cannot appear in the storefront, even when marked 
 - **Price** in pesos, plus an optional short note next to it (for example "per piece" or "minimum 3").
 - **SKU and barcode**, if you use them; these are what the scanner reads.
 - **Public stock status**: the label customers see (available, low stock, out of stock, made to order).
+- **Visible in the shop**: the eye switch, on by default. Turn it off to pull just that card.
 
 <Callout tone="warning" title="The label is not computed">
 Public stock status is a **manual** field on the variant, not a reflection of your inventory. Recording a sale does not change the label on its own.
@@ -37,11 +38,25 @@ Public stock status is a **manual** field on the variant, not a reflection of yo
 
 ## 3. Publish it
 
-Mark the product as public and save. The combination that makes it visible is: public product **+** at least one variant.
+Mark the product as public and save. The combination that makes it visible is: public product **+** at least one variant that is visible too.
+
+There are **two switches**: the product's one governs all of its variants, and each variant's own switch decides its card.
+
+```text
+shown in the storefront = product visible AND variant visible
+```
+
+That way you can retire a single colour without deleting the variant or hiding the whole product. Hide the last visible variant and the product drops out of your storefront and of marketplace search — empty listings are never published.
+
+<Callout tone="note" title="Hidden is not out of stock">
+Hiding a variant removes it from the storefront. Marking it out of stock leaves it visible with that label. **Public stock status** and **visibility** are separate things.
+</Callout>
 
 ## 4. Check the "Public" column
 
-In the product list, that column tells you at a glance what is visible in the storefront. The filters above separate drafts from published items, and the search box filters by name or brand as you type.
+In the product list, that column counts the variants your storefront shows: "3 of 4" means three published cards out of four variants. Above it, the **Variant cards in the shop** tile adds up those cards across your whole catalogue — cards, not products.
+
+The filters use the same rule: **In the shop** lists products with at least one visible card, **Unpublished** the ones showing none today (hidden product, no variants, or every variant hidden). The search box filters by name or brand as you type.
 
 <Figure
   src={panelProductos}
