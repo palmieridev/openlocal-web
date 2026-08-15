@@ -1,13 +1,15 @@
 import type { APIContext } from "astro";
 import { forward } from "@/lib/api/bff";
-import { readMovementBody } from "@/lib/api/movements";
+import { movementIdempotencyKey, readMovementBody } from "@/lib/api/movements";
 
 export const prerender = false;
 
 // PATCH /api/movements/[id] — edit an existing stock movement.
 export async function PATCH(ctx: APIContext): Promise<Response> {
+  const key = movementIdempotencyKey(ctx.request);
   return forward(ctx, `/api/v1/inventory/movements/${ctx.params.id}`, {
     method: "PATCH",
+    headers: { "Idempotency-Key": key },
     body: await readMovementBody(ctx.request),
   });
 }
