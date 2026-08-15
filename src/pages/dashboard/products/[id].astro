@@ -11,9 +11,12 @@ import { formatPrice, stockMeta } from "@/lib/format";
 import {
   VARIANT_DESCRIPTION_MAX,
   VARIANT_PRICE_NOTE_MAX,
+  isVariantVisible,
+  variantIsPublic,
   variantPriceNote,
+  variantVisibility,
 } from "@/lib/variants";
-import { localePath, useT } from "@/i18n";
+import { interpolate, localePath, useT } from "@/i18n";
 import type { Business, Product, Variant } from "@/types/api";
 
 const locale = Astro.locals.locale;
@@ -51,7 +54,14 @@ if (token && businessId && id) {
   }
 }
 
-const firstVariant = variants[0];
+/**
+ * The preview mirrors the storefront, so it shows the first card that actually
+ * reaches it (product switch AND variant switch). With nothing visible it falls
+ * back to the first variant, and the badge says the product is hidden.
+ */
+const visibility = variantVisibility(product, variants);
+const productVisible = visibility.visible > 0;
+const previewVariant = variants.find((v) => isVariantVisible(product, v)) ?? variants[0];
 
 const productTypes = [
   ["stocked_product", prod.typeStockedLong],
@@ -148,13 +158,16 @@ const previewMeta = product
               <label class="ol-label" for="description">{prod.description}</label>
               <textarea class="ol-textarea" id="description" name="description" rows="3">{product.description}</textarea>
             </div>
-            <div class="flex gap-6 border-t border-border pt-4">
-              <label class="flex items-center gap-2 text-sm text-text-secondary">
-                <input type="checkbox" name="is_handmade" checked={product.is_handmade} /> {prod.isHandmade}
-              </label>
-              <label class="flex items-center gap-2 text-sm text-text-secondary">
-                <input type="checkbox" name="is_public" checked={product.is_public} /> {prod.isPublic}
-              </label>
+            <div class="border-t border-border pt-4">
+              <div class="flex gap-6">
+                <label class="flex items-center gap-2 text-sm text-text-secondary">
+                  <input type="checkbox" name="is_handmade" checked={product.is_handmade} /> {prod.isHandmade}
+                </label>
+                <label class="flex items-center gap-2 text-sm text-text-secondary">
+                  <input type="checkbox" name="is_public" checked={product.is_public} /> {prod.isPublic}
+                </label>
+              </div>
+              <p class="mt-2 text-xs text-text-muted">{prod.isPublicHint}</p>
             </div>
             <p id="edit-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
             <div class="flex justify-center border-t border-border pt-5">
@@ -174,8 +187,9 @@ const previewMeta = product
               <div class="-mx-6 mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-2">
                 {variants.map((v) => {
                   const sm = stockMeta(v.public_stock_status, locale);
+                  const hidden = !variantIsPublic(v);
                   return (
-                    <article class="flex w-56 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-surface-card">
+                    <article class={`flex w-56 shrink-0 snap-start flex-col overflow-hidden rounded-xl border bg-surface-card ${hidden ? "border-dashed border-border opacity-70" : "border-border"}`}>
                       {/* object-contain: variant photos are stored uncropped,
                           so a portrait shot has to be shown whole. */}
                       <div class="relative flex h-32 items-start justify-end bg-accent-soft p-2">
@@ -196,6 +210,11 @@ const previewMeta = product
                       </div>
                       <div class="flex flex-1 flex-col gap-1 p-3">
                         <p class="truncate text-sm font-medium text-text-primary">{v.name || product.name}</p>
+                        {hidden && (
+                          <span class="inline-flex w-fit items-center gap-1 rounded-full bg-surface-secondary px-2 py-0.5 text-[10px] font-semibold text-text-muted">
+                            <Icon name="lucide:eye-off" width={11} height={11} /> {t.variantHidden}
+                          </span>
+                        )}
                         <p class="font-data text-xs text-text-muted">{v.sku}</p>
                         <p class="font-data text-base font-semibold text-text-primary">
                           {formatPrice(v.price, v.currency, locale)}
@@ -240,22 +259,30 @@ const previewMeta = product
                 <h2 class="font-heading font-semibold">{prod.previewTitle}</h2>
                 <p class="text-sm text-text-secondary">{prod.previewIntro}</p>
               </div>
-              <span class={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${product.is_public ? "bg-success-soft text-success" : "bg-surface-secondary text-text-muted"}`}>
-                <Icon name={product.is_public ? "lucide:eye" : "lucide:eye-off"} width={12} height={12} />
-                {product.is_public ? t.public : t.hidden}
+              <span class={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${productVisible ? "bg-success-soft text-success" : "bg-surface-secondary text-text-muted"}`}>
+                <Icon name={productVisible ? "lucide:eye" : "lucide:eye-off"} width={12} height={12} />
+                {productVisible ? t.public : t.hidden}
               </span>
             </div>
             <div id="preview-card">
             <ProductCard
               name={product.name}
               meta={previewMeta}
-              price={firstVariant?.price ?? ""}
-              currency={firstVariant?.currency ?? "MXN"}
-              priceNote={variantPriceNote(firstVariant)}
-              stockStatus={firstVariant?.public_stock_status}
-              imageUrl={firstVariant?.image_url}
+              price={previewVariant?.price ?? ""}
+              currency={previewVariant?.currency ?? "MXN"}
+              priceNote={variantPriceNote(previewVariant)}
+              stockStatus={previewVariant?.public_stock_status}
+              imageUrl={previewVariant?.image_url}
             />
             </div>
+            <p class="mt-3 text-xs text-text-muted">
+              {visibility.total === 0
+                ? t.previewNoVariants
+                : interpolate(t.previewVisibleCount, {
+                    visible: visibility.visible,
+                    total: visibility.total,
+                  })}
+            </p>
           </div>
 
           {/* Store ≠ inventory note */}
@@ -367,6 +394,16 @@ const previewMeta = product
           <label class="flex items-center gap-2 text-sm text-text-secondary">
             <input type="checkbox" name="track_inventory" checked /> {t.trackInventory}
           </label>
+          {/* Per-variant storefront switch. The product flag is the master one;
+              this only retires this card. */}
+          <div class="rounded-xl border border-border p-3">
+            <label class="flex items-center gap-2 text-sm font-medium text-text-secondary">
+              <input type="checkbox" name="variant_is_public" id="variant_is_public" checked />
+              <Icon name="lucide:eye" width={15} height={15} />
+              {t.variantPublic}
+            </label>
+            <p class="mt-1 pl-6 text-xs text-text-muted">{t.variantPublicHint}</p>
+          </div>
           <p id="variant-msg" class="hidden rounded-xl px-3 py-2 text-sm"></p>
           <div class="flex items-center justify-between border-t border-border pt-4">
             <button
@@ -393,7 +430,12 @@ const previewMeta = product
 </DashboardLayout>
 
 <script>
-  import { variantDescription, variantDetailsError, variantPriceNote } from "@/lib/variants";
+  import {
+    variantDescription,
+    variantDetailsError,
+    variantIsPublic,
+    variantPriceNote,
+  } from "@/lib/variants";
   import { ui, uiLocale } from "@/lib/i18n-client";
 
   const t = ui().productDetail;
@@ -475,6 +517,9 @@ const previewMeta = product
         set("public_stock_status", variant.public_stock_status ?? "unknown");
         (vForm.elements.namedItem("track_inventory") as HTMLInputElement).checked =
           variant.track_inventory !== false;
+        // Absent means visible: the column defaults to true on the API.
+        (vForm.elements.namedItem("variant_is_public") as HTMLInputElement).checked =
+          variantIsPublic(variant);
       } else {
         vTitle.textContent = t.addVariant;
         vBtnLabel.textContent = ui().common.save;
@@ -537,6 +582,9 @@ const previewMeta = product
         price: str("price") || "0",
         public_stock_status: str("public_stock_status") || "unknown",
         track_inventory: fd.get("track_inventory") === "on",
+        // Storefront switch for this card. Always sent so unticking it is a
+        // real `false`, not an omitted "leave as is".
+        is_public: fd.get("variant_is_public") === "on",
         currency: "MXN",
         status: "active",
         // Always sent: "" tells the API to remove the image. Omitting it would

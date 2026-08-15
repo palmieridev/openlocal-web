@@ -41,9 +41,9 @@ export const tourCopy: TourCopy = {
           "New product opens the form: name, category and description. You then add variants with their price and stock.",
       },
       "product-filters": {
-        title: "Filter by status",
+        title: "Filter by what the shop shows",
         description:
-          "Separates drafts from published items. A draft never shows in your storefront, even when it has variants.",
+          "In the shop lists products with at least one visible variant; Unpublished lists the ones showing no card today — the product is hidden, it has no variants, or you hid them all.",
       },
       "product-search": {
         title: "Find without scrolling",
@@ -53,7 +53,7 @@ export const tourCopy: TourCopy = {
       "product-table": {
         title: "Check the Public column",
         description:
-          "It tells you whether the product is visible in your storefront. Remember: visible ≠ stocked — stock is tracked in Inventory.",
+          "It shows how many variants your storefront displays: \"3 of 4\" means three published cards out of four variants. Remember: visible ≠ stocked — stock is tracked in Inventory.",
       },
     },
   },

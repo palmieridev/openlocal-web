@@ -247,6 +247,9 @@ const t = dict.scanner;
             attributes: {},
             price: f.priceEl.value.trim() || "0",
             barcode: code,
+            // Scanned items go straight to the storefront: the product flag is
+            // true above, so the card needs the variant flag on as well.
+            is_public: true,
             public_stock_status: "unknown",
             track_inventory: true,
             currency: "MXN",

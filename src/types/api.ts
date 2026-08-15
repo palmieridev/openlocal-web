@@ -123,6 +123,10 @@ export interface Product {
   unit: string;
   product_type: string;
   is_handmade?: boolean;
+  /**
+   * Master storefront switch. A product only reaches the storefront when this
+   * is true **and** at least one of its variants is public.
+   */
   is_public?: boolean;
   status?: string;
   created_at?: string;
@@ -158,6 +162,14 @@ export interface Variant {
   price: string;
   cost?: string;
   currency: string;
+  /**
+   * Storefront visibility of this variant's card. The column is
+   * `NOT NULL DEFAULT true`, so an absent value means "visible" — older
+   * payloads omit it. It is ANDed with the product's own `is_public`:
+   * `visible = product.is_public && variant.is_public`. Read it through
+   * `variantIsPublic()` in `src/lib/variants.ts`, never directly.
+   */
+  is_public?: boolean;
   track_inventory?: boolean;
   public_stock_status: PublicStockStatus;
   reorder_point?: string;

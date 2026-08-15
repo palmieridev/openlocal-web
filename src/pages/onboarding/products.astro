@@ -56,6 +56,9 @@ const productTypes = [
             </label>
           </div>
         </div>
+        {/* Onboarding only creates the product ficha; the storefront card comes
+            with its first (also visible) variant. */}
+        <p class="-mt-2 text-xs text-text-muted">{t.visibleInShopHint}</p>
 
         <p id="form-error" class="hidden rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger"></p>
 
