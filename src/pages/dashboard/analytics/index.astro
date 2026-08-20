@@ -24,7 +24,12 @@ if (token && businessId) {
   }
 }
 
-const value = (r: ABCRow) => Number(r.sales_value ?? r.total_value ?? 0);
+const value = (r: ABCRow) => Number(r.value ?? r.sales_value ?? 0);
+const cumulativePercent = (r: ABCRow) => {
+  if (r.cumulative_percent != null) return Number(r.cumulative_percent);
+  const total = Number(r.total_value ?? 0);
+  return total > 0 ? (Number(r.cumulative_value ?? 0) / total) * 100 : null;
+};
 const max = rows.reduce((m, r) => Math.max(m, value(r)), 0) || 1;
 const classStyle: Record<string, string> = {
   A: "bg-accent-soft text-accent",
@@ -68,17 +73,18 @@ const barColor: Record<string, string> = {
             </thead>
             <tbody class="divide-y divide-border">
               {rows.map((r) => {
-                const cls = String(r.abc_class ?? "C");
+                const cls = String(r.class ?? r.abc_class ?? "C");
+                const cumulative = cumulativePercent(r);
                 return (
                   <tr class="hover:bg-surface-primary/50">
                     <td class="px-5 py-3">
-                      <div class="font-medium text-text-primary">{r.product_name ?? r.sku ?? r.variant_id}</div>
+                      <div class="font-medium text-text-primary">{r.name ?? r.product_name ?? r.sku ?? r.product_id ?? r.variant_id}</div>
                       <div class="mt-1.5 h-1.5 w-40 overflow-hidden rounded-full bg-surface-secondary">
                         <div class={`h-full ${barColor[cls] ?? barColor.C}`} style={`width:${Math.max(4, (value(r) / max) * 100)}%`}></div>
                       </div>
                     </td>
                     <td class="px-5 py-3 font-data">{formatPrice(value(r), "MXN", locale)}</td>
-                    <td class="px-5 py-3 font-data text-text-muted">{r.cumulative_percent ? `${Number(r.cumulative_percent).toFixed(0)}%` : "—"}</td>
+                    <td class="px-5 py-3 font-data text-text-muted">{cumulative != null ? `${cumulative.toFixed(0)}%` : "—"}</td>
                     <td class="px-5 py-3">
                       <span class={`rounded-full px-2.5 py-1 text-[11px] font-bold ${classStyle[cls] ?? classStyle.C}`}>{cls}</span>
                     </td>
