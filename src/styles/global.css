@@ -200,6 +200,29 @@
     font-style: italic;
   }
 
+  .ol-prose table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .ol-prose th,
+  .ol-prose td {
+    border-bottom: 1px solid var(--color-border);
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .ol-prose th {
+    background: var(--color-surface-secondary);
+    color: var(--color-text-primary);
+    font-weight: 600;
+  }
+
   /* Anchor link revealed on hover next to article headings. */
   .ol-prose :is(h2, h3) > a.ol-anchor {
     margin-left: 0.375rem;

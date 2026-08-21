@@ -2,9 +2,9 @@
 title: Calcula tu cantidad óptima de pedido (EOQ)
 description: Qué es el EOQ, qué datos necesita y cómo interpretar el resultado sin fórmulas.
 category: analitica
-order: 1
-updated: 2026-08-12
-readingMinutes: 6
+order: 2
+updated: 2026-08-20
+readingMinutes: 7
 ---
 
 import panelEoq from "../../../../assets/soporte/panel-eoq.png";
@@ -19,19 +19,34 @@ Pedir poco y muy seguido cuesta en fletes, tiempo y viajes. Pedir mucho de golpe
 - **Costo de pedido**: lo que te cuesta hacer un pedido, sin importar el tamaño (flete, traslado, tiempo).
 - **Costo de mantener**: lo que te cuesta tener una pieza guardada durante el periodo (espacio, capital, caducidad).
 
-## Cómo interpretarlo
+La demanda incluye movimientos de **venta** dentro del periodo seleccionado. Compras, producción, ajustes y mermas no cuentan como demanda.
+
+## Pruébalo con los datos de demostración
+
+1. Abre **Analítica → EOQ**.
+2. Busca el SKU `TR-BUFANDA-AZUL`. La calculadora encontrará la variante **Azul marino** de *Bufanda de telar*.
+3. Usa un periodo de **90 días**, un costo por pedido de **$100** y un costo de mantenimiento de **20%**.
+4. Selecciona **Calcular EOQ**.
+
+Con los movimientos sembrados, la demanda registrada es de **3 piezas** y el resultado es un EOQ de **55 piezas**.
 
 <Figure
   src={panelEoq}
-  alt="Calculadora de EOQ con los campos de demanda, costo de pedido y costo de mantener"
-  caption="Analítica → EOQ."
+  alt="Vista enfocada de la calculadora EOQ para la variante Azul marino con un resultado de 55 unidades"
+  caption="El ejemplo completo: datos de entrada y resultado en la misma vista."
 />
+
+<Callout tone="warning" title="Es un ejemplo, no una recomendación de compra">
+El resultado es alto frente a la demanda porque los costos supuestos del ejemplo pesan mucho en el cálculo. Sustituye $100 y 20% por tus costos reales antes de tomar una decisión.
+</Callout>
+
+## Cómo interpretarlo
 
 El resultado es un tamaño de pedido, no una orden de compra. Si el EOQ te sugiere 40 piezas y tu proveedor vende en cajas de 24, pide 48 o 24; el número es una guía, no una regla.
 
 Un EOQ muy grande casi siempre significa que estás sobreestimando el costo de pedido. Uno muy chico, que el costo de mantener quedó alto.
 
-<Callout tone="warning" title="Datos de menos, resultado de menos">
+<Callout tone="note" title="Datos de menos, resultado de menos">
 El cálculo asume una demanda parecida a la que ya registraste. Con pocas semanas de movimientos, tómalo como una primera aproximación y revísalo cuando tengas más historial.
 </Callout>
 

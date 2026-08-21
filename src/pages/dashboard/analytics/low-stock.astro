@@ -51,7 +51,7 @@ if (token && businessId) {
             {rows.map((r) => (
               <li class="flex items-center justify-between px-5 py-3">
                 <div>
-                  <div class="font-medium text-text-primary">{r.product_name ?? r.sku ?? r.variant_id}</div>
+                  <div class="font-medium text-text-primary">{r.name ?? r.product_name ?? r.sku ?? r.variant_id}</div>
                   {r.sku && <div class="font-data text-xs text-text-muted">{r.sku}</div>}
                 </div>
                 <div class="flex items-center gap-4">

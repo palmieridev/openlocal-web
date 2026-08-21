@@ -2,24 +2,38 @@
 title: Cómo leer el reporte de bajo stock
 description: Qué significa cada columna del reporte y qué hacer con lo que aparece ahí.
 category: analitica
-order: 0
-updated: 2026-08-12
-readingMinutes: 3
+order: 1
+updated: 2026-08-20
+readingMinutes: 4
 ---
 
 import bajoStock from "../../../../assets/soporte/panel-bajo-stock.png";
 
-El reporte de bajo stock lista las variantes cuya existencia quedó por debajo de su punto de reorden. Es la lista de compras del día.
+El reporte de bajo stock lista las variantes cuya existencia quedó **igual o por debajo** de su punto de reorden. Es la lista de compras del día.
 
 ## Qué necesita para funcionar
 
 Existencias reales. Como el nivel de stock se crea con el primer movimiento, una variante sin movimientos nunca aparece en el reporte, aunque esté publicada y agotada en la práctica.
 
+## Ejemplo con los datos de demostración
+
+Abre **Analítica → Bajo stock** en la cuenta de prueba. Verás la variante **Terracota** de *Monedero tejido*:
+
+- SKU: `TR-MONEDERO-TERRACOTA`
+- Existencia actual: **5 piezas**
+- Punto de reorden: **6 piezas**
+
 <Figure
   src={bajoStock}
-  alt="Reporte de bajo stock con las variantes por debajo de su punto de reorden"
-  caption="Analítica → Bajo stock."
+  alt="Vista enfocada del reporte de bajo stock con la variante Terracota en 5 piezas y punto de reorden de 6"
+  caption="La alerta muestra solo la variante que necesita atención."
 />
+
+Aparece porque 5 es menor que 6. También aparecería si ambos valores fueran 6: el reporte no espera a que el inventario caiga por debajo del límite para avisarte.
+
+<Callout tone="note" title="El punto de reorden no es la cantidad a comprar">
+El punto de reorden decide *cuándo* aparece la alerta. Para estimar *cuánto* pedir, usa la calculadora EOQ.
+</Callout>
 
 ## Cómo usarlo
 

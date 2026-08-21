@@ -2,9 +2,9 @@
 title: Work out your economic order quantity (EOQ)
 description: What EOQ is, which numbers it needs, and how to read the result without the formula.
 category: analitica
-order: 1
-updated: 2026-08-12
-readingMinutes: 6
+order: 2
+updated: 2026-08-20
+readingMinutes: 7
 ---
 
 import panelEoq from "../../../../assets/soporte/panel-eoq.png";
@@ -19,21 +19,34 @@ Ordering little and often costs you in freight, time and trips. Ordering a lot a
 - **Order cost**: what it costs to place one order regardless of size (freight, travel, time).
 - **Holding cost**: what it costs to keep one unit for the period (space, capital, expiry).
 
-## Reading the result
+Demand includes **sale** movements within the selected period. Purchases, production, adjustments and losses do not count as demand.
+
+## Try it with the demo data
+
+1. Open **Analytics → EOQ**.
+2. Search for SKU `TR-BUFANDA-AZUL`. The calculator will find the **Azul marino** variant of *Bufanda de telar*.
+3. Use a **90-day** period, an order cost of **$100**, and a holding cost of **20%**.
+4. Select **Calculate EOQ**.
+
+With the seeded movements, recorded demand is **3 units** and the result is an EOQ of **55 units**.
 
 <Figure
   src={panelEoq}
-  alt="EOQ calculator with the demand, order cost and holding cost fields"
-  caption="Analytics → EOQ."
+  alt="Focused EOQ calculator for the Azul marino variant showing a result of 55 units"
+  caption="The complete example: inputs and result in the same view."
 />
+
+<Callout tone="warning" title="This is an example, not a purchase recommendation">
+The result is high compared with demand because the example's assumed costs carry a lot of weight in the calculation. Replace $100 and 20% with your actual costs before making a decision.
+</Callout>
+
+## Reading the result
 
 The output is an order size, not a purchase order. If EOQ suggests 40 units and your supplier sells cases of 24, order 48 or 24 — the number is a guide, not a rule.
 
 A very large EOQ almost always means the order cost is overstated. A very small one means the holding cost came out too high.
 
-## Thin data, thin answer
-
-<Callout tone="warning" title="It assumes demand like the demand you recorded">
+<Callout tone="note" title="It assumes demand like the demand you recorded">
 With only a few weeks of movements, treat the result as a first approximation and revisit it once you have more history.
 </Callout>
 
