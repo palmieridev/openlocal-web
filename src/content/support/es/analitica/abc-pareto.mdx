@@ -1,0 +1,55 @@
+---
+title: Prioriza tu inventario con ABC/Pareto
+description: Cómo leer las clases A, B y C y convertir el valor acumulado de ventas en prioridades.
+category: analitica
+order: 0
+updated: 2026-08-20
+readingMinutes: 5
+---
+
+import panelAbc from "../../../../assets/soporte/panel-abc.png";
+
+El análisis ABC/Pareto ordena tus productos por el valor de las ventas registradas. Te ayuda a decidir dónde concentrar primero el dinero, la atención y el espacio de inventario.
+
+## Qué significa cada columna
+
+- **Valor**: importe vendido del producto durante el periodo analizado.
+- **% acumulado**: cuánto del valor total representan ese producto y todos los anteriores.
+- **Clase A**: productos que concentran la mayor parte del valor. Protégelos contra faltantes y revísalos con más frecuencia.
+- **Clase B**: productos de importancia intermedia. Vigílalos sin dedicarles el mismo esfuerzo que a la clase A.
+- **Clase C**: el resto del catálogo. Puedes revisarlo con menos frecuencia, pero la clase no significa que debas retirarlo.
+
+## Ejemplo con los datos de demostración
+
+En **Analítica → ABC/Pareto**, la cuenta de prueba muestra:
+
+<Figure
+  src={panelAbc}
+  alt="Vista enfocada del reporte ABC/Pareto con los productos de demostración clasificados como A, B y C"
+  caption="Analítica → ABC/Pareto con las ventas sembradas."
+/>
+
+| Producto | Valor | % acumulado | Clase |
+| --- | ---: | ---: | :---: |
+| Suéter Artesanal UI | $6,300 | 74% | A |
+| Bufanda de telar | $1,500 | 92% | B |
+| Monedero tejido | $700 | 100% | C |
+
+El suéter queda en A porque por sí solo genera cerca de tres cuartas partes del valor. La bufanda lleva el acumulado a 92% y queda en B; el monedero completa el total y queda en C.
+
+Los productos sin ventas registradas aparecen con valor $0 y clase C. Eso no demuestra que sean malos productos: solo significa que todavía no aportan valor al historial analizado.
+
+## Qué movimientos toma en cuenta
+
+El reporte suma únicamente movimientos de salida por **venta**. Compras, producción, ajustes y mermas cambian el inventario, pero no el valor vendido.
+
+<Callout tone="warning" title="ABC mira hacia atrás">
+La clasificación describe las ventas registradas; no pronostica demanda ni mide margen de ganancia. Un producto A por ventas puede no ser el que deja más utilidad.
+</Callout>
+
+## Convierte la clase en una acción
+
+1. Revisa primero la disponibilidad y el punto de reorden de los productos A.
+2. Observa si un producto B está creciendo antes de mover más presupuesto hacia él.
+3. Revisa periódicamente los C para distinguir productos nuevos, estacionales y artículos que sí conviene reducir.
+4. Repite el análisis después de una temporada o un cambio importante en ventas.

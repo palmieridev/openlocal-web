@@ -1,0 +1,55 @@
+---
+title: Prioritize inventory with ABC/Pareto
+description: How to read classes A, B and C and turn cumulative sales value into priorities.
+category: analitica
+order: 0
+updated: 2026-08-20
+readingMinutes: 5
+---
+
+import panelAbc from "../../../../assets/soporte/panel-abc.png";
+
+ABC/Pareto analysis ranks your products by the value of recorded sales. It helps you decide where to focus inventory cash, attention and space first.
+
+## What each column means
+
+- **Value**: the product's sales amount during the period analyzed.
+- **Cumulative %**: how much of total value comes from that product and all the products above it.
+- **Class A**: products that account for most of the value. Protect them from stockouts and review them more often.
+- **Class B**: products of intermediate importance. Keep an eye on them without giving them the same attention as class A.
+- **Class C**: the rest of the catalog. You can review them less frequently, but the class does not mean you should discontinue them.
+
+## Walk through the demo data
+
+Under **Analytics → ABC/Pareto**, the test account shows:
+
+<Figure
+  src={panelAbc}
+  alt="Focused ABC/Pareto report showing the demo products classified as A, B and C"
+  caption="Analytics → ABC/Pareto with the seeded sales."
+/>
+
+| Product | Value | Cumulative % | Class |
+| --- | ---: | ---: | :---: |
+| Suéter Artesanal UI | $6,300 | 74% | A |
+| Bufanda de telar | $1,500 | 92% | B |
+| Monedero tejido | $700 | 100% | C |
+
+The sweater lands in A because it generates nearly three quarters of the value on its own. The scarf takes the cumulative share to 92% and lands in B; the coin purse completes the total and lands in C.
+
+Products with no recorded sales appear with $0 value in class C. That does not prove they are poor products: it only means they have not contributed value to the history being analyzed yet.
+
+## Which movements count
+
+The report adds only stock-out movements recorded as **sales**. Purchases, production, adjustments and losses change inventory, but they do not contribute to sales value.
+
+<Callout tone="warning" title="ABC looks backward">
+The classification describes recorded sales; it does not forecast demand or measure profit margin. A product in class A by sales may not be the most profitable one.
+</Callout>
+
+## Turn each class into an action
+
+1. Check availability and reorder points for class A products first.
+2. Watch whether a class B product is growing before shifting more budget toward it.
+3. Review class C periodically to separate new or seasonal products from items you should actually scale back.
+4. Run the analysis again after a season or a major sales change.

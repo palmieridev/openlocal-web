@@ -283,12 +283,18 @@ export interface StockMovement {
 }
 
 export interface ABCRow {
-  variant_id: string;
+  product_id: string;
+  name: string;
+  value: string;
+  total_value: string;
+  cumulative_value: string;
+  class: "A" | "B" | "C" | string;
+  /** Legacy fields retained while older API deployments are still reachable. */
+  variant_id?: string;
   sku?: string;
   product_name?: string;
   variant_name?: string;
   sales_value?: string;
-  total_value?: string;
   cumulative_percent?: string;
   abc_class?: "A" | "B" | "C" | string;
   quantity_on_hand?: string;
@@ -297,6 +303,8 @@ export interface ABCRow {
 
 export interface LowStockRow {
   variant_id: string;
+  product_id?: string;
+  name?: string;
   sku?: string;
   product_name?: string;
   variant_name?: string;

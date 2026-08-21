@@ -93,6 +93,7 @@ const segs: [string, string][] = [
 
 <script>
   import { ui } from "@/lib/i18n-client";
+  import { movementIdempotency, type MovementIdempotency } from "@/lib/api/movements";
 
   const t = ui().movementModal;
 
@@ -167,6 +168,7 @@ const segs: [string, string][] = [
     };
 
     let seg = "entrada";
+    let pendingRequest: MovementIdempotency | undefined;
 
     function paintSeg() {
       for (const b of segBtns) {
@@ -201,6 +203,7 @@ const segs: [string, string][] = [
 
     function open(o: OpenOpts) {
       resetMsg();
+      pendingRequest = undefined;
       variantInput.value = o.variantId;
       idInput.value = o.movementId ?? "";
       vName.textContent = o.variantName || o.variantSku || t.variantFallback;
@@ -247,11 +250,16 @@ const segs: [string, string][] = [
       Object.assign(payload, {
         movement_type: apiMovementType(String(fd.get("movement_type") || "adjustment"), payload.quantity),
       });
+      const body = JSON.stringify(payload);
+      pendingRequest = movementIdempotency(`${id}\n${body}`, pendingRequest);
       try {
         const res = await fetch(id ? `/api/movements/${id}` : "/api/movements", {
           method: id ? "PATCH" : "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(payload),
+          headers: {
+            "content-type": "application/json",
+            "Idempotency-Key": pendingRequest.key,
+          },
+          body,
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || t.saveFailed);
