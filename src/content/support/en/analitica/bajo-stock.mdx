@@ -2,24 +2,38 @@
 title: How to read the low-stock report
 description: What each column of the report means, and what to do with what shows up there.
 category: analitica
-order: 0
-updated: 2026-08-12
-readingMinutes: 3
+order: 1
+updated: 2026-08-20
+readingMinutes: 4
 ---
 
 import bajoStock from "../../../../assets/soporte/panel-bajo-stock.png";
 
-The low-stock report lists the variants whose stock fell below their reorder point. It is your shopping list for the day.
+The low-stock report lists variants whose stock is **at or below** their reorder point. It is your shopping list for the day.
 
 ## What it needs to work
 
 Real stock levels. Because a stock level is created by the first movement, a variant with no movements never appears in the report — even if it is published and sold out in practice.
 
+## Walk through the demo data
+
+Open **Analytics → Low stock** in the test account. You will see the **Terracota** variant of *Monedero tejido*:
+
+- SKU: `TR-MONEDERO-TERRACOTA`
+- Current stock: **5 units**
+- Reorder point: **6 units**
+
 <Figure
   src={bajoStock}
-  alt="Low-stock report listing variants below their reorder point"
-  caption="Analytics → Low stock."
+  alt="Focused low-stock report showing the Terracota variant at 5 units with a reorder point of 6"
+  caption="The alert isolates the variant that needs attention."
 />
+
+It appears because 5 is less than 6. It would also appear if both numbers were 6: the report does not wait for stock to fall past the threshold before warning you.
+
+<Callout tone="note" title="The reorder point is not the order quantity">
+The reorder point decides *when* the warning appears. Use the EOQ calculator to estimate *how much* to order.
+</Callout>
 
 ## How to use it
 
