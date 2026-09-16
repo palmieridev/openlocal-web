@@ -113,6 +113,7 @@ export function pluralize(count: number, one: string, other: string): string {
 export function clientDict(locale: Locale | string | undefined) {
   const t = useT(locale);
   return {
+    modules: t.modules,
     common: t.common,
     stock: t.stock,
     hours: t.hours,

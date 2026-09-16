@@ -1,0 +1,70 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import RequestDetails from "@/components/modules/RequestDetails.astro";
+import { useT, localePath } from "@/i18n";
+import { apiFetch } from "@/lib/api/client";
+import { privateHeaders, managementCookie } from "@/lib/api/module-relay";
+import { terminalStatuses } from "@/lib/modules";
+import type { ModuleRequest } from "@/types/modules";
+import "@/styles/modules.css";
+const id = Astro.params.publicId!, locale = Astro.locals.locale, t = useT(locale).modules;
+for (const [name, value] of Object.entries(privateHeaders)) Astro.response.headers.set(name, value);
+let record: ModuleRequest | null = null;
+const token = Astro.cookies.get(managementCookie(id))?.value;
+if (token && /^[\w-]+$/.test(id)) { try { record = await apiFetch<ModuleRequest>(`/api/v1/public/requests/${id}`, {init: {headers: {"X-Openlocal-Management-Token": token}}}); } catch { /* uniform unavailable state */ } }
+---
+<BaseLayout title={t.manage}>
+  <main class="module-page" data-management data-id={id} data-version={record?.version} data-terminal={record ? String(terminalStatuses.includes(record.status)) : "true"}>
+    <a href={localePath(locale, "/")}>Openlocal</a><h1>{t.manage}</h1>
+    {record ? <><RequestDetails record={record}/><div class="module-row">
+      <button class="module-button secondary" data-refresh>{t.refresh}</button>
+      {record.allowed_transitions.includes("cancelled") && <button class="module-button secondary" data-cancel>{t.cancel}</button>}
+      {record.module === "appointments" && record.status === "confirmed" && <button class="module-button secondary" data-calendar>{t.calendar}</button>}
+    </div></> : <p data-unavailable>{t.invalidLink}</p>}
+    <div class="module-card" data-recovery hidden><p>{t.privateLink}</p><button class="module-button secondary" data-copy>{t.recovery}</button></div>
+    <p role="status" aria-live="polite" data-message class="module-message"></p>
+  </main>
+</BaseLayout>
+<script>
+  import { moduleFetch } from "@/lib/module-client";
+  import { appointmentICS } from "@/lib/modules";
+  import { ui } from "@/lib/i18n-client";
+  import type { ModuleRequest } from "@/types/modules";
+  const root = document.querySelector<HTMLElement>("[data-management]")!, id = root.dataset.id!, t = ui().modules;
+  const message = root.querySelector<HTMLElement>("[data-message]")!;
+  const fragment = new URLSearchParams(location.hash.slice(1));
+  const access = fragment.get("access");
+  // Remove sensitive fragments before any asynchronous work or external navigation.
+  if (access) history.replaceState(null, "", location.pathname);
+  let recovery = access ? `${location.origin}${location.pathname}#access=${encodeURIComponent(access)}` : "";
+  async function exchange() {
+    if (!access) return;
+    try {
+      await moduleFetch(`requests/${id}/access`, {method:"POST", body:{token:access}});
+      root.querySelector<HTMLElement>("[data-recovery]")!.hidden = false;
+      if (!root.dataset.version) {
+        // Keep the token out of persistent browser storage; navigate only after explicit copy.
+        root.querySelector("[data-unavailable]")!.textContent = t.saved;
+        const button = document.createElement("button"); button.className="module-button"; button.textContent=t.refresh;
+        button.addEventListener("click", () => location.reload()); root.append(button);
+      }
+    } catch { message.textContent = t.invalidLink; }
+  }
+  root.querySelector("[data-copy]")?.addEventListener("click", async () => { try {await navigator.clipboard.writeText(recovery); message.textContent=t.copied;} catch {message.textContent=recovery;} });
+  root.querySelector("[data-refresh]")?.addEventListener("click", () => location.reload());
+  root.querySelector<HTMLButtonElement>("[data-cancel]")?.addEventListener("click", async e => {
+    if (!confirm(t.confirmCancel)) return;
+    const button = e.currentTarget as HTMLButtonElement; button.disabled = true;
+    try {await moduleFetch(`requests/${id}/cancel`, {method:"POST",body:{version:Number(root.dataset.version)},key:crypto.randomUUID()});location.reload();}
+    catch(error) {message.textContent=error instanceof Error?error.message:t.unavailable;button.disabled=false;}
+  });
+  root.querySelector("[data-calendar]")?.addEventListener("click", async () => {
+    try {const record=await moduleFetch<ModuleRequest>(`requests/${id}`);const url=URL.createObjectURL(new Blob([appointmentICS(record)],{type:"text/calendar"}));const a=document.createElement("a");a.href=url;a.download=`${record.reference}.ics`;a.click();URL.revokeObjectURL(url);} catch(error) {message.textContent=error instanceof Error?error.message:t.unavailable;}
+  });
+  let failures = 0;
+  async function refresh() {
+    if (document.hidden || root.dataset.terminal === "true" || failures >= 3) return;
+    try {const record = await moduleFetch<ModuleRequest>(`requests/${id}`);if(record.version !== Number(root.dataset.version)) location.reload();failures=0;}catch{failures++;}
+  }
+  window.addEventListener("focus", refresh);setInterval(refresh,30000);void exchange();
+</script>
