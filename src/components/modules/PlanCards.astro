@@ -1,0 +1,12 @@
+---
+import {localePath,useT} from "@/i18n";
+import type {PlanCatalog} from "@/types/modules";
+interface Props{catalog:PlanCatalog}
+const {catalog}=Astro.props,locale=Astro.locals.locale,t=useT(locale).modules;
+---
+<div class="module-grid">{catalog.plans.map(plan=><section class="module-card">
+  <h2>{t[plan.id]}</h2><p class="text-2xl font-semibold">${plan.monthly_price} {catalog.currency} <span class="text-sm font-normal">{t.month}</span></p>
+  {plan.id!=="free" && <><p>{t.usage}: {plan.confirmation_limit}</p><p>{t.resources}: {plan.max_resources}</p><p>{t.manual}</p>{plan.advanced && <p>{t.customerHistory} · {t.export} · {t.capacity}</p>}</>}
+  <a class="module-button mt-4" href={localePath(locale,`/dashboard/billing?tier=${plan.id}`)}>{t.choose}</a>
+</section>)}</div>
+<p>{t.secondModule}: +${catalog.second_module_price} {catalog.currency} {t.month}</p><p class="module-muted">{t.noMeta}</p><p class="module-muted">{t.usageNotice}</p>

@@ -48,6 +48,7 @@ const t = useT(Astro.locals.locale).modules;
   for (const root of document.querySelectorAll<HTMLElement>("[data-request-form]")) {
     const t = ui().modules, locale = uiLocale(), module = root.dataset.module!, owner = root.dataset.owner === "true";
     const publicPath = `public/businesses/${encodeURIComponent(root.dataset.slug!)}/${module}`;
+    const readsPath = owner ? `owner/${module}` : publicPath;
     const form = root.querySelector<HTMLFormElement>("form")!, message = root.querySelector<HTMLElement>("[data-message]")!;
     const slotSelect = form.elements.namedItem("slot") as HTMLSelectElement;
     const dateInput = form.elements.namedItem("date") as HTMLInputElement;
@@ -66,7 +67,7 @@ const t = useT(Astro.locals.locale).modules;
       try {
         const query = new URLSearchParams({date: dateInput.value});
         if (serviceSelect) query.set("service_id", serviceSelect.value);
-        const data = await moduleFetch<{timezone: string;slots?: AppointmentSlot[];windows?: PickupWindow[]}>(`${publicPath}/${module === "appointments" ? "availability" : "pickup-windows"}?${query}`);
+        const data = await moduleFetch<{timezone: string;slots?: AppointmentSlot[];windows?: PickupWindow[]}>(`${readsPath}/${module === "appointments" ? "availability" : "pickup-windows"}?${query}`);
         if (request !== lookup) return;
         timezone = data.timezone; slots = data.slots ?? data.windows ?? [];
         root.querySelector("[data-zone]")!.textContent = `${t.timezone}: ${timezone}`;
@@ -81,7 +82,7 @@ const t = useT(Astro.locals.locale).modules;
           const services = await moduleFetch<AppointmentService[]>(owner ? "owner/services" : `${publicPath}/services`);
           serviceSelect.replaceChildren(...services.filter(s => s.active).map(s => new Option(`${s.name} · ${s.duration_minutes} ${t.minutes}${s.price ? ` · $${s.price} MXN` : ""}`, s.id)));
         } else {
-          const data = await moduleFetch<{timezone: string;items: PreorderCatalogItem[]}>(`${publicPath}/catalog`);
+          const data = await moduleFetch<{timezone: string;items: PreorderCatalogItem[]}>(`${readsPath}/catalog`);
           catalog = data.items; timezone = data.timezone;
           const container = root.querySelector("[data-catalog]")!;
           const previous = new Map(Array.from(container.querySelectorAll<HTMLInputElement>("input")).map(input => [input.name, input.value]));
@@ -106,7 +107,8 @@ const t = useT(Astro.locals.locale).modules;
       if (!slot) return;
       const phone = normalizePhone(String(data.get("customer_phone")));
       if (!phone) { failure(new Error(t.errors.invalid_request)); return; }
-      const body: Record<string, unknown> = {customer_name: data.get("customer_name"), customer_phone: `+${phone}`, notes: data.get("notes"), locale, challenge_token: data.get("cf-turnstile-response") ?? ""};
+      const body: Record<string, unknown> = {customer_name: data.get("customer_name"), customer_phone: `+${phone}`, notes: data.get("notes"), locale};
+      if (!owner) body.challenge_token = data.get("cf-turnstile-response") ?? "";
       if (module === "appointments") Object.assign(body, {service_id: data.get("service_id"),resource_id: (slot as AppointmentSlot).resource_id,starts_at: slot.starts_at});
       else {
         body.pickup_window_id = (slot as PickupWindow).id;

@@ -6,7 +6,7 @@ import Badge from "@/components/ui/Badge.astro";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import OpenBadge from "@/components/ui/OpenBadge.astro";
 import ImageLightbox from "@/components/ui/ImageLightbox.astro";
-import { publicApi } from "@/lib/api/client";
+import { apiFetch, publicApi } from "@/lib/api/client";
 import { text, humanize } from "@/lib/format";
 import { publicPriceNote, publicVariantDescription } from "@/lib/variants";
 import { groupedSchedule, zonedNow } from "@/lib/hours";
@@ -32,6 +32,10 @@ if (!business) {
 }
 
 const products = business ? await publicApi.getBusinessProducts(business.slug) : [];
+const [appointmentIntake, preorderIntake] = business ? await Promise.all([
+  apiFetch<unknown[]>(`/api/v1/public/businesses/${encodeURIComponent(business.slug)}/appointments/services`).then(rows => rows.length > 0).catch(() => false),
+  apiFetch<{items: unknown[]}>(`/api/v1/public/businesses/${encodeURIComponent(business.slug)}/preorders/catalog`).then(data => data.items.length > 0).catch(() => false),
+]) : [false, false];
 
 // A mobile business has no premises: no address line, no map pin, no
 // directions. Its reach is described by its service areas instead.
@@ -173,6 +177,8 @@ const headerTags = [
             </div>
 
             <div class="flex gap-2 sm:flex-col sm:items-stretch">
+              {appointmentIntake && <Button href={localePath(locale, `/business/${business.slug}/appointments`)} icon="lucide:calendar">{t.modules.requestAppointment}</Button>}
+              {preorderIntake && <Button href={localePath(locale, `/business/${business.slug}/preorders`)} icon="lucide:shopping-bag">{t.modules.requestPreorder}</Button>}
               {waHref && (
                 <Button variant="whatsapp" href={waHref} icon="lucide:message-circle">
                   {t.storefront.contactWhatsapp}

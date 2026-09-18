@@ -6,6 +6,8 @@ import TourLauncher from "@/components/dashboard/TourLauncher.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 import { localePath, useT } from "@/i18n";
+import { moduleApi } from "@/lib/api/modules";
+import type { Entitlements } from "@/types/modules";
 
 interface Props {
   title?: string;
@@ -20,11 +22,13 @@ const { title = t.title, active = "inicio" } = Astro.props;
 // Resolve the storefront link (best-effort) so "Tienda pública" points at the
 // business's public page. Tolerate any failure — the sidebar must still render.
 let storeHref = "";
+let modules: Entitlements | null = null;
 try {
   const { token, businessId } = await getServerAuth(Astro);
   if (token && businessId) {
     const biz = await authedApi(token, businessId).getBusiness();
     if (biz?.slug) storeHref = to(`/business/${biz.slug}`);
+    try { modules = await moduleApi(token, businessId).entitlements(); } catch { /* older API / module outage */ }
   }
 } catch {
   /* tolerate */
@@ -40,6 +44,10 @@ const nav = [
   { key: "productos", tour: "nav-productos", label: t.navProducts, icon: "lucide:package", href: to("/dashboard/products") },
   { key: "inventario", tour: "nav-inventario", label: t.navInventory, icon: "lucide:boxes", href: to("/dashboard/inventory") },
   { key: "analitica", tour: "nav-analitica", label: t.navAnalytics, icon: "lucide:chart-column", href: to("/dashboard/analytics") },
+  ...(modules?.modules.appointments.can_manage_existing ? [{key:"appointments",tour:"nav-appointments",label:useT(locale).modules.appointments,icon:"lucide:calendar",href:to("/dashboard/appointments")}] : []),
+  ...(modules?.modules.preorders.can_manage_existing ? [{key:"preorders",tour:"nav-preorders",label:useT(locale).modules.preorders,icon:"lucide:shopping-bag",href:to("/dashboard/preorders")}] : []),
+  {key:"modules",tour:"nav-modules",label:useT(locale).modules.modules,icon:"lucide:layers",href:to("/dashboard/modules")},
+  {key:"billing",tour:"nav-billing",label:useT(locale).modules.billing,icon:"lucide:credit-card",href:to("/dashboard/billing")},
   { key: "tienda", tour: "nav-tienda", label: t.navStorefront, icon: "lucide:globe", href: storeHref || "#", external: true },
   { key: "ajustes", tour: "nav-ajustes", label: t.navSettings, icon: "lucide:settings", href: to("/dashboard/settings") },
 ];

@@ -1,0 +1,21 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import {localePath,useT} from "@/i18n";
+import {getServerAuth} from "@/lib/api/server";
+import {moduleApi} from "@/lib/api/modules";
+import type {Entitlements,Module} from "@/types/modules";
+import "@/styles/modules.css";
+const locale=Astro.locals.locale,t=useT(locale).modules,{token,businessId}=await getServerAuth(Astro);
+let access:Entitlements|null=null;try{if(token&&businessId)access=await moduleApi(token,businessId).entitlements();}catch{}
+Astro.response.headers.set("Cache-Control","private, no-store");
+---
+<DashboardLayout title={t.modules} active="modules"><main class="module-page"><h1>{t.modules}</h1><p>{t.intro}</p>
+  {access ? <div class="module-grid">{(["appointments","preorders"] as Module[]).map(module=>{const entry=access!.modules[module];return <section class="module-card"><h2>{t[module]}</h2><p>{t.usage}: {entry.usage} / {entry.limit}</p><div class="module-stack">{entry.can_configure&&<><a href={localePath(locale,`/dashboard/${module}/settings`)}>{t.setup}</a><label><input type="checkbox" data-toggle-module={module} checked={entry.enabled}/> {t.enabled}</label></>}{entry.can_manage_existing&&<a href={localePath(locale,`/dashboard/${module}`)}>{t.history}</a>}{!entry.owned&&<a class="module-button" href={localePath(locale,`/dashboard/billing?module=${module}`)}>{t.choose}</a>}</div><p data-message={module} role="status"></p></section>;})}</div>:<p>{t.unavailable}</p>}
+  <p class="module-muted">{t.configureFirst}</p><p class="module-muted">{t.existing}</p><a href={localePath(locale,"/dashboard/billing")}>{t.billing}</a>
+  <section class="module-card"><h2>{t.support}</h2><p>{t.supportText}</p></section>
+</main></DashboardLayout>
+<script>
+  import {moduleFetch} from "@/lib/module-client";
+  import {ui} from "@/lib/i18n-client";
+  for(const toggle of document.querySelectorAll<HTMLInputElement>("[data-toggle-module]"))toggle.addEventListener("change",async()=>{const module=toggle.dataset.toggleModule!,msg=document.querySelector(`[data-message="${module}"]`)!;toggle.disabled=true;try{await moduleFetch(`owner/modules/${module}`,{method:"PATCH",body:{enabled:toggle.checked},key:crypto.randomUUID()});msg.textContent=ui().modules.saved;}catch(error){toggle.checked=!toggle.checked;msg.textContent=error instanceof Error?error.message:ui().modules.unavailable;}finally{toggle.disabled=false;}});
+</script>

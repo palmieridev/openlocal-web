@@ -15,6 +15,8 @@ const rules: [RegExp, string[]][] = [
   [/^owner\/modules\/(appointments|preorders)$/, ["PATCH"]],
   [/^owner\/(appointments|preorders)$/, ["GET", "POST"]],
   [/^owner\/(appointments|preorders)\/settings$/, ["GET", "PATCH"]],
+  [/^owner\/appointments\/availability$/, ["GET"]],
+  [/^owner\/preorders\/(catalog|pickup-windows)$/, ["GET"]],
   [/^owner\/(appointments|preorders)\/export$/, ["GET"]],
   [/^owner\/preorders\/summary$/, ["GET"]],
   [new RegExp(`^owner/(appointments|preorders)/${safeId}$`), ["GET", "PATCH"]],
@@ -27,7 +29,7 @@ const allowedQuery = new Set(["date", "service_id", "resource_id", "customer_id"
 export const privateHeaders = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer" };
 export const managementCookie = (id: string) => `ol_request_${id}`;
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...privateHeaders, "Content-Type": "application/json" } });
-export function routeAllowed(path: string, method: string): boolean { return rules.some(([pattern, methods]) => pattern.test(path) && methods.includes(method)); }
+export function routeAllowed(path: string, method: string): boolean { return rules.find(([pattern]) => pattern.test(path))?.[1].includes(method) ?? false; }
 export function sameOrigin(request: Request, url: URL): boolean {
   return request.headers.get("origin") === url.origin && request.headers.get("sec-fetch-site") !== "cross-site";
 }

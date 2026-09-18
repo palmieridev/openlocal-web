@@ -1,0 +1,11 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import RequestForm from "@/components/modules/RequestForm.astro";
+import {useT} from "@/i18n";
+import {getServerAuth} from "@/lib/api/server";
+import {authedApi} from "@/lib/api/client";
+const t=useT(Astro.locals.locale).modules;
+const {token,businessId}=await getServerAuth(Astro);
+let slug="";try{if(token&&businessId)slug=(await authedApi(token,businessId).getBusiness()).slug;}catch{}
+---
+<DashboardLayout title={t.newRequest} active="preorders"><main class="module-page"><h1>{t.newRequest}</h1>{slug?<RequestForm module="preorders" slug={slug} owner/>:<p>{t.unavailable}</p>}</main></DashboardLayout>
