@@ -5,6 +5,8 @@ import {
   requestWhatsApp,
   appointmentICS,
   formatModuleDate,
+  validQuantity,
+  sumAmounts,
 } from "./modules";
 import { routeAllowed, sameOrigin } from "./api/module-relay";
 import type { ModuleRequest } from "@/types/modules";
@@ -24,6 +26,14 @@ const record = {
   management_token: "private-secret",
 } as ModuleRequest;
 describe("operational module safety", () => {
+  it("uses the minimum as the quantity-step origin and rejects excess precision", () => {
+    expect(validQuantity("0.250", "0.250", "10", "0.500")).toBe(true);
+    expect(validQuantity("0.750", "0.250", "10", "0.500")).toBe(true);
+    expect(validQuantity("0.500", "0.250", "10", "0.500")).toBe(false);
+    expect(validQuantity("0.2501", "0.250", "10", "0.500")).toBe(false);
+    expect(validQuantity("0", "0.250", "10", "0.500")).toBe(true);
+    expect(sumAmounts("59.00", "49.00")).toBe("108.00");
+  });
   it("keeps fractional kg arithmetic exact", () => {
     expect(decimalTotal("1.125", "79.99")).toBe("89.99");
     expect(decimalTotal("0.100", "0.10")).toBe("0.01");

@@ -119,6 +119,7 @@ const t = useT(Astro.locals.locale).modules;
     formatModuleDate,
     normalizePhone,
     requestWhatsApp,
+    validQuantity,
   } from "@/lib/modules";
   import { ui, uiLocale } from "@/lib/i18n-client";
   import { localePath } from "@/i18n";
@@ -246,20 +247,24 @@ const t = useT(Astro.locals.locale).modules;
             input.type = "number";
             input.name = `quantity:${item.variant_id}`;
             input.min = "0";
-            input.step = item.step;
+            input.step = "any";
             input.max = item.max_quantity;
             input.value = previous.get(input.name) ?? "0";
             input.dataset.variant = item.variant_id;
             const estimate = document.createElement("span");
             estimate.className = "module-muted";
+            const rules = document.createElement("span");
+            rules.className = "module-muted";
+            rules.textContent = `${t.minimum}: ${item.min_quantity} · ${t.maximum}: ${item.max_quantity} · ${t.step}: ${item.step}`;
             input.addEventListener("input", () => {
+              input.setCustomValidity(validQuantity(input.value, item.min_quantity, item.max_quantity, item.step) ? "" : t.errors.invalid_request);
               try {
                 estimate.textContent = `${t.estimate}: $${decimalTotal(input.value, item.unit_price)} MXN`;
               } catch {
                 estimate.textContent = "";
               }
             });
-            label.append(input, estimate);
+            label.append(input, rules, estimate);
             container.append(label);
           }
         }
@@ -338,6 +343,7 @@ const t = useT(Astro.locals.locale).modules;
         retry.hidden = true;
       } catch (error) {
         failure(error);
+        if (!owner) (window as Window & {turnstile?:{reset:()=>void}}).turnstile?.reset();
       } finally {
         submit.disabled = false;
       }

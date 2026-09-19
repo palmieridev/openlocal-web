@@ -50,6 +50,8 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     data-billing
     data-tier={subscription?.tier}
     data-period={subscription?.period_end}
+    data-modules={JSON.stringify(subscription?.modules.slice().sort() ?? [])}
+    data-status={subscription?.status}
   >
     <h1>{t.billing}</h1><p>{t.intro}</p>
     {
@@ -88,7 +90,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
             </>
           </section>
           <PlanCards catalog={catalog} />
-          <form data-billing-form class="module-card module-stack">
+          <form data-billing-form class="module-card module-stack" data-second-price={catalog.second_module_price}>
             <fieldset>
               <legend>{t.selectedModules}</legend>
               {(["appointments", "preorders"] as Module[]).map((module) => (
@@ -109,12 +111,13 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                 {catalog.plans
                   .filter((p) => p.id !== "free")
                   .map((plan) => (
-                    <option value={plan.id} selected={plan.id === tier}>
+                    <option value={plan.id} selected={plan.id === tier} data-price={plan.monthly_price}>
                       {t[plan.id]} · ${plan.monthly_price} MXN {t.month}
                     </option>
                   ))}
               </select>
             </label>
+            <p data-monthly-total></p>
             {resources.length > 1 && (
               <label class="module-field">
                 {t.resource}
@@ -170,6 +173,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   import { moduleFetch, submissionKey } from "@/lib/module-client";
   import { ui, uiLocale } from "@/lib/i18n-client";
   import type { Subscription } from "@/types/modules";
+  import { sumAmounts } from "@/lib/modules";
   const root = document.querySelector<HTMLElement>("[data-billing]")!,
     form = root.querySelector<HTMLFormElement>("[data-billing-form]"),
     message = root.querySelector("[data-message]")!,
@@ -195,7 +199,16 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   form?.addEventListener("change", () => {
     selection = null;
     root.querySelector<HTMLElement>("[data-preview]")!.hidden = true;
+    updateTotal();
   });
+  function updateTotal() {
+    if (!form) return;
+    const data = new FormData(form), tier = form.elements.namedItem("tier") as HTMLSelectElement;
+    const prices = [tier.selectedOptions[0].dataset.price!];
+    if (data.getAll("modules").length > 1) prices.push(form.dataset.secondPrice!);
+    form.querySelector("[data-monthly-total]")!.textContent = `$${sumAmounts(...prices)} MXN ${t.month}`;
+  }
+  updateTotal();
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const data = new FormData(form),
@@ -246,11 +259,12 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     if (!selection) return;
     busy(true);
     try {
-      await moduleFetch("owner/billing/change", {
+      const result = await moduleFetch<{timing:string}>("owner/billing/change", {
         method: "POST",
         body: selection,
         key: key(selection),
       });
+      if (result.timing === "period_end") { location.reload(); return; }
       message.textContent = t.paymentPending;
       selection = null;
       root.querySelector<HTMLElement>("[data-preview]")!.hidden = true;
@@ -289,7 +303,9 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
         await moduleFetch<Subscription>("owner/subscription");
       if (
         subscription.tier !== root.dataset.tier ||
-        subscription.period_end !== root.dataset.period
+        subscription.period_end !== root.dataset.period ||
+        subscription.status !== root.dataset.status ||
+        JSON.stringify(subscription.modules.slice().sort()) !== root.dataset.modules
       ) {
         location.assign(location.pathname);
         return;

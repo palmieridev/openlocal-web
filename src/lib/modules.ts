@@ -11,6 +11,24 @@ export const terminalStatuses: RequestStatus[] = [
   "uncollected",
 ];
 
+function scaledDecimal(value: string, digits: number): bigint {
+  if (!new RegExp(`^\\d+(\\.\\d{1,${digits}})?$`).test(value)) throw new Error("invalid_decimal");
+  const [whole, fraction = ""] = value.split(".");
+  return BigInt(whole) * 10n ** BigInt(digits) + BigInt(fraction.padEnd(digits, "0"));
+}
+
+export function validQuantity(value: string, minimum: string, maximum: string, step: string): boolean {
+  try {
+    const quantity = scaledDecimal(value, 3), min = scaledDecimal(minimum, 3), max = scaledDecimal(maximum, 3), increment = scaledDecimal(step, 3);
+    return quantity === 0n || (increment > 0n && quantity >= min && quantity <= max && (quantity - min) % increment === 0n);
+  } catch { return false; }
+}
+
+export function sumAmounts(...values: string[]): string {
+  const cents = values.reduce((sum, value) => sum + scaledDecimal(value, 2), 0n);
+  return `${cents / 100n}.${String(cents % 100n).padStart(2, "0")}`;
+}
+
 /** Decimal arithmetic used for display only. API calculates authoritative totals. */
 export function decimalTotal(quantity: string, price: string): string {
   const scaled = (s: string, precision: number) => {
