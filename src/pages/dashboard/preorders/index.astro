@@ -1,6 +1,10 @@
 ---
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import OwnerQueue from "@/components/modules/OwnerQueue.astro";
-import {useT} from "@/i18n";
+import { useT } from "@/i18n";
 ---
-<DashboardLayout title={useT(Astro.locals.locale).modules.preorders} active="preorders"><OwnerQueue module="preorders"/></DashboardLayout>
+
+<DashboardLayout
+  title={useT(Astro.locals.locale).modules.preorders}
+  active="preorders"><OwnerQueue module="preorders" /></DashboardLayout
+>

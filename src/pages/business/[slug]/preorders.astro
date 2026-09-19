@@ -5,4 +5,14 @@ import { localePath, useT } from "@/i18n";
 const t = useT(Astro.locals.locale).modules;
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
-<PublicLayout title={t.requestPreorder}><main class="module-page"><a href={localePath(Astro.locals.locale, `/business/${Astro.params.slug}`)}>← {t.modules}</a><h1>{t.requestPreorder}</h1><RequestForm module="preorders" slug={Astro.params.slug!}/></main></PublicLayout>
+
+<PublicLayout title={t.requestPreorder}
+  ><main class="module-page">
+    <a href={localePath(Astro.locals.locale, `/business/${Astro.params.slug}`)}
+      >← {t.modules}</a
+    ><h1>{t.requestPreorder}</h1><RequestForm
+      module="preorders"
+      slug={Astro.params.slug!}
+    />
+  </main></PublicLayout
+>

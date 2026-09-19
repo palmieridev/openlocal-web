@@ -1,71 +1,438 @@
 ---
-import {localePath,useT} from "@/i18n";
-import {getServerAuth} from "@/lib/api/server";
-import {moduleApi} from "@/lib/api/modules";
-import {authedApi} from "@/lib/api/client";
-import {text} from "@/lib/format";
+import { localePath, useT } from "@/i18n";
+import { getServerAuth } from "@/lib/api/server";
+import { moduleApi } from "@/lib/api/modules";
+import { authedApi } from "@/lib/api/client";
+import { text } from "@/lib/format";
 import HoursFields from "./HoursFields.astro";
-import type {Module,ModuleSettings,AppointmentResource,AppointmentService,Entitlements} from "@/types/modules";
+import type {
+  Module,
+  ModuleSettings,
+  AppointmentResource,
+  AppointmentService,
+  Entitlements,
+} from "@/types/modules";
 import "@/styles/modules.css";
-interface Props{module:Module}
-const {module}=Astro.props,locale=Astro.locals.locale,t=useT(locale).modules;
-const {token,businessId}=await getServerAuth(Astro);
-let settings:ModuleSettings|null=null,services:AppointmentService[]=[],resources:AppointmentResource[]=[],access:Entitlements|null=null;
-let variants:{id:string;name:string}[]=[];
-try{if(token&&businessId){const api=moduleApi(token,businessId);[settings,access]=await Promise.all([api.settings(module),api.entitlements()]);if(module==="appointments")[services,resources]=await Promise.all([api.services(),api.resources()]);else{const products=await authedApi(token,businessId).listProducts();const lists=await Promise.all(products.map(async p=>(await authedApi(token,businessId).listProductVariants(p.id)).map(v=>({id:v.id,name:`${p.name} · ${text(v.name)||v.sku}`}))));variants=lists.flat();}}}catch{}
-const advanced=access?.modules[module].advanced??false,canConfigure=access?.modules[module].can_configure??false;
-Astro.response.headers.set("Cache-Control","private, no-store");
+interface Props {
+  module: Module;
+}
+const { module } = Astro.props,
+  locale = Astro.locals.locale,
+  t = useT(locale).modules;
+const { token, businessId } = await getServerAuth(Astro);
+let settings: ModuleSettings | null = null,
+  services: AppointmentService[] = [],
+  resources: AppointmentResource[] = [],
+  access: Entitlements | null = null;
+let variants: { id: string; name: string }[] = [];
+try {
+  if (token && businessId) {
+    const api = moduleApi(token, businessId);
+    [settings, access] = await Promise.all([
+      api.settings(module),
+      api.entitlements(),
+    ]);
+    if (module === "appointments")
+      [services, resources] = await Promise.all([
+        api.services(),
+        api.resources(),
+      ]);
+    else {
+      const products = await authedApi(token, businessId).listProducts();
+      const lists = await Promise.all(
+        products.map(async (p) =>
+          (await authedApi(token, businessId).listProductVariants(p.id)).map(
+            (v) => ({ id: v.id, name: `${p.name} · ${text(v.name) || v.sku}` }),
+          ),
+        ),
+      );
+      variants = lists.flat();
+    }
+  }
+} catch {}
+const advanced = access?.modules[module].advanced ?? false,
+  canConfigure = access?.modules[module].can_configure ?? false;
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
+
 <main class="module-page" data-owner-settings data-module={module}>
-  <a href={localePath(locale,`/dashboard/${module}`)}>← {t[module]}</a><h1>{t.settings} · {t[module]}</h1><p>{t.configureFirst}</p>
-  {settings && canConfigure ? <>
-    <form data-settings class="module-card module-stack">
-      <label><input type="checkbox" name="enabled" checked={settings.enabled}/> {t.enabled}</label>
-      <h2>{t.schedules}</h2><HoursFields hours={settings.hours}/>
-      <label class="module-field">{t.closures}<textarea name="closed_dates" rows="3">{settings.closed_dates.join("\n")}</textarea></label>
-      <div class="module-grid">{([
-        ["lead_minutes",t.lead],["horizon_days",t.horizon],["cancel_before_minutes",t.cancelCutoff],["slot_minutes",t.windowMinutes],
-      ] as const).map(([name,label])=><label class="module-field">{label}<input name={name} type="number" min="0" required value={settings![name]}/></label>)}</div>
-      {module==="preorders" && <>
-        {advanced && <div class="module-grid"><label class="module-field">{t.capacity}<input type="number" name="max_orders_per_slot" min="0" value={settings.max_orders_per_slot}/></label><label class="module-field">{t.cutoff}<input type="time" name="daily_cutoff" value={settings.daily_cutoff}/></label></div>}
-        <h2>{t.eligibility}</h2>
-        {variants.map(variant=>{const rule=settings!.variant_rules.find(r=>r.variant_id===variant.id);return <fieldset data-variant={variant.id} class="module-card"><legend><label><input type="checkbox" name={`enabled:${variant.id}`} checked={Boolean(rule)}/> {variant.name}</label></legend><div class="module-grid"><label class="module-field">{t.minimum}<input inputmode="decimal" name={`min:${variant.id}`} value={rule?.min_quantity??"0.001"}/></label><label class="module-field">{t.maximum}<input inputmode="decimal" name={`max:${variant.id}`} value={rule?.max_quantity??"100"}/></label><label class="module-field">{t.step}<input inputmode="decimal" name={`step:${variant.id}`} value={rule?.step??"0.001"}/></label></div></fieldset>;})}
-      </>}
-      <button class="module-button">{t.save}</button><p role="status" data-message></p>
-    </form>
-    {module==="appointments" && <>
-      <h2>{t.services}</h2>
-      {[...services,null].map(service=><form class="module-card module-stack" data-service data-id={service?.id??""}>
-        <div class="module-grid"><label class="module-field">{t.name}<input name="name" required maxlength="120" value={service?.name??""}/></label><label class="module-field">{t.duration} ({t.minutes})<input name="duration_minutes" type="number" min="5" max="1440" required value={service?.duration_minutes??30}/></label><label class="module-field">{t.price}<input name="price" inputmode="decimal" value={service?.price??""}/></label></div>
-        <label class="module-field">{t.description}<textarea name="description">{service?.description??""}</textarea></label>
-        {advanced && <label class="module-field">{t.bufferAfter} ({t.minutes})<input name="buffer_minutes" type="number" min="0" value={service?.buffer_minutes??0}/></label>}
-        <label><input type="checkbox" name="active" checked={service?.active??true}/> {t.active}</label><label><input type="checkbox" name="is_public" checked={service?.is_public??true}/> {t.enabled}</label>
-        <button class="module-button">{service?t.save:t.add}</button><p role="status" data-message></p>
-      </form>)}
-      <h2>{t.resources}</h2>
-      {[...resources,...(resources.filter(r=>r.active).length<(access?.modules.appointments.max_resources??1)?[null]:[])].map(resource=><form class="module-card module-stack" data-resource data-id={resource?.id??""}>
-        <label class="module-field">{t.name}<input name="name" required maxlength="120" value={resource?.name??""}/></label><label><input type="checkbox" name="active" checked={resource?.active??true}/> {t.active}</label>
-        <fieldset><legend>{t.services}</legend>{services.map(service=><label class="mr-3"><input name="service_ids" type="checkbox" value={service.id} checked={resource?.service_ids.includes(service.id)??false}/> {service.name}</label>)}</fieldset>
-        {advanced && <details><summary>{t.schedules}</summary><label><input type="checkbox" name="custom_hours" checked={Boolean(resource?.hours.length)}/> {t.schedules}</label><HoursFields hours={resource?.hours??settings!.hours}/><label class="module-field">{t.closures}<textarea name="closed_dates">{resource?.closed_dates.join("\n")??""}</textarea></label></details>}
-        <button class="module-button">{resource?t.save:t.add}</button><p role="status" data-message></p>
-      </form>)}
-    </>}
-  </> : <div class="module-card"><p>{settings?t.errors.forbidden:t.unavailable}</p><a href={localePath(locale,"/dashboard/billing")}>{t.upgrade}</a></div>}
+  <a href={localePath(locale, `/dashboard/${module}`)}>← {t[module]}</a><h1>
+    {t.settings} · {t[module]}
+  </h1><p>{t.configureFirst}</p>
+  {
+    settings && canConfigure ? (
+      <>
+        <form data-settings class="module-card module-stack">
+          <label>
+            <input type="checkbox" name="enabled" checked={settings.enabled} />{" "}
+            {t.enabled}
+          </label>
+          <>
+            <h2>{t.schedules}</h2>
+            <HoursFields hours={settings.hours} />
+          </>
+          <label class="module-field">
+            {t.closures}
+            <textarea name="closed_dates" rows="3">
+              {settings.closed_dates.join("\n")}
+            </textarea>
+          </label>
+          <div class="module-grid">
+            {(
+              [
+                ["lead_minutes", t.lead],
+                ["horizon_days", t.horizon],
+                ["cancel_before_minutes", t.cancelCutoff],
+                ["slot_minutes", t.windowMinutes],
+              ] as const
+            ).map(([name, label]) => (
+              <label class="module-field">
+                {label}
+                <input
+                  name={name}
+                  type="number"
+                  min="0"
+                  required
+                  value={settings![name]}
+                />
+              </label>
+            ))}
+          </div>
+          {module === "preorders" && (
+            <>
+              {advanced && (
+                <div class="module-grid">
+                  <label class="module-field">
+                    {t.capacity}
+                    <input
+                      type="number"
+                      name="max_orders_per_slot"
+                      min="0"
+                      value={settings.max_orders_per_slot}
+                    />
+                  </label>
+                  <label class="module-field">
+                    {t.cutoff}
+                    <input
+                      type="time"
+                      name="daily_cutoff"
+                      value={settings.daily_cutoff}
+                    />
+                  </label>
+                </div>
+              )}
+              <h2>{t.eligibility}</h2>
+              {variants.map((variant) => {
+                const rule = settings!.variant_rules.find(
+                  (r) => r.variant_id === variant.id,
+                );
+                return (
+                  <fieldset data-variant={variant.id} class="module-card">
+                    <legend>
+                      <label>
+                        <input
+                          type="checkbox"
+                          name={`enabled:${variant.id}`}
+                          checked={Boolean(rule)}
+                        />{" "}
+                        {variant.name}
+                      </label>
+                    </legend>
+                    <div class="module-grid">
+                      <label class="module-field">
+                        {t.minimum}
+                        <input
+                          inputmode="decimal"
+                          name={`min:${variant.id}`}
+                          value={rule?.min_quantity ?? "0.001"}
+                        />
+                      </label>
+                      <label class="module-field">
+                        {t.maximum}
+                        <input
+                          inputmode="decimal"
+                          name={`max:${variant.id}`}
+                          value={rule?.max_quantity ?? "100"}
+                        />
+                      </label>
+                      <label class="module-field">
+                        {t.step}
+                        <input
+                          inputmode="decimal"
+                          name={`step:${variant.id}`}
+                          value={rule?.step ?? "0.001"}
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+                );
+              })}
+            </>
+          )}
+          <>
+            <button class="module-button">{t.save}</button>
+            <p role="status" data-message />
+          </>
+        </form>
+        {module === "appointments" && (
+          <>
+            <h2>{t.services}</h2>
+            {[...services, null].map((service) => (
+              <form
+                class="module-card module-stack"
+                data-service
+                data-id={service?.id ?? ""}
+              >
+                <div class="module-grid">
+                  <label class="module-field">
+                    {t.name}
+                    <input
+                      name="name"
+                      required
+                      maxlength="120"
+                      value={service?.name ?? ""}
+                    />
+                  </label>
+                  <label class="module-field">
+                    {t.duration} ({t.minutes})
+                    <input
+                      name="duration_minutes"
+                      type="number"
+                      min="5"
+                      max="1440"
+                      required
+                      value={service?.duration_minutes ?? 30}
+                    />
+                  </label>
+                  <label class="module-field">
+                    {t.price}
+                    <input
+                      name="price"
+                      inputmode="decimal"
+                      value={service?.price ?? ""}
+                    />
+                  </label>
+                </div>
+                <label class="module-field">
+                  {t.description}
+                  <textarea name="description">
+                    {service?.description ?? ""}
+                  </textarea>
+                </label>
+                {advanced && (
+                  <label class="module-field">
+                    {t.bufferAfter} ({t.minutes})
+                    <input
+                      name="buffer_minutes"
+                      type="number"
+                      min="0"
+                      value={service?.buffer_minutes ?? 0}
+                    />
+                  </label>
+                )}
+                <label>
+                  <input
+                    type="checkbox"
+                    name="active"
+                    checked={service?.active ?? true}
+                  />{" "}
+                  {t.active}
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="is_public"
+                    checked={service?.is_public ?? true}
+                  />{" "}
+                  {t.enabled}
+                </label>
+                <button class="module-button">
+                  {service ? t.save : t.add}
+                </button>
+                <p role="status" data-message />
+              </form>
+            ))}
+            <h2>{t.resources}</h2>
+            {[
+              ...resources,
+              ...(resources.filter((r) => r.active).length <
+              (access?.modules.appointments.max_resources ?? 1)
+                ? [null]
+                : []),
+            ].map((resource) => (
+              <form
+                class="module-card module-stack"
+                data-resource
+                data-id={resource?.id ?? ""}
+              >
+                <label class="module-field">
+                  {t.name}
+                  <input
+                    name="name"
+                    required
+                    maxlength="120"
+                    value={resource?.name ?? ""}
+                  />
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="active"
+                    checked={resource?.active ?? true}
+                  />{" "}
+                  {t.active}
+                </label>
+                <fieldset>
+                  <legend>{t.services}</legend>
+                  {services.map((service) => (
+                    <label class="mr-3">
+                      <input
+                        name="service_ids"
+                        type="checkbox"
+                        value={service.id}
+                        checked={
+                          resource?.service_ids.includes(service.id) ?? false
+                        }
+                      />{" "}
+                      {service.name}
+                    </label>
+                  ))}
+                </fieldset>
+                {advanced && (
+                  <details>
+                    <summary>{t.schedules}</summary>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="custom_hours"
+                        checked={Boolean(resource?.hours.length)}
+                      />{" "}
+                      {t.schedules}
+                    </label>
+                    <HoursFields hours={resource?.hours ?? settings!.hours} />
+                    <label class="module-field">
+                      {t.closures}
+                      <textarea name="closed_dates">
+                        {resource?.closed_dates.join("\n") ?? ""}
+                      </textarea>
+                    </label>
+                  </details>
+                )}
+                <button class="module-button">
+                  {resource ? t.save : t.add}
+                </button>
+                <p role="status" data-message />
+              </form>
+            ))}
+          </>
+        )}
+      </>
+    ) : (
+      <div class="module-card">
+        <>
+          <p>{settings ? t.errors.forbidden : t.unavailable}</p>
+          <a href={localePath(locale, "/dashboard/billing")}>{t.upgrade}</a>
+        </>
+      </div>
+    )
+  }
 </main>
 <script>
-  import {moduleFetch,submissionKey} from "@/lib/module-client";
-  import {ui} from "@/lib/i18n-client";
-  const root=document.querySelector<HTMLElement>("[data-owner-settings]")!,module=root.dataset.module!,t=ui().modules;
-  const hours=(data:FormData)=>Array.from({length:7},(_,day)=>({day_of_week:day,opens_at:String(data.get(`open:${day}`)),closes_at:String(data.get(`close:${day}`)),is_closed:data.has(`closed:${day}`)}));
-  const dates=(data:FormData)=>String(data.get("closed_dates")??"").split(/\s+/).filter(Boolean);
-  for(const form of root.querySelectorAll<HTMLFormElement>("form")){
-    const key=submissionKey();
-    form.addEventListener("submit",async e=>{e.preventDefault();if(!form.reportValidity())return;const data=new FormData(form);let path="",method="PATCH",body:Record<string,unknown>={};
-      if(form.hasAttribute("data-settings")){path=`owner/${module}/settings`;body={enabled:data.has("enabled"),hours:hours(data),closed_dates:dates(data)};for(const field of ["lead_minutes","horizon_days","cancel_before_minutes","slot_minutes","max_orders_per_slot"]){if(data.has(field))body[field]=Number(data.get(field));}if(data.has("daily_cutoff"))body.daily_cutoff=data.get("daily_cutoff");if(module==="preorders")body.variant_rules=Array.from(form.querySelectorAll<HTMLElement>("[data-variant]")).filter(row=>data.has(`enabled:${row.dataset.variant}`)).map(row=>{const id=row.dataset.variant;return {variant_id:id,min_quantity:data.get(`min:${id}`),max_quantity:data.get(`max:${id}`),step:data.get(`step:${id}`)};});}
-      else if(form.hasAttribute("data-service")){path=`owner/services${form.dataset.id?`/${form.dataset.id}`:""}`;method=form.dataset.id?"PATCH":"POST";body={name:data.get("name"),description:data.get("description"),duration_minutes:Number(data.get("duration_minutes")),price:data.get("price")||null,active:data.has("active"),is_public:data.has("is_public")};if(data.has("buffer_minutes"))body.buffer_minutes=Number(data.get("buffer_minutes"));}
-      else{path=`owner/appointment-resources${form.dataset.id?`/${form.dataset.id}`:""}`;method=form.dataset.id?"PATCH":"POST";body={name:data.get("name"),active:data.has("active"),service_ids:data.getAll("service_ids"),hours:data.has("custom_hours")?hours(data):[],closed_dates:dates(data)};}
-      const button=form.querySelector<HTMLButtonElement>("button")!,message=form.querySelector("[data-message]")!;button.disabled=true;message.textContent=t.saving;
-      try{await moduleFetch(path,{method,body,key:key(body)});message.textContent=t.saved;if(method==="POST")location.reload();}catch(error){message.textContent=error instanceof Error?error.message:t.unavailable;}finally{button.disabled=false;}
+  import { moduleFetch, submissionKey } from "@/lib/module-client";
+  import { ui } from "@/lib/i18n-client";
+  const root = document.querySelector<HTMLElement>("[data-owner-settings]")!,
+    module = root.dataset.module!,
+    t = ui().modules;
+  const hours = (data: FormData) =>
+    Array.from({ length: 7 }, (_, day) => ({
+      day_of_week: day,
+      opens_at: String(data.get(`open:${day}`)),
+      closes_at: String(data.get(`close:${day}`)),
+      is_closed: data.has(`closed:${day}`),
+    }));
+  const dates = (data: FormData) =>
+    String(data.get("closed_dates") ?? "")
+      .split(/\s+/)
+      .filter(Boolean);
+  for (const form of root.querySelectorAll<HTMLFormElement>("form")) {
+    const key = submissionKey();
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = new FormData(form);
+      let path = "",
+        method = "PATCH",
+        body: Record<string, unknown> = {};
+      if (form.hasAttribute("data-settings")) {
+        path = `owner/${module}/settings`;
+        body = {
+          enabled: data.has("enabled"),
+          hours: hours(data),
+          closed_dates: dates(data),
+        };
+        for (const field of [
+          "lead_minutes",
+          "horizon_days",
+          "cancel_before_minutes",
+          "slot_minutes",
+          "max_orders_per_slot",
+        ]) {
+          if (data.has(field)) body[field] = Number(data.get(field));
+        }
+        if (data.has("daily_cutoff"))
+          body.daily_cutoff = data.get("daily_cutoff");
+        if (module === "preorders")
+          body.variant_rules = Array.from(
+            form.querySelectorAll<HTMLElement>("[data-variant]"),
+          )
+            .filter((row) => data.has(`enabled:${row.dataset.variant}`))
+            .map((row) => {
+              const id = row.dataset.variant;
+              return {
+                variant_id: id,
+                min_quantity: data.get(`min:${id}`),
+                max_quantity: data.get(`max:${id}`),
+                step: data.get(`step:${id}`),
+              };
+            });
+      } else if (form.hasAttribute("data-service")) {
+        path = `owner/services${form.dataset.id ? `/${form.dataset.id}` : ""}`;
+        method = form.dataset.id ? "PATCH" : "POST";
+        body = {
+          name: data.get("name"),
+          description: data.get("description"),
+          duration_minutes: Number(data.get("duration_minutes")),
+          price: data.get("price") || null,
+          active: data.has("active"),
+          is_public: data.has("is_public"),
+        };
+        if (data.has("buffer_minutes"))
+          body.buffer_minutes = Number(data.get("buffer_minutes"));
+      } else {
+        path = `owner/appointment-resources${form.dataset.id ? `/${form.dataset.id}` : ""}`;
+        method = form.dataset.id ? "PATCH" : "POST";
+        body = {
+          name: data.get("name"),
+          active: data.has("active"),
+          service_ids: data.getAll("service_ids"),
+          hours: data.has("custom_hours") ? hours(data) : [],
+          closed_dates: dates(data),
+        };
+      }
+      const button = form.querySelector<HTMLButtonElement>("button")!,
+        message = form.querySelector("[data-message]")!;
+      button.disabled = true;
+      message.textContent = t.saving;
+      try {
+        await moduleFetch(path, { method, body, key: key(body) });
+        message.textContent = t.saved;
+        if (method === "POST") location.reload();
+      } catch (error) {
+        message.textContent =
+          error instanceof Error ? error.message : t.unavailable;
+      } finally {
+        button.disabled = false;
+      }
     });
   }
 </script>

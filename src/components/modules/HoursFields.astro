@@ -1,8 +1,59 @@
 ---
-import {useT} from "@/i18n";
-import type {ScheduleDay} from "@/types/modules";
-interface Props { hours:ScheduleDay[]; prefix?: string }
-const {hours,prefix=""}=Astro.props,dict=useT(Astro.locals.locale),t=dict.modules;
-const names=[dict.hours.monday,dict.hours.tuesday,dict.hours.wednesday,dict.hours.thursday,dict.hours.friday,dict.hours.saturday,dict.hours.sunday];
+import { useT } from "@/i18n";
+import type { ScheduleDay } from "@/types/modules";
+interface Props {
+  hours: ScheduleDay[];
+  prefix?: string;
+}
+const { hours, prefix = "" } = Astro.props,
+  dict = useT(Astro.locals.locale),
+  t = dict.modules;
+const names = [
+  dict.hours.monday,
+  dict.hours.tuesday,
+  dict.hours.wednesday,
+  dict.hours.thursday,
+  dict.hours.friday,
+  dict.hours.saturday,
+  dict.hours.sunday,
+];
 ---
-<div class="module-stack">{names.map((name,day)=>{const row=hours.find(h=>h.day_of_week===day);return <fieldset class="module-row"><legend>{name}</legend><label class="module-field">{t.open}<input type="time" name={`${prefix}open:${day}`} value={row?.opens_at??"09:00"}/></label><label class="module-field">{t.close}<input type="time" name={`${prefix}close:${day}`} value={row?.closes_at??"18:00"}/></label><label><input type="checkbox" name={`${prefix}closed:${day}`} checked={!row||row.is_closed}/> {t.closed}</label></fieldset>;})}</div>
+
+<div class="module-stack">
+  {
+    names.map((name, day) => {
+      const row = hours.find((h) => h.day_of_week === day);
+      return (
+        <fieldset class="module-row">
+          <>
+            <legend>{name}</legend>
+            <label class="module-field">
+              {t.open}
+              <input
+                type="time"
+                name={`${prefix}open:${day}`}
+                value={row?.opens_at ?? "09:00"}
+              />
+            </label>
+            <label class="module-field">
+              {t.close}
+              <input
+                type="time"
+                name={`${prefix}close:${day}`}
+                value={row?.closes_at ?? "18:00"}
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                name={`${prefix}closed:${day}`}
+                checked={!row || row.is_closed}
+              />{" "}
+              {t.closed}
+            </label>
+          </>
+        </fieldset>
+      );
+    })
+  }
+</div>

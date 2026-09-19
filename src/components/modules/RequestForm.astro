@@ -3,129 +3,344 @@ import { PUBLIC_TURNSTILE_SITE_KEY } from "astro:env/client";
 import { useT } from "@/i18n";
 import type { Module } from "@/types/modules";
 import "@/styles/modules.css";
-interface Props { module: Module; slug: string; owner?: boolean }
+interface Props {
+  module: Module;
+  slug: string;
+  owner?: boolean;
+}
 const { module, slug, owner = false } = Astro.props;
 const t = useT(Astro.locals.locale).modules;
 ---
-<section data-request-form data-module={module} data-slug={slug} data-owner={owner ? "true" : "false"}>
+
+<section
+  data-request-form
+  data-module={module}
+  data-slug={slug}
+  data-owner={owner ? "true" : "false"}
+>
   <p class="module-muted">{t.manual}</p>
   <form class="module-stack module-card">
-    {module === "appointments" ? <>
-      <label class="module-field">{t.service}<select name="service_id" required><option value="">{t.loading}</option></select></label>
-    </> : <>
-      <div data-catalog class="module-stack"></div>
-      <p class="module-muted">{t.weightNotice}</p>
-    </>}
+    {
+      module === "appointments" ? (
+        <>
+          <label class="module-field">
+            {t.service}
+            <select name="service_id" required>
+              <option value="">{t.loading}</option>
+            </select>
+          </label>
+        </>
+      ) : (
+        <>
+          <div data-catalog class="module-stack" />
+          <p class="module-muted">{t.weightNotice}</p>
+        </>
+      )
+    }
     <div class="module-grid">
-      <label class="module-field">{t.date}<input type="date" name="date" required /></label>
-      <label class="module-field">{module === "appointments" ? t.time : t.pickup}<select name="slot" required><option value="">{t.noSlots}</option></select></label>
+      <label class="module-field"
+        >{t.date}<input type="date" name="date" required /></label
+      >
+      <label class="module-field"
+        >{module === "appointments" ? t.time : t.pickup}<select
+          name="slot"
+          required><option value="">{t.noSlots}</option></select
+        ></label
+      >
     </div>
     <p class="module-muted" data-zone></p>
     <div class="module-grid">
-      <label class="module-field">{t.customer}<input name="customer_name" autocomplete="name" required maxlength="120" /></label>
-      <label class="module-field">{t.phone}<input name="customer_phone" type="tel" autocomplete="tel" placeholder="+52 55 1234 5678" required maxlength="24" /></label>
+      <label class="module-field"
+        >{t.customer}<input
+          name="customer_name"
+          autocomplete="name"
+          required
+          maxlength="120"
+        /></label
+      >
+      <label class="module-field"
+        >{t.phone}<input
+          name="customer_phone"
+          type="tel"
+          autocomplete="tel"
+          placeholder="+52 55 1234 5678"
+          required
+          maxlength="24"
+        /></label
+      >
     </div>
-    <label class="module-field">{t.notes}<textarea name="notes" rows="3" maxlength="2000"></textarea></label>
+    <label class="module-field"
+      >{t.notes}<textarea name="notes" rows="3" maxlength="2000"
+      ></textarea></label
+    >
     <p class="module-muted">{t.policy}</p>
-    {!owner && PUBLIC_TURNSTILE_SITE_KEY && <div class="cf-turnstile" data-sitekey={PUBLIC_TURNSTILE_SITE_KEY} data-action="request"></div>}
+    {
+      !owner && PUBLIC_TURNSTILE_SITE_KEY && (
+        <div
+          class="cf-turnstile"
+          data-sitekey={PUBLIC_TURNSTILE_SITE_KEY}
+          data-action="request"
+        />
+      )
+    }
     <button class="module-button" type="submit" disabled>{t.submit}</button>
   </form>
   <p data-message class="module-message" role="status" aria-live="polite"></p>
-  <button data-reload class="module-button secondary" type="button" hidden>{t.retry}</button>
+  <button data-reload class="module-button secondary" type="button" hidden
+    >{t.retry}</button
+  >
   <div data-success class="module-card" hidden>
     <h2>{t.saved}</h2><p>{t.pending}</p><p data-reference></p>
-    <div class="module-row"><a data-manage class="module-button" href="#">{t.manage}</a><a data-whatsapp class="module-button secondary" href="#" target="_blank" rel="noopener noreferrer">{t.contact}</a></div>
+    <div class="module-row">
+      <a data-manage class="module-button" href="#">{t.manage}</a><a
+        data-whatsapp
+        class="module-button secondary"
+        href="#"
+        target="_blank"
+        rel="noopener noreferrer">{t.contact}</a>
+    </div>
     <p class="module-muted">{t.privateLink}</p>
   </div>
 </section>
-{!owner && PUBLIC_TURNSTILE_SITE_KEY && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+{
+  !owner && PUBLIC_TURNSTILE_SITE_KEY && (
+    <script
+      is:inline
+      src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+      async
+      defer
+    />
+  )
+}
 <script>
   import { moduleFetch, submissionKey } from "@/lib/module-client";
-  import { decimalTotal, formatModuleDate, normalizePhone, requestWhatsApp } from "@/lib/modules";
+  import {
+    decimalTotal,
+    formatModuleDate,
+    normalizePhone,
+    requestWhatsApp,
+  } from "@/lib/modules";
   import { ui, uiLocale } from "@/lib/i18n-client";
   import { localePath } from "@/i18n";
-  import type { AppointmentService, AppointmentSlot, ModuleRequest, PickupWindow, PreorderCatalogItem } from "@/types/modules";
-  for (const root of document.querySelectorAll<HTMLElement>("[data-request-form]")) {
-    const t = ui().modules, locale = uiLocale(), module = root.dataset.module!, owner = root.dataset.owner === "true";
+  import type {
+    AppointmentService,
+    AppointmentSlot,
+    ModuleRequest,
+    PickupWindow,
+    PreorderCatalogItem,
+  } from "@/types/modules";
+  for (const root of document.querySelectorAll<HTMLElement>(
+    "[data-request-form]",
+  )) {
+    const t = ui().modules,
+      locale = uiLocale(),
+      module = root.dataset.module!,
+      owner = root.dataset.owner === "true";
     const publicPath = `public/businesses/${encodeURIComponent(root.dataset.slug!)}/${module}`;
     const readsPath = owner ? `owner/${module}` : publicPath;
-    const form = root.querySelector<HTMLFormElement>("form")!, message = root.querySelector<HTMLElement>("[data-message]")!;
+    const form = root.querySelector<HTMLFormElement>("form")!,
+      message = root.querySelector<HTMLElement>("[data-message]")!;
     const slotSelect = form.elements.namedItem("slot") as HTMLSelectElement;
     const dateInput = form.elements.namedItem("date") as HTMLInputElement;
-    const serviceSelect = form.elements.namedItem("service_id") as HTMLSelectElement | null;
+    const serviceSelect = form.elements.namedItem(
+      "service_id",
+    ) as HTMLSelectElement | null;
     const submit = form.querySelector<HTMLButtonElement>("[type=submit]")!;
     const retry = root.querySelector<HTMLButtonElement>("[data-reload]")!;
-    let slots: (AppointmentSlot | PickupWindow)[] = [], catalog: PreorderCatalogItem[] = [], timezone = "America/Mexico_City", lookup = 0;
+    let slots: (AppointmentSlot | PickupWindow)[] = [],
+      catalog: PreorderCatalogItem[] = [],
+      timezone = "America/Mexico_City",
+      lookup = 0;
     const key = submissionKey();
-    dateInput.value = new Intl.DateTimeFormat("en-CA", {timeZone: timezone, year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());
+    dateInput.value = new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
     dateInput.min = dateInput.value;
-    function failure(error: unknown) { message.textContent = error instanceof Error ? error.message : t.unavailable; message.classList.add("module-error"); retry.hidden = false; }
+    function failure(error: unknown) {
+      message.textContent =
+        error instanceof Error ? error.message : t.unavailable;
+      message.classList.add("module-error");
+      retry.hidden = false;
+    }
     async function loadSlots() {
-      const request = ++lookup; submit.disabled = true;
+      const request = ++lookup;
+      submit.disabled = true;
       slotSelect.replaceChildren(new Option(t.loading, ""));
       if (serviceSelect && !serviceSelect.value) return;
       try {
-        const query = new URLSearchParams({date: dateInput.value});
+        const query = new URLSearchParams({ date: dateInput.value });
         if (serviceSelect) query.set("service_id", serviceSelect.value);
-        const data = await moduleFetch<{timezone: string;slots?: AppointmentSlot[];windows?: PickupWindow[]}>(`${readsPath}/${module === "appointments" ? "availability" : "pickup-windows"}?${query}`);
+        const data = await moduleFetch<{
+          timezone: string;
+          slots?: AppointmentSlot[];
+          windows?: PickupWindow[];
+        }>(
+          `${readsPath}/${module === "appointments" ? "availability" : "pickup-windows"}?${query}`,
+        );
         if (request !== lookup) return;
-        timezone = data.timezone; slots = data.slots ?? data.windows ?? [];
-        root.querySelector("[data-zone]")!.textContent = `${t.timezone}: ${timezone}`;
-        slotSelect.replaceChildren(new Option(slots.length ? t.time : t.noSlots, ""));
-        slots.forEach((slot, i) => slotSelect.add(new Option(`${formatModuleDate(slot.starts_at, timezone, locale)} – ${new Intl.DateTimeFormat(locale,{timeStyle:"short",timeZone: timezone}).format(new Date(slot.ends_at))}`, String(i))));
-        submit.disabled = !slots.length; message.textContent = slots.length ? "" : t.noSlots; retry.hidden = true;
-      } catch (error) { failure(error); }
+        timezone = data.timezone;
+        slots = data.slots ?? data.windows ?? [];
+        root.querySelector("[data-zone]")!.textContent =
+          `${t.timezone}: ${timezone}`;
+        slotSelect.replaceChildren(
+          new Option(slots.length ? t.time : t.noSlots, ""),
+        );
+        slots.forEach((slot, i) =>
+          slotSelect.add(
+            new Option(
+              `${formatModuleDate(slot.starts_at, timezone, locale)} – ${new Intl.DateTimeFormat(locale, { timeStyle: "short", timeZone: timezone }).format(new Date(slot.ends_at))}`,
+              String(i),
+            ),
+          ),
+        );
+        submit.disabled = !slots.length;
+        message.textContent = slots.length ? "" : t.noSlots;
+        retry.hidden = true;
+      } catch (error) {
+        failure(error);
+      }
     }
     async function load() {
       try {
         if (serviceSelect) {
-          const services = await moduleFetch<AppointmentService[]>(owner ? "owner/services" : `${publicPath}/services`);
-          serviceSelect.replaceChildren(...services.filter(s => s.active).map(s => new Option(`${s.name} · ${s.duration_minutes} ${t.minutes}${s.price ? ` · $${s.price} MXN` : ""}`, s.id)));
+          const services = await moduleFetch<AppointmentService[]>(
+            owner ? "owner/services" : `${publicPath}/services`,
+          );
+          serviceSelect.replaceChildren(
+            ...services
+              .filter((s) => s.active)
+              .map(
+                (s) =>
+                  new Option(
+                    `${s.name} · ${s.duration_minutes} ${t.minutes}${s.price ? ` · $${s.price} MXN` : ""}`,
+                    s.id,
+                  ),
+              ),
+          );
         } else {
-          const data = await moduleFetch<{timezone: string;items: PreorderCatalogItem[]}>(`${readsPath}/catalog`);
-          catalog = data.items; timezone = data.timezone;
+          const data = await moduleFetch<{
+            timezone: string;
+            items: PreorderCatalogItem[];
+          }>(`${readsPath}/catalog`);
+          catalog = data.items;
+          timezone = data.timezone;
           const container = root.querySelector("[data-catalog]")!;
-          const previous = new Map(Array.from(container.querySelectorAll<HTMLInputElement>("input")).map(input => [input.name, input.value]));
+          const previous = new Map(
+            Array.from(
+              container.querySelectorAll<HTMLInputElement>("input"),
+            ).map((input) => [input.name, input.value]),
+          );
           container.replaceChildren();
           for (const item of catalog) {
-            const label = document.createElement("label"); label.className = "module-field";
-            label.append(document.createTextNode(`${item.name} · $${item.unit_price} MXN / ${item.unit}`));
-            const input = document.createElement("input"); input.type = "number"; input.name = `quantity:${item.variant_id}`; input.min = "0"; input.step = item.step; input.max = item.max_quantity; input.value = previous.get(input.name) ?? "0";
+            const label = document.createElement("label");
+            label.className = "module-field";
+            label.append(
+              document.createTextNode(
+                `${item.name} · $${item.unit_price} MXN / ${item.unit}`,
+              ),
+            );
+            const input = document.createElement("input");
+            input.type = "number";
+            input.name = `quantity:${item.variant_id}`;
+            input.min = "0";
+            input.step = item.step;
+            input.max = item.max_quantity;
+            input.value = previous.get(input.name) ?? "0";
             input.dataset.variant = item.variant_id;
-            const estimate = document.createElement("span"); estimate.className = "module-muted";
-            input.addEventListener("input", () => { try {estimate.textContent = `${t.estimate}: $${decimalTotal(input.value, item.unit_price)} MXN`;} catch {estimate.textContent = "";} });
-            label.append(input, estimate); container.append(label);
+            const estimate = document.createElement("span");
+            estimate.className = "module-muted";
+            input.addEventListener("input", () => {
+              try {
+                estimate.textContent = `${t.estimate}: $${decimalTotal(input.value, item.unit_price)} MXN`;
+              } catch {
+                estimate.textContent = "";
+              }
+            });
+            label.append(input, estimate);
+            container.append(label);
           }
         }
         await loadSlots();
-      } catch (error) { failure(error); }
+      } catch (error) {
+        failure(error);
+      }
     }
-    serviceSelect?.addEventListener("change", loadSlots); dateInput.addEventListener("change", loadSlots); retry.addEventListener("click", load);
-    form.addEventListener("submit", async e => {
-      e.preventDefault(); if (!form.reportValidity()) return;
-      const data = new FormData(form), slot = slots[Number(data.get("slot"))];
+    serviceSelect?.addEventListener("change", loadSlots);
+    dateInput.addEventListener("change", loadSlots);
+    retry.addEventListener("click", load);
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = new FormData(form),
+        slot = slots[Number(data.get("slot"))];
       if (!slot) return;
       const phone = normalizePhone(String(data.get("customer_phone")));
-      if (!phone) { failure(new Error(t.errors.invalid_request)); return; }
-      const body: Record<string, unknown> = {customer_name: data.get("customer_name"), customer_phone: `+${phone}`, notes: data.get("notes"), locale};
-      if (!owner) body.challenge_token = data.get("cf-turnstile-response") ?? "";
-      if (module === "appointments") Object.assign(body, {service_id: data.get("service_id"),resource_id: (slot as AppointmentSlot).resource_id,starts_at: slot.starts_at});
+      if (!phone) {
+        failure(new Error(t.errors.invalid_request));
+        return;
+      }
+      const body: Record<string, unknown> = {
+        customer_name: data.get("customer_name"),
+        customer_phone: `+${phone}`,
+        notes: data.get("notes"),
+        locale,
+      };
+      if (!owner)
+        body.challenge_token = data.get("cf-turnstile-response") ?? "";
+      if (module === "appointments")
+        Object.assign(body, {
+          service_id: data.get("service_id"),
+          resource_id: (slot as AppointmentSlot).resource_id,
+          starts_at: slot.starts_at,
+        });
       else {
         body.pickup_window_id = (slot as PickupWindow).id;
-        body.items = catalog.filter(item => Number(data.get(`quantity:${item.variant_id}`)) > 0).map(item => ({variant_id:item.variant_id,quantity:String(data.get(`quantity:${item.variant_id}`)),unit_price:item.unit_price}));
-        if (!(body.items as unknown[]).length) { failure(new Error(t.errors.invalid_request)); return; }
+        body.items = catalog
+          .filter((item) => Number(data.get(`quantity:${item.variant_id}`)) > 0)
+          .map((item) => ({
+            variant_id: item.variant_id,
+            quantity: String(data.get(`quantity:${item.variant_id}`)),
+            unit_price: item.unit_price,
+          }));
+        if (!(body.items as unknown[]).length) {
+          failure(new Error(t.errors.invalid_request));
+          return;
+        }
       }
-      submit.disabled = true; message.classList.remove("module-error"); message.textContent = t.saving;
+      submit.disabled = true;
+      message.classList.remove("module-error");
+      message.textContent = t.saving;
       try {
-        const record = await moduleFetch<ModuleRequest>(owner ? `owner/${module}` : publicPath, {method:"POST",body,key:key(body)});
-        if (owner) { window.location.assign(localePath(locale, `/dashboard/${module}/${record.id}`)); return; }
-        form.hidden = true; root.querySelector<HTMLElement>("[data-success]")!.hidden = false;
+        const record = await moduleFetch<ModuleRequest>(
+          owner ? `owner/${module}` : publicPath,
+          { method: "POST", body, key: key(body) },
+        );
+        if (owner) {
+          window.location.assign(
+            localePath(locale, `/dashboard/${module}/${record.id}`),
+          );
+          return;
+        }
+        form.hidden = true;
+        root.querySelector<HTMLElement>("[data-success]")!.hidden = false;
         root.querySelector("[data-reference]")!.textContent = record.reference;
-        root.querySelector<HTMLAnchorElement>("[data-manage]")!.href = record.management_url ?? localePath(locale, `/requests/${record.public_id}`);
-        const wa = root.querySelector<HTMLAnchorElement>("[data-whatsapp]")!, href = requestWhatsApp(record, locale);
-        wa.hidden = !href; if (href) wa.href = href;
-        message.textContent = t.saved; retry.hidden = true;
-      } catch (error) { failure(error); } finally { submit.disabled = false; }
+        root.querySelector<HTMLAnchorElement>("[data-manage]")!.href =
+          record.management_url ??
+          localePath(locale, `/requests/${record.public_id}`);
+        const wa = root.querySelector<HTMLAnchorElement>("[data-whatsapp]")!,
+          href = requestWhatsApp(record, locale);
+        wa.hidden = !href;
+        if (href) wa.href = href;
+        message.textContent = t.saved;
+        retry.hidden = true;
+      } catch (error) {
+        failure(error);
+      } finally {
+        submit.disabled = false;
+      }
     });
     void load();
   }

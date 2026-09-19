@@ -3,42 +3,306 @@ import { localePath, useT } from "@/i18n";
 import { getServerAuth } from "@/lib/api/server";
 import { moduleApi } from "@/lib/api/modules";
 import RequestDetails from "./RequestDetails.astro";
-import type { Entitlements, Module, ModuleRequest, AppointmentResource } from "@/types/modules";
+import type {
+  Entitlements,
+  Module,
+  ModuleRequest,
+  AppointmentResource,
+} from "@/types/modules";
 import "@/styles/modules.css";
-interface Props { module: Module; id: string }
-const {module,id} = Astro.props, locale=Astro.locals.locale,t=useT(locale).modules;
-const {token,businessId}=await getServerAuth(Astro);
-let record:ModuleRequest|null=null,resources:AppointmentResource[]=[], access:Entitlements|null=null;
-try{if(token&&businessId){const api=moduleApi(token,businessId);[record,access]=await Promise.all([api.detail(module,id),api.entitlements()]);if(module==="appointments")resources=await api.resources();}}catch{}
-Astro.response.headers.set("Cache-Control","private, no-store");
+interface Props {
+  module: Module;
+  id: string;
+}
+const { module, id } = Astro.props,
+  locale = Astro.locals.locale,
+  t = useT(locale).modules;
+const { token, businessId } = await getServerAuth(Astro);
+let record: ModuleRequest | null = null,
+  resources: AppointmentResource[] = [],
+  access: Entitlements | null = null;
+try {
+  if (token && businessId) {
+    const api = moduleApi(token, businessId);
+    [record, access] = await Promise.all([
+      api.detail(module, id),
+      api.entitlements(),
+    ]);
+    if (module === "appointments") resources = await api.resources().catch(() => []);
+  }
+} catch {}
+Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
-<main class="module-page" data-owner-detail data-module={module} data-id={id} data-version={record?.version}>
-  <a href={localePath(locale,`/dashboard/${module}`)}>← {t[module]}</a><h1>{t.requestDetails}</h1>
-  {record ? <>
-    <RequestDetails record={record} owner/>
-    <div class="module-row">{record.allowed_transitions.map(status=><button type="button" class="module-button" data-transition={status}>{t.statuses[status]}</button>)}</div>
-    {record.allowed_transitions.length>0 && <form class="module-card module-stack" data-edit>
-      <h2>{t.edit}</h2><label class="module-field">{t.notes}<textarea name="notes" maxlength="2000">{record.notes}</textarea></label>
-      {module==="appointments" ? <><label class="module-field">{t.time} (ISO 8601)<input name="starts_at" value={record.starts_at} required/></label><p class="module-muted">{t.timezone}: {record.timezone}</p><label class="module-field">{t.resource}<select name="resource_id">{resources.map(r=><option value={r.id} selected={r.id===record!.resource_id}>{r.name}</option>)}</select></label></> : <>
-        <label class="module-field">{t.finalAmount}<input name="final_total" inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" value={record.final_total??""}/></label>
-        {record.items?.map(item=><label class="module-field">{item.name} · {t.finalQuantity} ({item.unit})<input name={`final:${item.id}`} inputmode="decimal" pattern="[0-9]+(\.[0-9]{1,3})?" value={item.final_quantity??""}/></label>)}
-      </>}
-      <button class="module-button">{t.save}</button>
-    </form>}
-    {access?.modules[module].advanced && <button class="module-button secondary" data-print>{t.print}</button>}
-    {access?.modules[module].advanced && record.customer_id && <section class="module-card"><button class="module-button secondary" data-customer={record.customer_id}>{t.customerHistory}</button><div data-customer-output></div></section>}
-  </> : <p class="module-error">{t.unavailable}</p>}
+
+<main
+  class="module-page"
+  data-owner-detail
+  data-module={module}
+  data-id={id}
+  data-version={record?.version}
+  data-service={record?.service_id}
+>
+  <a href={localePath(locale, `/dashboard/${module}`)}>← {t[module]}</a><h1>
+    {t.requestDetails}
+  </h1>
+  {
+    record ? (
+      <>
+        <RequestDetails record={record} owner />
+        <div class="module-row">
+          {record.allowed_transitions.map((status) => (
+            <button
+              type="button"
+              class="module-button"
+              data-transition={status}
+            >
+              {t.statuses[status]}
+            </button>
+          ))}
+        </div>
+        {record.allowed_transitions.length > 0 && (
+          <form class="module-card module-stack" data-edit>
+            <h2>{t.edit}</h2>
+            <label class="module-field">
+              {t.notes}
+              <textarea name="notes" maxlength="2000">
+                {record.notes}
+              </textarea>
+            </label>
+            <div class="module-grid">
+              <label class="module-field">
+                {t.date}
+                <input type="date" name="new_date" />
+              </label>
+              {module === "appointments" && (
+                <label class="module-field">
+                  {t.resource}
+                  <select name="resource_id">
+                    {resources
+                      .filter((r) => r.active)
+                      .map((r) => (
+                        <option
+                          value={r.id}
+                          selected={r.id === record!.resource_id}
+                        >
+                          {r.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
+              <label class="module-field">
+                {module === "appointments" ? t.time : t.pickup}
+                <select name="new_slot">
+                  <option value="">{t.existingTime}</option>
+                </select>
+              </label>
+            </div>
+            <p class="module-muted">
+              {t.timezone}: {record.timezone}
+            </p>
+            {module === "preorders" && (
+              <>
+                <label class="module-field">
+                  {t.finalAmount}
+                  <input
+                    name="final_total"
+                    inputmode="decimal"
+                    pattern="[0-9]+(\.[0-9]{1,2})?"
+                    value={record.final_total ?? ""}
+                  />
+                </label>
+                {record.items?.map((item) => (
+                  <label class="module-field">
+                    {item.name} · {t.finalQuantity} ({item.unit})
+                    <input
+                      name={`final:${item.id}`}
+                      inputmode="decimal"
+                      pattern="[0-9]+(\.[0-9]{1,3})?"
+                      value={item.final_quantity ?? ""}
+                    />
+                  </label>
+                ))}
+              </>
+            )}
+            <button class="module-button">{t.save}</button>
+          </form>
+        )}
+        {access?.modules[module].can_export && (
+          <button class="module-button secondary" data-print>
+            {t.print}
+          </button>
+        )}
+        {access?.modules[module].can_export && record.customer_id && (
+          <section class="module-card">
+            <button
+              class="module-button secondary"
+              data-customer={record.customer_id}
+            >
+              {t.customerHistory}
+            </button>
+            <div data-customer-output />
+          </section>
+        )}
+      </>
+    ) : (
+      <p class="module-error">{t.unavailable}</p>
+    )
+  }
   <p class="module-message" role="status" data-message></p>
+  <button class="module-button secondary" data-refresh>{t.refresh}</button>
 </main>
 <script>
   import { moduleFetch, submissionKey } from "@/lib/module-client";
-  import { ui,uiLocale } from "@/lib/i18n-client";
+  import { ui, uiLocale } from "@/lib/i18n-client";
   import { localePath } from "@/i18n";
-  import type {ModuleRequest} from "@/types/modules";
-  const root=document.querySelector<HTMLElement>("[data-owner-detail]")!,module=root.dataset.module!,id=root.dataset.id!,t=ui().modules,message=root.querySelector("[data-message]")!,key=submissionKey();
-  async function mutate(body:Record<string,unknown>,transition=false){const buttons=root.querySelectorAll<HTMLButtonElement>("button");buttons.forEach(b=>b.disabled=true);message.textContent=t.saving;try{await moduleFetch(`owner/${module}/${id}${transition?"/transitions":""}`,{method:transition?"POST":"PATCH",body,key:key(body)});location.reload();}catch(error){message.textContent=error instanceof Error?error.message:t.unavailable;buttons.forEach(b=>b.disabled=false);}}
-  root.querySelectorAll<HTMLButtonElement>("[data-transition]").forEach(button=>button.addEventListener("click",()=>{if(button.dataset.transition==="cancelled"&&!confirm(t.confirmCancel))return;void mutate({status:button.dataset.transition,version:Number(root.dataset.version)},true);}));
-  root.querySelector<HTMLFormElement>("[data-edit]")?.addEventListener("submit",e=>{e.preventDefault();const data=new FormData(e.currentTarget as HTMLFormElement);const body:Record<string,unknown>={version:Number(root.dataset.version),notes:data.get("notes")};if(module==="appointments")Object.assign(body,{starts_at:data.get("starts_at"),resource_id:data.get("resource_id")});else{if(data.get("final_total"))body.final_total=data.get("final_total");body.items=Array.from(data).filter(([name,value])=>name.startsWith("final:")&&value).map(([name,value])=>({id:name.slice(6),final_quantity:value}));}void mutate(body);});
-  root.querySelector("[data-print]")?.addEventListener("click",()=>window.print());
-  root.querySelector<HTMLButtonElement>("[data-customer]")?.addEventListener("click",async e=>{const customer=(e.currentTarget as HTMLElement).dataset.customer,output=root.querySelector("[data-customer-output]")!;try{const data=await moduleFetch<{appointments:ModuleRequest[];preorders:ModuleRequest[]}>(`owner/module-customers/${customer}/history`);output.replaceChildren();for(const record of [...data.appointments,...data.preorders]){const p=document.createElement("p"),a=document.createElement("a");a.href=localePath(uiLocale(),`/dashboard/${record.module}/${record.id}`);a.textContent=`${record.reference} · ${t.statuses[record.status]}`;p.append(a);output.append(p);}}catch(error){output.textContent=error instanceof Error?error.message:t.unavailable;}});
+  import type {
+    ModuleRequest,
+    AppointmentSlot,
+    PickupWindow,
+  } from "@/types/modules";
+  import { formatModuleDate } from "@/lib/modules";
+  const root = document.querySelector<HTMLElement>("[data-owner-detail]")!,
+    module = root.dataset.module!,
+    id = root.dataset.id!,
+    t = ui().modules,
+    message = root.querySelector("[data-message]")!,
+    key = submissionKey();
+  async function mutate(body: Record<string, unknown>, transition = false) {
+    const buttons = root.querySelectorAll<HTMLButtonElement>("button");
+    buttons.forEach((b) => (b.disabled = true));
+    message.textContent = t.saving;
+    try {
+      await moduleFetch(
+        `owner/${module}/${id}${transition ? "/transitions" : ""}`,
+        { method: transition ? "POST" : "PATCH", body, key: key(body) },
+      );
+      location.reload();
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : t.unavailable;
+      buttons.forEach((b) => (b.disabled = false));
+    }
+  }
+  root
+    .querySelectorAll<HTMLButtonElement>("[data-transition]")
+    .forEach((button) =>
+      button.addEventListener("click", () => {
+        if (
+          button.dataset.transition === "cancelled" &&
+          !confirm(t.confirmCancel)
+        )
+          return;
+        void mutate(
+          {
+            status: button.dataset.transition,
+            version: Number(root.dataset.version),
+          },
+          true,
+        );
+      }),
+    );
+  const editForm = root.querySelector<HTMLFormElement>("[data-edit]");
+  let slots: (AppointmentSlot | PickupWindow)[] = [],
+    lookup = 0;
+  async function loadSlots() {
+    if (!editForm) return;
+    const data = new FormData(editForm),
+      select = editForm.elements.namedItem("new_slot") as HTMLSelectElement;
+    if (!data.get("new_date")) return;
+    const current = ++lookup;
+    const query = new URLSearchParams({ date: String(data.get("new_date")) });
+    if (module === "appointments") {
+      query.set("service_id", root.dataset.service!);
+      query.set("resource_id", String(data.get("resource_id")));
+    }
+    select.replaceChildren(new Option(t.loading, ""));
+    try {
+      const result = await moduleFetch<{
+        timezone: string;
+        slots?: AppointmentSlot[];
+        windows?: PickupWindow[];
+      }>(
+        `owner/${module}/${module === "appointments" ? "availability" : "pickup-windows"}?${query}`,
+      );
+      if (current !== lookup) return;
+      slots = result.slots ?? result.windows ?? [];
+      select.replaceChildren(
+        new Option(t.existingTime, ""),
+        ...slots.map(
+          (slot, i) =>
+            new Option(
+              formatModuleDate(slot.starts_at, result.timezone, uiLocale()),
+              String(i),
+            ),
+        ),
+      );
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : t.unavailable;
+    }
+  }
+  editForm
+    ?.querySelector("[name=new_date]")
+    ?.addEventListener("change", loadSlots);
+  editForm
+    ?.querySelector("[name=resource_id]")
+    ?.addEventListener("change", loadSlots);
+  editForm?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget as HTMLFormElement);
+    const body: Record<string, unknown> = {
+      version: Number(root.dataset.version),
+      notes: data.get("notes"),
+    };
+    const slot =
+      data.get("new_slot") !== ""
+        ? slots[Number(data.get("new_slot"))]
+        : undefined;
+    if (module === "appointments") {
+      if (slot)
+        Object.assign(body, {
+          starts_at: slot.starts_at,
+          resource_id: (slot as AppointmentSlot).resource_id,
+        });
+    } else {
+      if (slot) body.pickup_window_id = (slot as PickupWindow).id;
+      if (data.get("final_total")) body.final_total = data.get("final_total");
+      body.items = Array.from(data)
+        .filter(([name, value]) => name.startsWith("final:") && value)
+        .map(([name, value]) => ({ id: name.slice(6), final_quantity: value }));
+    }
+    void mutate(body);
+  });
+  root
+    .querySelector("[data-print]")
+    ?.addEventListener("click", () => window.print());
+  root.querySelector("[data-refresh]")?.addEventListener("click", () => location.reload());
+  root
+    .querySelector<HTMLButtonElement>("[data-customer]")
+    ?.addEventListener("click", async (e) => {
+      const customer = (e.currentTarget as HTMLElement).dataset.customer,
+        output = root.querySelector("[data-customer-output]")!;
+      try {
+        const data = await moduleFetch<{
+          appointments: ModuleRequest[];
+          preorders: ModuleRequest[];
+        }>(`owner/module-customers/${customer}/history`);
+        output.replaceChildren();
+        for (const record of [...data.appointments, ...data.preorders]) {
+          const p = document.createElement("p"),
+            a = document.createElement("a");
+          a.href = localePath(
+            uiLocale(),
+            `/dashboard/${record.module}/${record.id}`,
+          );
+          a.textContent = `${record.reference} · ${t.statuses[record.status]}`;
+          p.append(a);
+          output.append(p);
+        }
+      } catch (error) {
+        output.textContent =
+          error instanceof Error ? error.message : t.unavailable;
+      }
+    });
 </script>
