@@ -1,5 +1,16 @@
 import type { modulesEs } from "./modules-es";
 export const modulesEn: typeof modulesEs = {
+  loadError: "We couldn't load this module",
+  accessRestricted: "Access unavailable",
+  emptyTitle: "No requests yet",
+  noServices: "No services available.",
+  syncError: "We couldn't refresh the list. The information shown may have changed.",
+  appointmentsIntro: "Manage your calendar, confirm appointments and review their history.",
+  preordersIntro: "Confirm orders, organize preparation and track pickups.",
+  accepting: "Accepting requests",
+  paused: "Requests paused",
+  notIncluded: "Not included in your plan",
+  reviewRequests: "View requests",
   view: "View", list: "List", week: "Week",
   billingStatuses: {free:"No subscription",active:"Active",pilot:"Pilot access",past_due:"Payment overdue",unpaid:"Unpaid",canceled:"Cancelled",cancelled:"Cancelled",incomplete:"Payment incomplete",incomplete_expired:"Payment expired",trialing:"Trial",paused:"Paused"},
   existingTime: "Keep the current time",

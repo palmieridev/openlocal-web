@@ -14,7 +14,7 @@ const whatsapp = requestWhatsApp(record, locale, owner);
 
 <div class="module-card module-print">
   <div class="module-row">
-    <h2>{record.reference}</h2><span class="module-status"
+    <h2 class="!mb-0">{record.reference}</h2><span class="module-status" data-status={record.status}
       >{t.statuses[record.status] ?? record.status}</span>
   </div>
   <p>{record.business?.name}</p><p>{record.customer_name}</p>{

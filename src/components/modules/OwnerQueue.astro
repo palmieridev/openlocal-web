@@ -1,5 +1,9 @@
 ---
 import { localePath, useT } from "@/i18n";
+import Button from "@/components/ui/Button.astro";
+import StatTile from "@/components/ui/StatTile.astro";
+import ModuleHeader from "./ModuleHeader.astro";
+import ModuleState from "./ModuleState.astro";
 import { getServerAuth } from "@/lib/api/server";
 import { moduleApi } from "@/lib/api/modules";
 import { formatModuleDate } from "@/lib/modules";
@@ -73,27 +77,30 @@ const statuses: RequestStatus[] = module === "appointments"
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<main class="module-page" data-owner-queue data-module={module}>
-  <div class="module-row">
-    <h1>{t[module]}</h1><a href={to(`/dashboard/${module}/settings`)}
-      >{t.settings}</a
-    ><a href={to(`/dashboard/${module}/new`)} class="module-button"
-      >{t.newRequest}</a>
-  </div>
-  <p class="module-muted">{t.existing}</p>
+<main class="module-page module-dashboard" data-owner-queue data-module={module} data-loaded={!error}>
+  <ModuleHeader title={t[module]} description={module === "appointments" ? t.appointmentsIntro : t.preordersIntro}>
+    <Fragment slot="actions">
+      {access?.can_configure && <Button variant="secondary" class="min-h-11" icon="lucide:settings" href={to(`/dashboard/${module}/settings`)}>{t.settings}</Button>}
+      {access?.can_accept_new && access?.can_operate && <Button class="min-h-11" icon="lucide:plus" href={to(`/dashboard/${module}/new`)}>{t.newRequest}</Button>}
+    </Fragment>
+  </ModuleHeader>
+  <div class="module-content">
   {
     access && (
-      <div class="module-card">
-        <p>{t.usage}: {access.usage} / {access.limit}</p>
-        <p>{t.resets}: {entitlements?.period_end ? new Date(entitlements.period_end).toLocaleDateString(locale) : "—"}</p>
+      <div class="module-grid">
+        <StatTile label={t.usage} value={`${access.usage} / ${access.limit}`} icon="lucide:circle-check" />
+        <section class="module-card">
+        <p class="font-medium">{t.resets}: {entitlements?.period_end ? new Date(entitlements.period_end).toLocaleDateString(locale) : "—"}</p>
         <p class="module-muted">{t.usageNotice}</p>
-        {!access.can_accept_new && (
+        {!access.enabled && access.owned && <p class="module-muted">{t.paused}</p>}
+        {!access.can_accept_new && (!access.owned || access.enabled) && (
           <a href={to("/dashboard/billing")}>{t.upgrade}</a>
         )}
+        </section>
       </div>
     )
   }
-  <form method="GET" class="module-row">
+  <form method="GET" class="module-row module-toolbar" hidden={error}>
     {module === "appointments" && <label class="module-field">{t.view}<select name="view"><option value="list" selected={view === "list"}>{t.list}</option><option value="week" selected={view === "week"}>{t.week}</option></select></label>}
     <label class="module-field"
       >{t.date}<input type="date" name="date" value={date} /></label
@@ -136,23 +143,21 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   }
   {
     error ? (
-      <p role="alert" class="module-message module-error">
-        {t.unavailable}
-      </p>
+      <ModuleState />
     ) : view === "list" && (
       <>
         <div class="module-stack mt-6">
           {rows.length ? (
             rows.map((record) => (
               <a
-                class="module-card !my-0 !no-underline"
+                class="module-card module-record"
                 href={to(`/dashboard/${module}/${record.id}`)}
               >
                 <div class="module-row">
                   <strong>
                     {record.reference} · {record.customer_name}
                   </strong>
-                  <span class="module-status">{t.statuses[record.status]}</span>
+                  <span class="module-status" data-status={record.status}>{t.statuses[record.status]}</span>
                 </div>
                 <p>
                   {formatModuleDate(record.starts_at, record.timezone, locale)}
@@ -166,7 +171,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
               </a>
             ))
           ) : (
-            <p>{t.empty}</p>
+            <ModuleState kind="empty" />
           )}
         </div>
         <nav class="module-row mt-4">
@@ -192,9 +197,10 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       </>
     )
   }
-  <p class="module-muted" data-updated>
+  <p class="module-muted mt-4" data-updated hidden={error}>
     {t.lastUpdated}: {new Date().toLocaleTimeString(locale)}
   </p>
+  <p class="module-message module-error" data-sync-error role="status" hidden></p>
   {
     access?.can_export && (
       <section class="module-card">
@@ -237,19 +243,23 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       </section>
     )
   }
+  <p class="module-muted mt-6">{t.existing}</p>
+  </div>
 </main>
 <script>
   import { moduleFetch } from "@/lib/module-client";
-  import { ui } from "@/lib/i18n-client";
+  import { ui, uiLocale } from "@/lib/i18n-client";
   import type { ModuleRequest } from "@/types/modules";
   const root = document.querySelector<HTMLElement>("[data-owner-queue]")!,
     module = root.dataset.module!,
     t = ui().modules;
+  const syncMessage = root.querySelector<HTMLElement>("[data-sync-error]")!;
   let initial = "",
     failures = 0;
   async function refresh() {
     if (
       document.hidden ||
+      root.dataset.loaded !== "true" ||
       failures >= 3 ||
       document.activeElement?.matches("input,select")
     )
@@ -267,10 +277,13 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       }
       initial = signature;
       failures = 0;
+      syncMessage.hidden = true;
       root.querySelector("[data-updated]")!.textContent =
-        `${t.lastUpdated}: ${new Date().toLocaleTimeString()}`;
+        `${t.lastUpdated}: ${new Date().toLocaleTimeString(uiLocale())}`;
     } catch {
       failures++;
+      syncMessage.textContent = t.syncError;
+      syncMessage.hidden = false;
     }
   }
   void refresh();

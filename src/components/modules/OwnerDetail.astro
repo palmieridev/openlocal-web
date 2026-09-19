@@ -3,6 +3,9 @@ import { localePath, useT } from "@/i18n";
 import { getServerAuth } from "@/lib/api/server";
 import { moduleApi } from "@/lib/api/modules";
 import RequestDetails from "./RequestDetails.astro";
+import Button from "@/components/ui/Button.astro";
+import ModuleHeader from "./ModuleHeader.astro";
+import ModuleState from "./ModuleState.astro";
 import type {
   Entitlements,
   Module,
@@ -35,16 +38,17 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
 <main
-  class="module-page"
+  class="module-page module-dashboard"
   data-owner-detail
   data-module={module}
   data-id={id}
   data-version={record?.version}
   data-service={record?.service_id}
 >
-  <a href={localePath(locale, `/dashboard/${module}`)}>← {t[module]}</a><h1>
-    {t.requestDetails}
-  </h1>
+  <ModuleHeader title={t.requestDetails} backHref={localePath(locale, `/dashboard/${module}`)} backLabel={t[module]}>
+    <Button slot="actions" variant="secondary" class="min-h-11" icon="lucide:refresh-cw" data-refresh>{t.refresh}</Button>
+  </ModuleHeader>
+  <div class="module-content">
   {
     record ? (
       <>
@@ -146,11 +150,11 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
         )}
       </>
     ) : (
-      <p class="module-error">{t.unavailable}</p>
+      <ModuleState />
     )
   }
   <p class="module-message" role="status" data-message></p>
-  <button class="module-button secondary" data-refresh>{t.refresh}</button>
+  </div>
 </main>
 <script>
   import { moduleFetch, submissionKey } from "@/lib/module-client";

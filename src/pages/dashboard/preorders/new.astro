@@ -1,7 +1,9 @@
 ---
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import RequestForm from "@/components/modules/RequestForm.astro";
-import { useT } from "@/i18n";
+import ModuleHeader from "@/components/modules/ModuleHeader.astro";
+import ModuleState from "@/components/modules/ModuleState.astro";
+import { localePath, useT } from "@/i18n";
 import { getServerAuth } from "@/lib/api/server";
 import { authedApi } from "@/lib/api/client";
 const t = useT(Astro.locals.locale).modules;
@@ -14,13 +16,15 @@ try {
 ---
 
 <DashboardLayout title={t.newRequest} active="preorders"
-  ><main class="module-page">
-    <h1>{t.newRequest}</h1>{
+  ><main class="module-page module-dashboard">
+    <ModuleHeader title={t.newRequest} backHref={localePath(Astro.locals.locale, "/dashboard/preorders")} backLabel={t.preorders} />
+    <div class="module-content">{
       slug ? (
         <RequestForm module="preorders" slug={slug} owner />
       ) : (
-        <p>{t.unavailable}</p>
+        <ModuleState />
       )
     }
+    </div>
   </main></DashboardLayout
 >

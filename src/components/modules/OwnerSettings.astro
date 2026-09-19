@@ -5,6 +5,8 @@ import { moduleApi } from "@/lib/api/modules";
 import { authedApi } from "@/lib/api/client";
 import { text } from "@/lib/format";
 import HoursFields from "./HoursFields.astro";
+import ModuleHeader from "./ModuleHeader.astro";
+import ModuleState from "./ModuleState.astro";
 import type {
   Module,
   ModuleSettings,
@@ -55,10 +57,9 @@ const advanced = access?.modules[module].advanced ?? false,
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<main class="module-page" data-owner-settings data-module={module}>
-  <a href={localePath(locale, `/dashboard/${module}`)}>← {t[module]}</a><h1>
-    {t.settings} · {t[module]}
-  </h1><p>{t.configureFirst}</p>
+<main class="module-page module-dashboard" data-owner-settings data-module={module}>
+  <ModuleHeader title={`${t.settings} · ${t[module]}`} description={t.configureFirst} backHref={localePath(locale, `/dashboard/${module}`)} backLabel={t[module]} />
+  <div class="module-content">
   {
     settings && canConfigure ? (
       <>
@@ -328,14 +329,10 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
         )}
       </>
     ) : (
-      <div class="module-card">
-        <>
-          <p>{settings ? t.errors.forbidden : t.unavailable}</p>
-          <a href={localePath(locale, "/dashboard/billing")}>{t.upgrade}</a>
-        </>
-      </div>
+      <ModuleState kind={settings ? "restricted" : "error"} />
     )
   }
+  </div>
 </main>
 <script>
   import { moduleFetch, submissionKey } from "@/lib/module-client";

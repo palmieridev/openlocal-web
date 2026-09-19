@@ -12,7 +12,7 @@ const { catalog } = Astro.props,
 <div class="module-grid">
   {
     catalog.plans.map((plan) => (
-      <section class="module-card">
+      <section class="module-card module-plan">
         <>
           <h2>{t[plan.id]}</h2>
           <p class="text-2xl font-semibold">
@@ -21,7 +21,7 @@ const { catalog } = Astro.props,
           </p>
         </>
         {plan.id !== "free" && (
-          <>
+          <div class="module-plan-features">
             <p>
               {t.usage}: {plan.confirmation_limit}
             </p>
@@ -34,7 +34,7 @@ const { catalog } = Astro.props,
                 {t.customerHistory} · {t.export} · {t.capacity}
               </p>
             )}
-          </>
+          </div>
         )}
         <a
           class="module-button mt-4"
@@ -46,7 +46,7 @@ const { catalog } = Astro.props,
     ))
   }
 </div>
-<p>
+<p class="mt-4">
   {t.secondModule}: +${catalog.second_module_price}
   {catalog.currency}
   {t.month}

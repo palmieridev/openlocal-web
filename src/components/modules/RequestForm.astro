@@ -17,8 +17,10 @@ const t = useT(Astro.locals.locale).modules;
   data-module={module}
   data-slug={slug}
   data-owner={owner ? "true" : "false"}
+  aria-busy="true"
 >
   <p class="module-muted">{t.manual}</p>
+  <p class="module-message" data-loading role="status">{t.loading}</p>
   <form class="module-stack module-card">
     {
       module === "appointments" ? (
@@ -148,10 +150,12 @@ const t = useT(Astro.locals.locale).modules;
     ) as HTMLSelectElement | null;
     const submit = form.querySelector<HTMLButtonElement>("[type=submit]")!;
     const retry = root.querySelector<HTMLButtonElement>("[data-reload]")!;
+    const loading = root.querySelector<HTMLElement>("[data-loading]")!;
     let slots: (AppointmentSlot | PickupWindow)[] = [],
       catalog: PreorderCatalogItem[] = [],
       timezone = "America/Mexico_City",
-      lookup = 0;
+      lookup = 0,
+      catalogReady = false;
     const key = submissionKey();
     dateInput.value = new Intl.DateTimeFormat("en-CA", {
       timeZone: timezone,
@@ -166,11 +170,25 @@ const t = useT(Astro.locals.locale).modules;
       message.classList.add("module-error");
       retry.hidden = false;
     }
+    function setLoading(active: boolean) {
+      root.setAttribute("aria-busy", String(active));
+      loading.hidden = !active;
+      retry.disabled = active;
+      slotSelect.disabled = active;
+    }
     async function loadSlots() {
       const request = ++lookup;
       submit.disabled = true;
+      slots = [];
+      if (!catalogReady || !dateInput.value || (serviceSelect && !serviceSelect.value)) {
+        slotSelect.replaceChildren(new Option(t.noSlots, ""));
+        if (catalogReady) setLoading(false);
+        return;
+      }
+      setLoading(true);
+      message.textContent = "";
+      message.classList.remove("module-error");
       slotSelect.replaceChildren(new Option(t.loading, ""));
-      if (serviceSelect && !serviceSelect.value) return;
       try {
         const query = new URLSearchParams({ date: dateInput.value });
         if (serviceSelect) query.set("service_id", serviceSelect.value);
@@ -201,10 +219,23 @@ const t = useT(Astro.locals.locale).modules;
         message.textContent = slots.length ? "" : t.noSlots;
         retry.hidden = true;
       } catch (error) {
+        if (request !== lookup) return;
+        slotSelect.replaceChildren(new Option(t.unavailable, ""));
         failure(error);
+      } finally {
+        if (request === lookup) setLoading(false);
       }
     }
     async function load() {
+      catalogReady = false;
+      submit.disabled = true;
+      setLoading(true);
+      message.textContent = "";
+      message.classList.remove("module-error");
+      if (serviceSelect) {
+        serviceSelect.disabled = true;
+        serviceSelect.replaceChildren(new Option(t.loading, ""));
+      }
       try {
         if (serviceSelect) {
           const services = await moduleFetch<AppointmentService[]>(
@@ -221,12 +252,23 @@ const t = useT(Astro.locals.locale).modules;
                   ),
               ),
           );
+          if (!serviceSelect.options.length) {
+            serviceSelect.replaceChildren(new Option(t.noServices, ""));
+            message.textContent = owner ? t.configureFirst : t.intakeClosed;
+            setLoading(false);
+            return;
+          }
         } else {
           const data = await moduleFetch<{
             timezone: string;
             items: PreorderCatalogItem[];
           }>(`${readsPath}/catalog`);
           catalog = data.items;
+          if (!catalog.length) {
+            message.textContent = owner ? t.configureFirst : t.intakeClosed;
+            setLoading(false);
+            return;
+          }
           timezone = data.timezone;
           const container = root.querySelector("[data-catalog]")!;
           const previous = new Map(
@@ -268,9 +310,14 @@ const t = useT(Astro.locals.locale).modules;
             container.append(label);
           }
         }
+        catalogReady = true;
+        if (serviceSelect) serviceSelect.disabled = false;
         await loadSlots();
       } catch (error) {
+        if (serviceSelect) serviceSelect.replaceChildren(new Option(t.unavailable, ""));
+        slotSelect.replaceChildren(new Option(t.noSlots, ""));
         failure(error);
+        setLoading(false);
       }
     }
     serviceSelect?.addEventListener("change", loadSlots);
@@ -316,6 +363,7 @@ const t = useT(Astro.locals.locale).modules;
         }
       }
       submit.disabled = true;
+      submit.textContent = t.saving;
       message.classList.remove("module-error");
       message.textContent = t.saving;
       try {
@@ -346,6 +394,7 @@ const t = useT(Astro.locals.locale).modules;
         if (!owner) (window as Window & {turnstile?:{reset:()=>void}}).turnstile?.reset();
       } finally {
         submit.disabled = false;
+        submit.textContent = t.submit;
       }
     });
     void load();

@@ -1,6 +1,8 @@
 ---
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import PlanCards from "@/components/modules/PlanCards.astro";
+import ModuleHeader from "@/components/modules/ModuleHeader.astro";
+import ModuleState from "@/components/modules/ModuleState.astro";
 import { useT } from "@/i18n";
 import { getServerAuth } from "@/lib/api/server";
 import { moduleApi, modulePublic } from "@/lib/api/modules";
@@ -46,14 +48,15 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 
 <DashboardLayout title={t.billing} active="billing"
   ><main
-    class="module-page"
+    class="module-page module-dashboard"
     data-billing
     data-tier={subscription?.tier}
     data-period={subscription?.period_end}
     data-modules={JSON.stringify(subscription?.modules.slice().sort() ?? [])}
     data-status={subscription?.status}
   >
-    <h1>{t.billing}</h1><p>{t.intro}</p>
+    <ModuleHeader title={t.billing} description={t.intro} />
+    <div class="module-content">
     {
       subscription && catalog ? (
         <>
@@ -162,11 +165,12 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           )}
         </>
       ) : (
-        <p>{t.unavailable}</p>
+        <ModuleState />
       )
     }
     <p role="status" aria-live="polite" class="module-message" data-message>
     </p><p class="module-muted">{t.noMeta}</p>
+    </div>
   </main></DashboardLayout
 >
 <script>
