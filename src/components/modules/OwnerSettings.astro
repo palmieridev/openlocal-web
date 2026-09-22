@@ -1,5 +1,6 @@
 ---
 import { localePath, useT } from "@/i18n";
+import { Icon } from "astro-icon/components";
 import { getServerAuth } from "@/lib/api/server";
 import { moduleApi } from "@/lib/api/modules";
 import { authedApi } from "@/lib/api/client";
@@ -53,7 +54,20 @@ try {
   }
 } catch {}
 const advanced = access?.modules[module].advanced ?? false,
-  canConfigure = access?.modules[module].can_configure ?? false;
+  canConfigure = access?.modules[module].can_configure ?? false,
+  hasPublicService = services.some((service) => service.active && service.is_public),
+  hasActiveResource = resources.some((resource) => resource.active),
+  hasAvailability = Boolean(
+    settings?.hours.some((day) => !day.is_closed && day.opens_at && day.closes_at),
+  ),
+  appointmentSteps = [
+    { complete: hasPublicService, label: t.appointmentSetupService },
+    { complete: hasActiveResource, label: t.appointmentSetupResource },
+    {
+      complete: hasAvailability && Boolean(settings?.enabled),
+      label: t.appointmentSetupAvailability,
+    },
+  ];
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
@@ -63,6 +77,35 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   {
     settings && canConfigure ? (
       <>
+        {module === "appointments" && (
+          <section class="module-card module-stack module-setup" aria-labelledby="appointment-setup-title">
+            <div>
+              <h2 id="appointment-setup-title">{t.appointmentSetupTitle}</h2>
+              <p class="module-muted">{t.appointmentSetupIntro}</p>
+            </div>
+            <ol class="module-setup-list">
+              {appointmentSteps.map((step, index) => (
+                <li class:list={["module-setup-step", { complete: step.complete }] }>
+                  <span class="module-setup-marker" aria-hidden="true">
+                    {step.complete ? (
+                      <Icon name="lucide:check" width={16} height={16} />
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span>
+                    {step.label}
+                    <small>{step.complete ? t.setupDone : t.setupPending}</small>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p class="module-setup-storefront">
+              <Icon name="lucide:store" width={18} height={18} aria-hidden="true" />
+              {t.appointmentSetupStorefront}
+            </p>
+          </section>
+        )}
         <form data-settings class="module-card module-stack">
           <label>
             <input type="checkbox" name="enabled" checked={settings.enabled} />{" "}
@@ -245,7 +288,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                     name="is_public"
                     checked={service?.is_public ?? true}
                   />{" "}
-                  {t.enabled}
+                  {t.publicService}
                 </label>
                 <button class="module-button">
                   {service ? t.save : t.add}
@@ -283,22 +326,26 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                   />{" "}
                   {t.active}
                 </label>
-                <fieldset>
-                  <legend>{t.services}</legend>
-                  {services.map((service) => (
-                    <label class="mr-3">
-                      <input
-                        name="service_ids"
-                        type="checkbox"
-                        value={service.id}
-                        checked={
-                          resource?.service_ids.includes(service.id) ?? false
-                        }
-                      />{" "}
-                      {service.name}
-                    </label>
-                  ))}
-                </fieldset>
+                {advanced ? (
+                  <fieldset>
+                    <legend>{t.services}</legend>
+                    {services.map((service) => (
+                      <label class="mr-3">
+                        <input
+                          name="service_ids"
+                          type="checkbox"
+                          value={service.id}
+                          checked={
+                            resource?.service_ids.includes(service.id) ?? false
+                          }
+                        />{" "}
+                        {service.name}
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : (
+                  <p class="module-muted">{t.allServicesResource}</p>
+                )}
                 {advanced && (
                   <details>
                     <summary>{t.schedules}</summary>

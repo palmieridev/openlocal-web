@@ -77,6 +77,19 @@ export const modulesEn: typeof modulesEs = {
   enabled: "Accept new requests",
   configureFirst:
     "Configure services or products and availability before opening requests.",
+  appointmentSetupTitle: "Publish appointments in 3 steps",
+  appointmentSetupIntro:
+    "Booking appears on your storefront after these requirements are complete.",
+  appointmentSetupService:
+    "Create a public service with its duration and price, for example, Full bath.",
+  appointmentSetupResource:
+    "Create an active calendar for the person or space that will handle appointments.",
+  appointmentSetupAvailability:
+    "Set at least one available day and turn on new requests.",
+  appointmentSetupStorefront:
+    "Once all three steps are complete, the “Request appointment” button automatically appears on your public storefront.",
+  setupDone: "Ready",
+  setupPending: "Pending",
   services: "Services",
   resources: "Calendars",
   name: "Name",
@@ -85,6 +98,8 @@ export const modulesEn: typeof modulesEs = {
   price: "Price (MXN)",
   add: "Add",
   active: "Active",
+  publicService: "Available to book on the public storefront",
+  allServicesResource: "This calendar will receive every active service.",
   duration: "Duration",
   bufferBefore: "Preparation before",
   bufferAfter: "Preparation after",

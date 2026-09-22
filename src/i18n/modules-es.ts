@@ -76,6 +76,19 @@ export const modulesEs = {
   enabled: "Aceptar nuevas solicitudes",
   configureFirst:
     "Configura los servicios o productos y horarios antes de activar las solicitudes.",
+  appointmentSetupTitle: "Publica tus citas en 3 pasos",
+  appointmentSetupIntro:
+    "La tienda mostrará la reserva cuando completes estos requisitos.",
+  appointmentSetupService:
+    "Crea un servicio público con su duración y precio, por ejemplo, Baño completo.",
+  appointmentSetupResource:
+    "Crea un calendario activo para la persona o espacio que atenderá las citas.",
+  appointmentSetupAvailability:
+    "Define al menos un día disponible y activa las nuevas solicitudes.",
+  appointmentSetupStorefront:
+    "Al completar los tres pasos aparecerá automáticamente el botón “Solicitar cita” en tu tienda pública.",
+  setupDone: "Listo",
+  setupPending: "Pendiente",
   services: "Servicios",
   resources: "Calendarios",
   name: "Nombre",
@@ -84,6 +97,8 @@ export const modulesEs = {
   price: "Precio (MXN)",
   add: "Agregar",
   active: "Activo",
+  publicService: "Disponible para reservar en la tienda pública",
+  allServicesResource: "Este calendario recibirá todos los servicios activos.",
   duration: "Duración",
   bufferBefore: "Preparación antes",
   bufferAfter: "Preparación después",
