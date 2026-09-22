@@ -44,10 +44,9 @@ const nav = [
   { key: "productos", tour: "nav-productos", label: t.navProducts, icon: "lucide:package", href: to("/dashboard/products") },
   { key: "inventario", tour: "nav-inventario", label: t.navInventory, icon: "lucide:boxes", href: to("/dashboard/inventory") },
   { key: "analitica", tour: "nav-analitica", label: t.navAnalytics, icon: "lucide:chart-column", href: to("/dashboard/analytics") },
-  ...(modules?.modules.appointments.can_manage_existing ? [{key:"appointments",tour:"nav-appointments",label:useT(locale).modules.appointments,icon:"lucide:calendar",href:to("/dashboard/appointments")}] : []),
-  ...(modules?.modules.preorders.can_manage_existing ? [{key:"preorders",tour:"nav-preorders",label:useT(locale).modules.preorders,icon:"lucide:shopping-bag",href:to("/dashboard/preorders")}] : []),
+  ...(modules?.modules.appointments.owned ? [{key:"appointments",tour:"nav-appointments",label:useT(locale).modules.appointments,icon:"lucide:calendar",href:to("/dashboard/appointments")}] : []),
+  ...(modules?.modules.preorders.owned ? [{key:"preorders",tour:"nav-preorders",label:useT(locale).modules.preorders,icon:"lucide:shopping-bag",href:to("/dashboard/preorders")}] : []),
   {key:"modules",tour:"nav-modules",label:useT(locale).modules.modules,icon:"lucide:layers",href:to("/dashboard/modules")},
-  ...(!modules || modules.role === "owner" ? [{key:"billing",tour:"nav-billing",label:useT(locale).modules.billing,icon:"lucide:credit-card",href:to("/dashboard/billing")}] : []),
   { key: "tienda", tour: "nav-tienda", label: t.navStorefront, icon: "lucide:globe", href: storeHref || "#", external: true },
   { key: "ajustes", tour: "nav-ajustes", label: t.navSettings, icon: "lucide:settings", href: to("/dashboard/settings") },
 ];
