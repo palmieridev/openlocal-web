@@ -9,7 +9,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 <PublicLayout title={t.requestPreorder}
   ><main class="module-page">
     <a href={localePath(Astro.locals.locale, `/business/${Astro.params.slug}`)}
-      >← {t.modules}</a
+      >← {t.backToStorefront}</a
     ><h1>{t.requestPreorder}</h1><RequestForm
       module="preorders"
       slug={Astro.params.slug!}

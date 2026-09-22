@@ -127,7 +127,12 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                 ["lead_minutes", t.lead],
                 ["horizon_days", t.horizon],
                 ["cancel_before_minutes", t.cancelCutoff],
-                ["slot_minutes", t.windowMinutes],
+                [
+                  "slot_minutes",
+                  module === "appointments"
+                    ? t.appointmentSlotMinutes
+                    : t.windowMinutes,
+                ],
               ] as const
             ).map(([name, label]) => (
               <label class="module-field">
@@ -470,7 +475,8 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       try {
         await moduleFetch(path, { method, body, key: key(body) });
         message.textContent = t.saved;
-        if (method === "POST") location.reload();
+        if (method === "POST" || form.hasAttribute("data-settings"))
+          location.reload();
       } catch (error) {
         message.textContent =
           error instanceof Error ? error.message : t.unavailable;
