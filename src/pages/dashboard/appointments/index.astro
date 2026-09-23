@@ -1,0 +1,10 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import OwnerQueue from "@/components/modules/OwnerQueue.astro";
+import { useT } from "@/i18n";
+---
+
+<DashboardLayout
+  title={useT(Astro.locals.locale).modules.appointments}
+  active="appointments"><OwnerQueue module="appointments" /></DashboardLayout
+>

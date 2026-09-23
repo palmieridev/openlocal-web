@@ -58,6 +58,7 @@ export default defineConfig({
   },
   env: {
     schema: {
+      PUBLIC_TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", default: "" }),
       // Public marketplace/storefront data comes from the Openlocal API.
       PUBLIC_API_BASE_URL: envField.string({
         context: "client",

@@ -1,10 +1,12 @@
 import type { Dict } from "./es";
+import { modulesEn } from "./modules-en";
 
 /**
  * English dictionary. `satisfies Dict` is the whole safety net: adding a key to
  * `es.ts` without translating it here is a type error, and so is a typo.
  */
 export const en = {
+  modules: modulesEn,
   meta: {
     title: "Openlocal — Local commerce",
     description: "Discover products from local businesses near you.",

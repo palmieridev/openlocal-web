@@ -1,0 +1,13 @@
+---
+import { Icon } from "astro-icon/components";
+interface Props { title: string; description?: string; backHref?: string; backLabel?: string; }
+const { title, description, backHref, backLabel } = Astro.props;
+---
+<header class="module-header">
+  <div class="min-w-0">
+    {backHref && <a class="module-back" href={backHref}><Icon name="lucide:arrow-left" width={16} height={16} aria-hidden="true" />{backLabel}</a>}
+    <h1>{title}</h1>
+    {description && <p>{description}</p>}
+  </div>
+  {Astro.slots.has("actions") && <div class="module-row module-header-actions"><slot name="actions" /></div>}
+</header>

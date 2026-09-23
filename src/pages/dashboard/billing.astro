@@ -1,0 +1,327 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import PlanCards from "@/components/modules/PlanCards.astro";
+import ModuleHeader from "@/components/modules/ModuleHeader.astro";
+import ModuleState from "@/components/modules/ModuleState.astro";
+import { useT } from "@/i18n";
+import { getServerAuth } from "@/lib/api/server";
+import { moduleApi, modulePublic } from "@/lib/api/modules";
+import type {
+  AppointmentResource,
+  PlanCatalog,
+  Subscription,
+  Module,
+} from "@/types/modules";
+import "@/styles/modules.css";
+const locale = Astro.locals.locale,
+  t = useT(locale).modules,
+  { token, businessId } = await getServerAuth(Astro);
+let subscription: Subscription | null = null,
+  catalog: PlanCatalog | null = null,
+  resources: AppointmentResource[] = [];
+try {
+  if (token && businessId) {
+    const api = moduleApi(token, businessId);
+    [subscription, catalog] = await Promise.all([
+      api.subscription(),
+      modulePublic.plans(),
+    ]);
+    if (subscription.modules.includes("appointments"))
+      resources = await api.resources();
+  }
+} catch {}
+const selected = subscription?.modules.length
+  ? subscription.modules
+  : [
+      Astro.url.searchParams.get("module") === "preorders"
+        ? "preorders"
+        : "appointments",
+    ];
+const tier =
+  subscription?.tier !== "free"
+    ? subscription?.tier
+    : Astro.url.searchParams.get("tier") === "business"
+      ? "business"
+      : "essential";
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<DashboardLayout title={t.billing} active="modules"
+  ><main
+    class="module-page module-dashboard"
+    data-billing
+    data-tier={subscription?.tier}
+    data-period={subscription?.period_end}
+    data-modules={JSON.stringify(subscription?.modules.slice().sort() ?? [])}
+    data-status={subscription?.status}
+  >
+    <ModuleHeader title={t.billing} description={t.intro} />
+    <div class="module-content">
+    {
+      subscription && catalog ? (
+        <>
+          <section class="module-card">
+            <h2>{t[subscription.tier]}</h2>
+            <p>{t.status}: {t.billingStatuses[subscription.status as keyof typeof t.billingStatuses] ?? t.unavailable}</p>
+            <p>
+              {t.resets}:{" "}
+              {subscription.period_end
+                ? new Date(subscription.period_end).toLocaleDateString(locale)
+                : "—"}
+            </p>
+            {subscription.cancel_at_period_end && <p>{t.cancelAtEnd}</p>}
+            {subscription.scheduled_change && (
+              <p>
+                {t.effective}:{" "}
+                {new Date(
+                  subscription.scheduled_change.effective_at,
+                ).toLocaleDateString(locale)}{" "}
+                · {t[subscription.scheduled_change.tier]}
+              </p>
+            )}
+            {subscription.entitlements &&
+              (["appointments", "preorders"] as Module[]).map((module) => (
+                <p>
+                  {t[module]}:{" "}
+                  {subscription!.entitlements!.modules[module].usage} /{" "}
+                  {subscription!.entitlements!.modules[module].limit}
+                </p>
+              ))}
+            <>
+              <p class="module-muted">{t.usageNotice}</p>
+              <p class="module-muted">{t.quotaNotice}</p>
+            </>
+          </section>
+          <PlanCards catalog={catalog} />
+          <form data-billing-form class="module-card module-stack" data-second-price={catalog.second_module_price}>
+            <fieldset>
+              <legend>{t.selectedModules}</legend>
+              {(["appointments", "preorders"] as Module[]).map((module) => (
+                <label class="mr-4">
+                  <input
+                    type="checkbox"
+                    name="modules"
+                    value={module}
+                    checked={selected.includes(module)}
+                  />{" "}
+                  {t[module]}
+                </label>
+              ))}
+            </fieldset>
+            <label class="module-field">
+              {t.tier}
+              <select name="tier">
+                {catalog.plans
+                  .filter((p) => p.id !== "free")
+                  .map((plan) => (
+                    <option value={plan.id} selected={plan.id === tier} data-price={plan.monthly_price}>
+                      {t[plan.id]} · ${plan.monthly_price} MXN {t.month}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <p data-monthly-total></p>
+            {resources.length > 1 && (
+              <label class="module-field">
+                {t.resource}
+                <select name="retained_resource_id">
+                  <option value="">{t.all}</option>
+                  {resources
+                    .filter((r) => r.active)
+                    .map((r) => (
+                      <option value={r.id}>{r.name}</option>
+                    ))}
+                </select>
+              </label>
+            )}
+            <button
+              class="module-button"
+              disabled={!subscription.billing_available}
+              data-action={
+                subscription.tier === "free" || subscription.status === "pilot"
+                  ? "checkout"
+                  : "preview"
+              }
+            >
+              {subscription.tier === "free" || subscription.status === "pilot"
+                ? t.checkout
+                : t.preview}
+            </button>
+            <div data-preview hidden>
+              <>
+                <p data-amount />
+                <p data-effective />
+                <button type="button" class="module-button" data-apply>
+                  {t.apply}
+                </button>
+              </>
+            </div>
+            {!subscription.billing_available && <p>{t.paymentUnavailable}</p>}
+          </form>
+          {subscription.billing_available && subscription.tier !== "free" && (
+            <button class="module-button secondary" data-portal>
+              {t.portal}
+            </button>
+          )}
+        </>
+      ) : (
+        <ModuleState />
+      )
+    }
+    <p role="status" aria-live="polite" class="module-message" data-message>
+    </p><p class="module-muted">{t.noMeta}</p>
+    </div>
+  </main></DashboardLayout
+>
+<script>
+  import { moduleFetch, submissionKey } from "@/lib/module-client";
+  import { ui, uiLocale } from "@/lib/i18n-client";
+  import type { Subscription } from "@/types/modules";
+  import { sumAmounts } from "@/lib/modules";
+  const root = document.querySelector<HTMLElement>("[data-billing]")!,
+    form = root.querySelector<HTMLFormElement>("[data-billing-form]"),
+    message = root.querySelector("[data-message]")!,
+    t = ui().modules,
+    key = submissionKey();
+  let selection: Record<string, unknown> | null = null;
+  function redirect(url: string) {
+    const destination = new URL(url);
+    if (
+      destination.protocol !== "https:" ||
+      !["checkout.stripe.com", "billing.stripe.com"].includes(
+        destination.hostname,
+      )
+    )
+      throw new Error(t.unavailable);
+    location.assign(destination.href);
+  }
+  function busy(value: boolean) {
+    root
+      .querySelectorAll<HTMLButtonElement>("button")
+      .forEach((b) => (b.disabled = value));
+  }
+  form?.addEventListener("change", () => {
+    selection = null;
+    root.querySelector<HTMLElement>("[data-preview]")!.hidden = true;
+    updateTotal();
+  });
+  function updateTotal() {
+    if (!form) return;
+    const data = new FormData(form), tier = form.elements.namedItem("tier") as HTMLSelectElement;
+    const prices = [tier.selectedOptions[0].dataset.price!];
+    if (data.getAll("modules").length > 1) prices.push(form.dataset.secondPrice!);
+    form.querySelector("[data-monthly-total]")!.textContent = `$${sumAmounts(...prices)} MXN ${t.month}`;
+  }
+  updateTotal();
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const data = new FormData(form),
+      body: Record<string, unknown> = {
+        tier: data.get("tier"),
+        modules: data.getAll("modules"),
+        locale: uiLocale(),
+      };
+    if (!(body.modules as string[]).length) {
+      message.textContent = t.errors.invalid_request;
+      return;
+    }
+    if (data.get("retained_resource_id"))
+      body.retained_resource_id = data.get("retained_resource_id");
+    const action =
+      form.querySelector<HTMLElement>("[data-action]")!.dataset.action;
+    busy(true);
+    message.textContent = t.loading;
+    try {
+      if (action === "checkout") {
+        const result = await moduleFetch<{ url: string }>(
+          "owner/billing/checkout",
+          { method: "POST", body, key: key(body) },
+        );
+        redirect(result.url);
+      } else {
+        const result = await moduleFetch<{
+          amount_due: string;
+          effective_at: string;
+          proration_date: number;
+        }>("owner/billing/preview", { method: "POST", body, key: key(body) });
+        selection = { ...body, proration_date: result.proration_date };
+        root.querySelector<HTMLElement>("[data-preview]")!.hidden = false;
+        root.querySelector("[data-amount]")!.textContent =
+          `${t.amountDue}: $${result.amount_due} MXN`;
+        root.querySelector("[data-effective]")!.textContent =
+          `${t.effective}: ${new Date(result.effective_at).toLocaleString()}`;
+        message.textContent = "";
+      }
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : t.unavailable;
+    } finally {
+      busy(false);
+    }
+  });
+  root.querySelector("[data-apply]")?.addEventListener("click", async () => {
+    if (!selection) return;
+    busy(true);
+    try {
+      const result = await moduleFetch<{timing:string}>("owner/billing/change", {
+        method: "POST",
+        body: selection,
+        key: key(selection),
+      });
+      if (result.timing === "period_end") { location.reload(); return; }
+      message.textContent = t.paymentPending;
+      selection = null;
+      root.querySelector<HTMLElement>("[data-preview]")!.hidden = true;
+      poll();
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : t.unavailable;
+    } finally {
+      busy(false);
+    }
+  });
+  root.querySelector("[data-portal]")?.addEventListener("click", async () => {
+    busy(true);
+    try {
+      const body = { locale: uiLocale() };
+      const result = await moduleFetch<{ url: string }>(
+        "owner/billing/portal",
+        { method: "POST", body, key: key(body) },
+      );
+      redirect(result.url);
+    } catch (error) {
+      message.textContent =
+        error instanceof Error ? error.message : t.unavailable;
+    } finally {
+      busy(false);
+    }
+  });
+  let attempts = 0;
+  async function poll() {
+    if (++attempts > 12) {
+      message.textContent = t.paymentPending;
+      return;
+    }
+    try {
+      const subscription =
+        await moduleFetch<Subscription>("owner/subscription");
+      if (
+        subscription.tier !== root.dataset.tier ||
+        subscription.period_end !== root.dataset.period ||
+        subscription.status !== root.dataset.status ||
+        JSON.stringify(subscription.modules.slice().sort()) !== root.dataset.modules
+      ) {
+        location.assign(location.pathname);
+        return;
+      }
+    } catch {}
+    setTimeout(poll, 5000);
+  }
+  if (
+    location.search.includes("success") ||
+    location.search.includes("session_id")
+  ) {
+    message.textContent = t.paymentPending;
+    void poll();
+  }
+</script>

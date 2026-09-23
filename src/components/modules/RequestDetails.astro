@@ -1,0 +1,113 @@
+---
+import { useT } from "@/i18n";
+import { formatModuleDate, requestWhatsApp } from "@/lib/modules";
+import type { ModuleRequest } from "@/types/modules";
+interface Props {
+  record: ModuleRequest;
+  owner?: boolean;
+}
+const { record, owner = false } = Astro.props;
+const locale = Astro.locals.locale,
+  t = useT(locale).modules;
+const whatsapp = requestWhatsApp(record, locale, owner);
+---
+
+<div class="module-card module-print">
+  <div class="module-row">
+    <h2 class="!mb-0">{record.reference}</h2><span class="module-status" data-status={record.status}
+      >{t.statuses[record.status] ?? record.status}</span>
+  </div>
+  <p>{record.business?.name}</p><p>{record.customer_name}</p>{
+    owner && <p>{record.customer_phone}</p>
+  }
+  <p>
+    {formatModuleDate(record.starts_at, record.timezone, locale)} · {
+      record.timezone
+    }
+  </p>
+  {record.service_name && <p>{record.service_name}</p>}
+  {
+    record.items && (
+      <div class="module-scroll">
+        <table class="module-table">
+          <>
+            <thead>
+              <tr>
+                <>
+                  <th>{t.name}</th>
+                  <th>{t.quantity}</th>
+                  <th>{t.finalQuantity}</th>
+                  <th>{t.estimate}</th>
+                </>
+              </tr>
+            </thead>
+            <tbody>
+              {record.items.map((item) => (
+                <tr>
+                  <td>{item.name}</td>
+                  <td>
+                    {item.quantity} {item.unit}
+                  </td>
+                  <td>{item.final_quantity ?? "—"}</td>
+                  <td>${item.total} MXN</td>
+                </tr>
+              ))}
+            </tbody>
+          </>
+        </table>
+      </div>
+    )
+  }
+  {
+    record.estimated_total && (
+      <p>
+        {t.estimate}: ${record.estimated_total} MXN
+      </p>
+    )
+  }
+  {
+    record.final_total && (
+      <p>
+        {t.finalAmount}: ${record.final_total} MXN
+      </p>
+    )
+  }
+  {record.notes && <p class="whitespace-pre-wrap">{record.notes}</p>}
+  {
+    record.status === "requested" && record.expires_at && (
+      <p class="module-muted">
+        {t.expires}:{" "}
+        {formatModuleDate(record.expires_at, record.timezone, locale)}
+      </p>
+    )
+  }
+  {
+    whatsapp && (
+      <a
+        class="module-button secondary"
+        href={whatsapp}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {t.contact}
+      </a>
+    )
+  }
+  {
+    (record.history?.length ?? 0) > 0 && (
+      <details class="mt-4">
+        <>
+          <summary>{t.history}</summary>
+          <ul>
+            {record.history!.map((event) => (
+              <li>
+                {formatModuleDate(event.at, record.timezone, locale)} ·{" "}
+                {t.statuses[event.to_status] ?? event.to_status}
+              </li>
+            ))}
+          </ul>
+        </>
+      </details>
+    )
+  }
+</div>

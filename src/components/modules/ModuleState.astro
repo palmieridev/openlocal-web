@@ -1,0 +1,16 @@
+---
+import { Icon } from "astro-icon/components";
+import Button from "@/components/ui/Button.astro";
+import { useT } from "@/i18n";
+interface Props { kind?: "error" | "empty" | "restricted"; message?: string; }
+const { kind = "error", message } = Astro.props;
+const t = useT(Astro.locals.locale).modules;
+const retryHref = `${Astro.originPathname}${Astro.url.search}`;
+---
+<section class="ol-card module-state" role={kind === "error" ? "alert" : undefined}>
+  <span class="module-state-icon"><Icon name={kind === "error" ? "lucide:cloud-off" : kind === "restricted" ? "lucide:lock-keyhole" : "lucide:inbox"} width={24} height={24} aria-hidden="true" /></span>
+  <h2>{kind === "error" ? t.loadError : kind === "restricted" ? t.accessRestricted : t.emptyTitle}</h2>
+  <p>{message ?? (kind === "error" ? t.unavailable : kind === "restricted" ? t.errors.forbidden : t.empty)}</p>
+  {kind === "error" && <Button href={retryHref} variant="secondary" icon="lucide:refresh-cw" class="min-h-11">{t.retry}</Button>}
+  <slot />
+</section>
