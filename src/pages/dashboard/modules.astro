@@ -60,7 +60,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                       </label>
                     </>
                   )}
-                  {entry.can_manage_existing && (
+                  {entry.owned && entry.can_manage_existing && (
                     <Button variant="secondary" class="min-h-11" icon="lucide:arrow-right" href={localePath(locale, `/dashboard/${module}`)}>
                       {t.reviewRequests}
                     </Button>
