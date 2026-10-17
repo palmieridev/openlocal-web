@@ -49,7 +49,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 
 <DashboardLayout title={t.billing} active="modules">
   <main class="module-page module-dashboard" data-billing
-    data-tier={subscription?.tier} data-period={subscription?.period_end}
+    data-tier={subscription?.tier} data-period={subscription?.period_end} data-business={businessId}
     data-modules={JSON.stringify(subscription?.modules.slice().sort() ?? [])}
     data-status={subscription?.status} data-can-manage={String(canManage)} data-paid={String(hasPaidSubscription)}
     data-billing-available={String(Boolean(subscription?.billing_available))}
@@ -115,6 +115,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
             <h2 id="preview-title">{t.reviewSelection}</h2>
             <p data-preview-selection />
             <p data-amount />
+            <p class="module-muted" data-proration-notice hidden>{t.prorationNotice}</p>
             <p data-effective />
             <button type="button" class="module-button" data-apply>{t.apply}</button>
           </section>
@@ -136,6 +137,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   import { intlLocale } from "@/i18n";
   import type { Subscription, Tier, Module } from "@/types/modules";
   import { sumAmounts } from "@/lib/modules";
+  import { billingChangeMessage, type BillingChangeResult } from "@/lib/billing";
   const root = document.querySelector<HTMLElement>("[data-billing]")!,
     form = root.querySelector<HTMLFormElement>("[data-billing-form]"),
     message = root.querySelector<HTMLElement>("[data-message]"),
@@ -145,9 +147,11 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     t = ui().modules, key = submissionKey(),
     canManage = root.dataset.canManage === "true",
     hasPaidSubscription = root.dataset.paid === "true",
-    billingAvailable = root.dataset.billingAvailable === "true";
+    billingAvailable = root.dataset.billingAvailable === "true",
+    receiptKey = "ol_billing_notice:" + root.dataset.business;
   let selection: Record<string, unknown> | null = null,
-    pending = false, applied = false;
+    pending = false, applied = false,
+    syncMessage = t.paymentPending;
   function currentSelection() {
     return {
       tier: form!.querySelector<HTMLInputElement>("input[name=tier]:checked")!.value as Tier,
@@ -196,6 +200,16 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     target.classList.toggle("module-error", error);
     if (target === portalMessage) target.hidden = !text;
   }
+  // Keep the confirmed result visible when polling reloads updated entitlements.
+  try {
+    const saved = sessionStorage.getItem(receiptKey);
+    sessionStorage.removeItem(receiptKey);
+    if (saved) {
+      const receipt = JSON.parse(saved);
+      if (typeof receipt.message === "string" && Date.now() - receipt.at < 300_000)
+        feedback(message ?? portalMessage, receipt.message);
+    }
+  } catch { /* Storage can be unavailable in private browsing. */ }
   async function openPortal(target: HTMLElement) {
     busy(true);
     feedback(target, t.loading);
@@ -236,8 +250,9 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
         selection = { ...body, proration_date: result.proration_date };
         preview!.hidden = false;
         preview!.querySelector("[data-preview-selection]")!.textContent = describe(selected.tier, selected.modules);
-        preview!.querySelector("[data-amount]")!.textContent = (result.timing === "period_end" ? t.nextPayment : t.dueNow) + ": $" + result.amount_due + " MXN";
+        preview!.querySelector("[data-amount]")!.textContent = (result.timing === "period_end" ? t.nextPayment : t.estimatedChangeAmount) + ": $" + result.amount_due + " MXN";
         preview!.querySelector("[data-effective]")!.textContent = t.effective + ": " + new Date(result.effective_at).toLocaleString(intlLocale(uiLocale()));
+        preview!.querySelector<HTMLElement>("[data-proration-notice]")!.hidden = result.timing !== "immediate";
         feedback(message!, "");
       }
     } catch (error) {
@@ -252,7 +267,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     busy(true);
     feedback(message!, t.loading);
     try {
-      const result = await moduleFetch<{ timing: string; effective_at: string }>("owner/billing/change", { method: "POST", body: selection, key: key(selection) });
+      const result = await moduleFetch<BillingChangeResult>("owner/billing/change", { method: "POST", body: selection, key: key(selection) });
       if (result.timing === "period_end") {
         const notice = root.querySelector<HTMLElement>("[data-scheduled-change]")!;
         notice.hidden = false;
@@ -260,7 +275,11 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
         feedback(message!, t.scheduledSaved.replace("{date}", new Date(result.effective_at).toLocaleDateString(intlLocale(uiLocale()))));
         applied = true;
       } else {
-        feedback(message!, t.paymentPending);
+        syncMessage = billingChangeMessage(result, uiLocale());
+        feedback(message!, syncMessage);
+        if (result.payment_status === "settled" && !result.pending) {
+          try { sessionStorage.setItem(receiptKey, JSON.stringify({ message: syncMessage, at: Date.now() })); } catch {}
+        }
         applied = true;
         attempts = 0;
         void poll();
@@ -274,7 +293,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   root.querySelector("[data-portal]")?.addEventListener("click", () => openPortal(portalMessage));
   let attempts = 0;
   async function poll() {
-    if (++attempts > 12) { feedback(message ?? portalMessage, t.paymentPending); return; }
+    if (++attempts > 12) { feedback(message ?? portalMessage, syncMessage); return; }
     try {
       const subscription = await moduleFetch<Subscription>("owner/subscription");
       if (subscription.tier !== root.dataset.tier || subscription.period_end !== root.dataset.period || subscription.status !== root.dataset.status || JSON.stringify(subscription.modules.slice().sort()) !== root.dataset.modules) {
