@@ -73,7 +73,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 
 <main class="module-page module-dashboard" data-owner-settings data-module={module}>
   <ModuleHeader title={`${t.settings} · ${t[module]}`} description={t.configureFirst} backHref={localePath(locale, `/dashboard/${module}`)} backLabel={t[module]} />
-  <div class="module-content">
+  <div class="module-content module-settings-content">
   {
     settings && canConfigure ? (
       <>
@@ -106,94 +106,76 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
             </p>
           </section>
         )}
-        <form data-settings class="module-card module-stack">
+        <form data-settings class="module-settings-form">
+          <section class="module-card module-settings-intake">
+          <div><h2>{t.requestIntake}</h2><p class="module-muted">{module === "appointments" ? t.appointmentsIntro : t.preordersIntro}</p></div>
           <label>
             <input type="checkbox" name="enabled" checked={settings.enabled} />{" "}
             {t.enabled}
           </label>
-          <>
+          </section>
+          <div class="module-settings-columns">
+          <section class="module-card module-settings-section module-stack">
             <h2>{t.schedules}</h2>
             <HoursFields hours={settings.hours} />
-          </>
+          </section>
+          <section class="module-card module-settings-section module-stack">
+            <h2>{module === "appointments" ? t.appointmentRules : t.pickupRules}</h2>
+          <div class="module-settings-fields">
+            {(
+              [
+                ["lead_minutes", t.lead],
+                ["horizon_days", t.horizon],
+                ["cancel_before_minutes", t.cancelCutoff],
+                ["slot_minutes", module === "appointments" ? t.appointmentSlotMinutes : t.windowMinutes],
+              ] as const
+            ).map(([name, label]) => (
+              <label class="module-field">
+                {label}
+                <input name={name} type="number" min="0" required value={settings![name]} />
+              </label>
+            ))}
+            {module === "preorders" && advanced && <>
+              <label class="module-field">{t.capacity}<input type="number" name="max_orders_per_slot" min="0" value={settings.max_orders_per_slot} /></label>
+              <label class="module-field">{t.cutoff}<input type="time" name="daily_cutoff" value={settings.daily_cutoff} /></label>
+            </>}
+          </div>
           <label class="module-field">
             {t.closures}
             <textarea name="closed_dates" rows="3">
               {settings.closed_dates.join("\n")}
             </textarea>
           </label>
-          <div class="module-grid">
-            {(
-              [
-                ["lead_minutes", t.lead],
-                ["horizon_days", t.horizon],
-                ["cancel_before_minutes", t.cancelCutoff],
-                [
-                  "slot_minutes",
-                  module === "appointments"
-                    ? t.appointmentSlotMinutes
-                    : t.windowMinutes,
-                ],
-              ] as const
-            ).map(([name, label]) => (
-              <label class="module-field">
-                {label}
-                <input
-                  name={name}
-                  type="number"
-                  min="0"
-                  required
-                  value={settings![name]}
-                />
-              </label>
-            ))}
+          </section>
           </div>
           {module === "preorders" && (
-            <>
-              {advanced && (
-                <div class="module-grid">
-                  <label class="module-field">
-                    {t.capacity}
-                    <input
-                      type="number"
-                      name="max_orders_per_slot"
-                      min="0"
-                      value={settings.max_orders_per_slot}
-                    />
-                  </label>
-                  <label class="module-field">
-                    {t.cutoff}
-                    <input
-                      type="time"
-                      name="daily_cutoff"
-                      value={settings.daily_cutoff}
-                    />
-                  </label>
-                </div>
-              )}
+            <section class="module-card module-settings-section">
               <h2>{t.eligibility}</h2>
+              <p class="module-muted">{t.eligibilityHelp}</p>
+              <div class="module-variant-list">
               {variants.map((variant) => {
                 const rule = settings!.variant_rules.find(
                   (r) => r.variant_id === variant.id,
                 );
                 return (
-                  <fieldset data-variant={variant.id} class="module-card">
-                    <legend>
-                      <label>
+                  <fieldset data-variant={variant.id} class="module-variant-rule">
+                    <legend class="sr-only">{variant.name}</legend>
+                    <div class="module-variant-fields">
+                      <label class="module-variant-toggle">
                         <input
                           type="checkbox"
                           name={`enabled:${variant.id}`}
                           checked={Boolean(rule)}
                         />{" "}
-                        {variant.name}
+                        <span>{variant.name}</span>
                       </label>
-                    </legend>
-                    <div class="module-grid">
                       <label class="module-field">
                         {t.minimum}
                         <input
                           inputmode="decimal"
                           name={`min:${variant.id}`}
                           value={rule?.min_quantity ?? "0.001"}
+                          disabled={!rule}
                         />
                       </label>
                       <label class="module-field">
@@ -202,6 +184,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                           inputmode="decimal"
                           name={`max:${variant.id}`}
                           value={rule?.max_quantity ?? "100"}
+                          disabled={!rule}
                         />
                       </label>
                       <label class="module-field">
@@ -210,29 +193,34 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                           inputmode="decimal"
                           name={`step:${variant.id}`}
                           value={rule?.step ?? "0.001"}
+                          disabled={!rule}
                         />
                       </label>
                     </div>
                   </fieldset>
                 );
               })}
-            </>
+              </div>
+            </section>
           )}
-          <>
-            <button class="module-button">{t.save}</button>
-            <p role="status" data-message />
-          </>
+          <div class="module-settings-actions">
+            <p role="status" aria-live="polite" class="module-message" data-message />
+            <button class="module-button">{t.saveSettings}</button>
+          </div>
         </form>
         {module === "appointments" && (
           <>
+            <section class="module-settings-section">
             <h2>{t.services}</h2>
+            <div class="module-settings-records">
             {[...services, null].map((service) => (
               <form
                 class="module-card module-stack"
                 data-service
                 data-id={service?.id ?? ""}
               >
-                <div class="module-grid">
+                <h3 class="module-editor-title">{service?.name || t.addService}</h3>
+                <div class="module-service-fields">
                   <label class="module-field">
                     {t.name}
                     <input
@@ -279,6 +267,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                     />
                   </label>
                 )}
+                <div class="module-row">
                 <label>
                   <input
                     type="checkbox"
@@ -295,13 +284,18 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                   />{" "}
                   {t.publicService}
                 </label>
+                </div>
                 <button class="module-button">
                   {service ? t.save : t.add}
                 </button>
                 <p role="status" data-message />
               </form>
             ))}
+            </div>
+            </section>
+            <section class="module-settings-section">
             <h2>{t.resources}</h2>
+            <div class="module-settings-records">
             {[
               ...resources,
               ...(resources.filter((r) => r.active).length <
@@ -314,6 +308,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                 data-resource
                 data-id={resource?.id ?? ""}
               >
+                <h3 class="module-editor-title">{resource?.name || t.addResource}</h3>
                 <label class="module-field">
                   {t.name}
                   <input
@@ -377,6 +372,8 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                 <p role="status" data-message />
               </form>
             ))}
+            </div>
+            </section>
           </>
         )}
       </>
@@ -403,6 +400,14 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     String(data.get("closed_dates") ?? "")
       .split(/\s+/)
       .filter(Boolean);
+  for (const row of root.querySelectorAll<HTMLElement>("[data-variant]")) {
+    const toggle = row.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    toggle.addEventListener("change", () => {
+      row.querySelectorAll<HTMLInputElement>('input:not([type="checkbox"])').forEach((input) => {
+        input.disabled = !toggle.checked;
+      });
+    });
+  }
   for (const form of root.querySelectorAll<HTMLFormElement>("form")) {
     const key = submissionKey();
     form.addEventListener("submit", async (e) => {
