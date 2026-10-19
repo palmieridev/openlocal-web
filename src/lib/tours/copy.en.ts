@@ -77,6 +77,141 @@ export const tourCopy: TourCopy = {
       },
     },
   },
+  "configurar-citas": {
+    title: "Set up Appointments",
+    steps: {
+      "module-services": {
+        title: "Bookable services",
+        description:
+          "Create each service with a name, duration and optional price. Save its own form and keep it active and public. Catalogue products do not become appointment services automatically.",
+      },
+      "module-calendars": {
+        title: "Who will handle the appointment",
+        description:
+          "Create and save an active calendar for the person, station or space providing the service. Available options depend on your plan.",
+      },
+      "module-hours": {
+        title: "Available hours",
+        description:
+          "Uncheck Closed for working days and set opening and closing times. These hours use the business time zone.",
+      },
+      "module-rules": {
+        title: "Notice and closed dates",
+        description:
+          "Set the minimum notice, how far ahead customers can request and the cancellation deadline. Add closed dates when the business will not offer this service.",
+      },
+      "module-intake": {
+        title: "Open or pause requests",
+        description:
+          "Enable intake when everything is ready. Pausing keeps existing requests and history. This tour only explains the controls: it does not change this setting.",
+      },
+      "module-save": {
+        title: "Save your settings",
+        description:
+          "This button saves hours, rules and intake. Services and calendars each have their own save buttons. The tour does not submit forms.",
+      },
+    },
+  },
+  "configurar-pedidos": {
+    title: "Set up Pickup orders",
+    steps: {
+      "module-products": {
+        title: "Products you will accept",
+        description:
+          "Select the variants customers can order and set minimum, maximum and increment. For whole pieces, for example, use increment 1. Products must be visible in the storefront.",
+      },
+      "module-hours": {
+        title: "Available hours",
+        description:
+          "Uncheck Closed for working days and set opening and closing times. These hours use the business time zone.",
+      },
+      "module-rules": {
+        title: "Notice and closed dates",
+        description:
+          "Set the minimum notice, how far ahead customers can request and the cancellation deadline. Add closed dates when the business will not offer this service.",
+      },
+      "module-intake": {
+        title: "Open or pause requests",
+        description:
+          "Enable intake when everything is ready. Pausing keeps existing requests and history. This tour only explains the controls: it does not change this setting.",
+      },
+      "module-save": {
+        title: "Save your settings",
+        description:
+          "This button saves hours, rules and intake. Services and calendars each have their own save buttons. The tour does not submit forms.",
+      },
+    },
+  },
+  "gestionar-citas": {
+    title: "Manage appointments",
+    steps: {
+      "module-usage": {
+        title: "This period's confirmations",
+        description:
+          "Each request counts once, when first confirmed. Cancelling it later does not restore quota. Check your limit and renewal here.",
+      },
+      "module-filters": {
+        title: "Find requests to handle",
+        description:
+          "Filter by date and status, then select Refresh. Appointments also offers calendar filters and a weekly view. A received request is not yet a confirmed booking.",
+      },
+      "module-requests": {
+        title: "Open a request",
+        description:
+          "Open a record to confirm, reject or update its status. If the list is empty, wait for a storefront request or use New request when available. History is retained.",
+      },
+    },
+  },
+  "gestionar-pedidos": {
+    title: "Manage pickup orders",
+    steps: {
+      "module-usage": {
+        title: "This period's confirmations",
+        description:
+          "Each request counts once, when first confirmed. Cancelling it later does not restore quota. Check your limit and renewal here.",
+      },
+      "module-filters": {
+        title: "Find requests to handle",
+        description:
+          "Filter by date and status, then select Refresh. Appointments also offers calendar filters and a weekly view. A received request is not yet a confirmed booking.",
+      },
+      "module-requests": {
+        title: "Open a request",
+        description:
+          "Open a record to confirm, reject or update its status. If the list is empty, wait for a storefront request or use New request when available. History is retained.",
+      },
+    },
+  },
+  "modulos-y-suscripcion": {
+    title: "Modules and subscription",
+    steps: {
+      "billing-current": {
+        title: "What you have today",
+        description:
+          "Check your active tier, payment status and usage per module. The selection below does not change your subscription until you confirm the process.",
+      },
+      "billing-plans": {
+        title: "Choose a tier",
+        description:
+          "Select Free, Essential or Business without leaving the page. Current prices and limits appear here. Free starts cancellation management, not an immediate downgrade.",
+      },
+      "billing-modules": {
+        title: "One module or both",
+        description:
+          "Select Appointments, Pickup orders or both. The second module has an additional charge and shares the tier, but has its own usage counter.",
+      },
+      "billing-summary": {
+        title: "Check the monthly total",
+        description:
+          "Review the tier, modules and recurring total. This is not necessarily today's charge: a change may involve proration.",
+      },
+      "billing-review": {
+        title: "Review before confirming",
+        description:
+          "Continue to review the change or start your first checkout. Upgrades may apply now; reductions are scheduled for period end. This tour does not purchase or change your plan.",
+      },
+    },
+  },
 };
 
 export default tourCopy;

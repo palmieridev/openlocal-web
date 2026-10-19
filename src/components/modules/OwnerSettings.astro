@@ -107,7 +107,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           </section>
         )}
         <form data-settings class="module-settings-form">
-          <section class="module-card module-settings-intake">
+          <section class="module-card module-settings-intake" data-tour="module-intake">
           <div><h2>{t.requestIntake}</h2><p class="module-muted">{module === "appointments" ? t.appointmentsIntro : t.preordersIntro}</p></div>
           <label>
             <input type="checkbox" name="enabled" checked={settings.enabled} />{" "}
@@ -115,11 +115,11 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           </label>
           </section>
           <div class="module-settings-columns">
-          <section class="module-card module-settings-section module-stack">
+          <section class="module-card module-settings-section module-stack" data-tour="module-hours">
             <h2>{t.schedules}</h2>
             <HoursFields hours={settings.hours} />
           </section>
-          <section class="module-card module-settings-section module-stack">
+          <section class="module-card module-settings-section module-stack" data-tour="module-rules">
             <h2>{module === "appointments" ? t.appointmentRules : t.pickupRules}</h2>
           <div class="module-settings-fields">
             {(
@@ -149,7 +149,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           </section>
           </div>
           {module === "preorders" && (
-            <section class="module-card module-settings-section">
+            <section class="module-card module-settings-section" data-tour="module-products">
               <h2>{t.eligibility}</h2>
               <p class="module-muted">{t.eligibilityHelp}</p>
               <div class="module-variant-list">
@@ -205,12 +205,12 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           )}
           <div class="module-settings-actions">
             <p role="status" aria-live="polite" class="module-message" data-message />
-            <button class="module-button">{t.saveSettings}</button>
+            <button class="module-button" data-tour="module-save">{t.saveSettings}</button>
           </div>
         </form>
         {module === "appointments" && (
           <>
-            <section class="module-settings-section">
+            <section class="module-settings-section" data-tour="module-services">
             <h2>{t.services}</h2>
             <div class="module-settings-records">
             {[...services, null].map((service) => (
@@ -293,7 +293,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
             ))}
             </div>
             </section>
-            <section class="module-settings-section">
+            <section class="module-settings-section" data-tour="module-calendars">
             <h2>{t.resources}</h2>
             <div class="module-settings-records">
             {[

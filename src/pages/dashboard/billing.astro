@@ -60,7 +60,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     <div class="module-content billing-content">
       <p role="status" aria-live="polite" class="module-message" data-portal-message hidden />
       {subscription && catalog ? <>
-        <section class="module-card billing-current" aria-labelledby="current-plan-title">
+        <section class="module-card billing-current" aria-labelledby="current-plan-title" data-tour="billing-current">
           <div class="module-row billing-current-heading">
             <div><p class="module-muted">{t.currentPlan}</p><h2 id="current-plan-title">{t[subscription.tier]}</h2></div>
             <span class="module-status">{t.billingStatuses[subscription.status as keyof typeof t.billingStatuses] ?? t.unavailable}</span>
@@ -79,11 +79,11 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           </p>
         </section>
         <form data-billing-form class="module-card billing-editor" data-second-price={catalog.second_module_price}>
-          <fieldset class="billing-section">
+          <fieldset class="billing-section" data-tour="billing-plans">
             <legend>{t.chooseTier}</legend>
             <PlanCards catalog={catalog} selectable selectedTier={tier} currentTier={subscription.tier} />
           </fieldset>
-          <fieldset class="billing-section" data-module-selector hidden={tier === "free"}>
+          <fieldset class="billing-section" data-module-selector hidden={tier === "free"} data-tour="billing-modules">
             <legend>{t.chooseModules}</legend>
             <p class="module-muted">{t.chooseModulesHelp} {t.secondModule}: {"+$" + catalog.second_module_price} {catalog.currency} {t.month}.</p>
             <div class="billing-module-grid">
@@ -102,12 +102,12 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
               <p class="module-muted">{t.retainCalendarHelp}</p>
             </div>}
           </fieldset>
-          <div class="billing-summary" aria-live="polite">
+          <div class="billing-summary" aria-live="polite" data-tour="billing-summary">
             <div><p class="module-muted">{t.selectionSummary}</p><strong data-selection-summary /></div>
             <div class="billing-total"><span class="module-muted">{t.monthlyTotal}</span><strong data-monthly-total /></div>
           </div>
           <p class="module-notice" data-selection-notice role="status" />
-          <div class="billing-actions">
+          <div class="billing-actions" data-tour="billing-review">
             <button type="submit" class="module-button" data-action disabled={!subscription.billing_available}>{hasPaidSubscription ? t.preview : t.checkout}</button>
             {!subscription.billing_available && <p class="module-muted">{t.paymentUnavailable}</p>}
           </div>

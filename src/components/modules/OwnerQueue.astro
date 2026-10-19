@@ -87,7 +87,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
   <div class="module-content">
   {
     access && (
-      <div class="module-grid">
+      <div class="module-grid" data-tour="module-usage">
         <StatTile label={t.usage} value={`${access.usage} / ${access.limit}`} icon="lucide:circle-check" />
         <section class="module-card">
         <p class="font-medium">{t.resets}: {entitlements?.period_end ? new Date(entitlements.period_end).toLocaleDateString(locale) : "—"}</p>
@@ -100,7 +100,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       </div>
     )
   }
-  <form method="GET" class="module-row module-toolbar" hidden={error}>
+  <form method="GET" class="module-row module-toolbar" hidden={error} data-tour="module-filters">
     {module === "appointments" && <label class="module-field">{t.view}<select name="view"><option value="list" selected={view === "list"}>{t.list}</option><option value="week" selected={view === "week"}>{t.week}</option></select></label>}
     <label class="module-field"
       >{t.date}<input type="date" name="date" value={date} /></label
@@ -146,7 +146,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       <ModuleState />
     ) : view === "list" && (
       <>
-        <div class="module-stack mt-6">
+        <div class="module-stack mt-6" data-tour="module-requests">
           {rows.length ? (
             rows.map((record) => (
               <a
