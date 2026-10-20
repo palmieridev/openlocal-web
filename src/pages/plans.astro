@@ -1,0 +1,24 @@
+---
+import PublicLayout from "@/layouts/PublicLayout.astro";
+import PlanCards from "@/components/modules/PlanCards.astro";
+import { modulePublic } from "@/lib/api/modules";
+import { useT } from "@/i18n";
+import "@/styles/modules.css";
+const t = useT(Astro.locals.locale).modules;
+let catalog;
+try {
+  catalog = await modulePublic.plans();
+} catch {}
+---
+
+<PublicLayout title={t.plans}
+  ><div class="module-page">
+    <h1>{t.plans}</h1><p>{t.intro}</p>{
+      catalog ? (
+        <PlanCards catalog={catalog} />
+      ) : (
+        <p role="alert">{t.unavailable}</p>
+      )
+    }
+  </div></PublicLayout
+>

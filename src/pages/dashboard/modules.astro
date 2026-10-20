@@ -1,0 +1,129 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import { Icon } from "astro-icon/components";
+import Button from "@/components/ui/Button.astro";
+import ModuleHeader from "@/components/modules/ModuleHeader.astro";
+import ModuleState from "@/components/modules/ModuleState.astro";
+import { localePath, useT } from "@/i18n";
+import { getServerAuth } from "@/lib/api/server";
+import { moduleApi } from "@/lib/api/modules";
+import type { Entitlements, Module } from "@/types/modules";
+import "@/styles/modules.css";
+const locale = Astro.locals.locale,
+  t = useT(locale).modules,
+  { token, businessId } = await getServerAuth(Astro);
+let access: Entitlements | null = null;
+try {
+  if (token && businessId)
+    access = await moduleApi(token, businessId).entitlements();
+} catch {}
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<DashboardLayout title={t.modules} active="modules"
+  ><main class="module-page module-dashboard">
+    <ModuleHeader title={t.modules} description={t.intro}>
+      <Button slot="actions" variant="secondary" href={localePath(locale, "/dashboard/billing")} icon="lucide:credit-card" class="min-h-11">{t.billing}</Button>
+    </ModuleHeader>
+    <div class="module-content module-stack">
+    {
+      access ? (
+        <div class="module-grid">
+          {(["appointments", "preorders"] as Module[]).map((module) => {
+            const entry = access!.modules[module];
+            return (
+              <section class="module-card module-stack">
+                <div class="module-row"><span class="module-icon"><Icon name={module === "appointments" ? "lucide:calendar" : "lucide:shopping-bag"} width={24} height={24} aria-hidden="true" /></span><h2 class="!mb-0">{t[module]}</h2></div>
+                <p class="module-muted">{module === "appointments" ? t.appointmentsIntro : t.preordersIntro}</p>
+                <div><span class="module-status" data-status={entry.owned && entry.enabled ? "confirmed" : "paused"} data-module-state={module}>{!entry.owned ? t.notIncluded : entry.enabled ? t.accepting : t.paused}</span></div>
+                {entry.owned && <p>
+                  {t.usage}: {entry.usage} / {entry.limit}
+                </p>}
+                <div class="module-stack">
+                  {entry.can_configure && (
+                    <>
+                      <Button variant="secondary" class="min-h-11" icon="lucide:settings"
+                        href={localePath(
+                          locale,
+                          `/dashboard/${module}/settings`,
+                        )}
+                      >
+                        {t.setup}
+                      </Button>
+                      <label>
+                        <input
+                          type="checkbox"
+                          data-toggle-module={module}
+                          checked={entry.enabled}
+                        />{" "}
+                        {t.enabled}
+                      </label>
+                    </>
+                  )}
+                  {entry.owned && entry.can_manage_existing && (
+                    <Button variant="secondary" class="min-h-11" icon="lucide:arrow-right" href={localePath(locale, `/dashboard/${module}`)}>
+                      {t.reviewRequests}
+                    </Button>
+                  )}
+                  {!entry.owned && (
+                    <a
+                      class="module-button"
+                      href={localePath(
+                        locale,
+                        `/dashboard/billing?module=${module}`,
+                      )}
+                    >
+                      {t.choose}
+                    </a>
+                  )}
+                </div>
+                <p class="module-message" data-message={module} role="status" />
+              </section>
+            );
+          })}
+        </div>
+      ) : (
+        <ModuleState />
+      )
+    }
+    {access && <div class="module-notice"><p>{t.configureFirst}</p><p class="module-muted mt-2">{t.existing}</p></div>}
+    <section class="module-card !my-0">
+      <h2>{t.support}</h2><p>{t.supportText}</p>
+    </section>
+    </div>
+  </main></DashboardLayout
+>
+<script>
+  import { moduleFetch } from "@/lib/module-client";
+  import { ui } from "@/lib/i18n-client";
+  for (const toggle of document.querySelectorAll<HTMLInputElement>(
+    "[data-toggle-module]",
+  ))
+    toggle.addEventListener("change", async () => {
+      const module = toggle.dataset.toggleModule!,
+        msg = document.querySelector(`[data-message="${module}"]`)!;
+      toggle.disabled = true;
+      msg.textContent = ui().modules.saving;
+      msg.classList.remove("module-error");
+      try {
+        await moduleFetch(`owner/modules/${module}`, {
+          method: "PATCH",
+          body: { enabled: toggle.checked },
+          key: crypto.randomUUID(),
+        });
+        msg.textContent = ui().modules.saved;
+        const badge = document.querySelector<HTMLElement>(`[data-module-state="${module}"]`);
+        if (badge) {
+          badge.textContent = toggle.checked ? ui().modules.accepting : ui().modules.paused;
+          badge.dataset.status = toggle.checked ? "confirmed" : "paused";
+        }
+      } catch (error) {
+        msg.classList.add("module-error");
+        toggle.checked = !toggle.checked;
+        msg.textContent =
+          error instanceof Error ? error.message : ui().modules.unavailable;
+      } finally {
+        toggle.disabled = false;
+      }
+    });
+</script>

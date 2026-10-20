@@ -1,0 +1,507 @@
+---
+import { localePath, useT } from "@/i18n";
+import { Icon } from "astro-icon/components";
+import { getServerAuth } from "@/lib/api/server";
+import { moduleApi } from "@/lib/api/modules";
+import { authedApi } from "@/lib/api/client";
+import { text } from "@/lib/format";
+import HoursFields from "./HoursFields.astro";
+import ModuleHeader from "./ModuleHeader.astro";
+import ModuleState from "./ModuleState.astro";
+import type {
+  Module,
+  ModuleSettings,
+  AppointmentResource,
+  AppointmentService,
+  Entitlements,
+} from "@/types/modules";
+import "@/styles/modules.css";
+interface Props {
+  module: Module;
+}
+const { module } = Astro.props,
+  locale = Astro.locals.locale,
+  t = useT(locale).modules;
+const { token, businessId, userId } = await getServerAuth(Astro);
+let settings: ModuleSettings | null = null,
+  services: AppointmentService[] = [],
+  resources: AppointmentResource[] = [],
+  access: Entitlements | null = null;
+let variants: { id: string; name: string }[] = [];
+try {
+  if (token && businessId) {
+    const api = moduleApi(token, businessId);
+    [settings, access] = await Promise.all([
+      api.settings(module),
+      api.entitlements(),
+    ]);
+    if (module === "appointments")
+      [services, resources] = await Promise.all([
+        api.services(),
+        api.resources(),
+      ]);
+    else {
+      const products = await authedApi(token, businessId).listProducts();
+      const lists = await Promise.all(
+        products.map(async (p) =>
+          (await authedApi(token, businessId).listProductVariants(p.id)).map(
+            (v) => ({ id: v.id, name: `${p.name} · ${text(v.name) || v.sku}` }),
+          ),
+        ),
+      );
+      variants = lists.flat();
+    }
+  }
+} catch {}
+const advanced = access?.modules[module].advanced ?? false,
+  canConfigure = access?.modules[module].can_configure ?? false,
+  hasPublicService = services.some((service) => service.active && service.is_public),
+  hasActiveResource = resources.some((resource) => resource.active),
+  hasAvailability = Boolean(
+    settings?.hours.some((day) => !day.is_closed && day.opens_at && day.closes_at),
+  ),
+  appointmentSteps = [
+    { complete: hasPublicService, label: t.appointmentSetupService },
+    { complete: hasActiveResource, label: t.appointmentSetupResource },
+    {
+      complete: hasAvailability && Boolean(settings?.enabled),
+      label: t.appointmentSetupAvailability,
+    },
+  ];
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<main class="module-page module-dashboard" data-owner-settings data-module={module} data-business={businessId} data-user={userId}>
+  <ModuleHeader title={`${t.settings} · ${t[module]}`} description={t.configureFirst} backHref={localePath(locale, `/dashboard/${module}`)} backLabel={t[module]} />
+  <div class="module-content module-settings-content">
+  {
+    settings && canConfigure ? (
+      <>
+        {module === "appointments" && (
+          <section class="module-card module-stack module-setup" aria-labelledby="appointment-setup-title">
+            <div>
+              <h2 id="appointment-setup-title">{t.appointmentSetupTitle}</h2>
+              <p class="module-muted">{t.appointmentSetupIntro}</p>
+            </div>
+            <ol class="module-setup-list">
+              {appointmentSteps.map((step, index) => (
+                <li class:list={["module-setup-step", { complete: step.complete }] }>
+                  <span class="module-setup-marker" aria-hidden="true">
+                    {step.complete ? (
+                      <Icon name="lucide:check" width={16} height={16} />
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span>
+                    {step.label}
+                    <small>{step.complete ? t.setupDone : t.setupPending}</small>
+                  </span>
+                </li>
+              ))}
+            </ol>
+            <p class="module-setup-storefront">
+              <Icon name="lucide:store" width={18} height={18} aria-hidden="true" />
+              {t.appointmentSetupStorefront}
+            </p>
+          </section>
+        )}
+        <form data-settings class="module-settings-form">
+          <section class="module-card module-settings-intake" data-tour="module-intake">
+          <div><h2>{t.requestIntake}</h2><p class="module-muted">{module === "appointments" ? t.appointmentsIntro : t.preordersIntro}</p></div>
+          <label>
+            <input type="checkbox" name="enabled" checked={settings.enabled} />{" "}
+            {t.enabled}
+          </label>
+          </section>
+          <div class="module-settings-columns">
+          <section class="module-card module-settings-section module-stack" data-tour="module-hours">
+            <h2>{t.schedules}</h2>
+            <HoursFields hours={settings.hours} />
+          </section>
+          <section class="module-card module-settings-section module-stack" data-tour="module-rules">
+            <h2>{module === "appointments" ? t.appointmentRules : t.pickupRules}</h2>
+          <div class="module-settings-fields">
+            {(
+              [
+                ["lead_minutes", t.lead],
+                ["horizon_days", t.horizon],
+                ["cancel_before_minutes", t.cancelCutoff],
+                ["slot_minutes", module === "appointments" ? t.appointmentSlotMinutes : t.windowMinutes],
+              ] as const
+            ).map(([name, label]) => (
+              <label class="module-field">
+                {label}
+                <input name={name} type="number" min="0" required value={settings![name]} />
+              </label>
+            ))}
+            {module === "preorders" && advanced && <>
+              <label class="module-field">{t.capacity}<input type="number" name="max_orders_per_slot" min="0" value={settings.max_orders_per_slot} /></label>
+              <label class="module-field">{t.cutoff}<input type="time" name="daily_cutoff" value={settings.daily_cutoff} /></label>
+            </>}
+          </div>
+          <label class="module-field">
+            {t.closures}
+            <textarea name="closed_dates" rows="3">
+              {settings.closed_dates.join("\n")}
+            </textarea>
+          </label>
+          </section>
+          </div>
+          {module === "preorders" && (
+            <section class="module-card module-settings-section" data-tour="module-products">
+              <h2>{t.eligibility}</h2>
+              <p class="module-muted">{t.eligibilityHelp}</p>
+              <div class="module-variant-list">
+              {variants.map((variant) => {
+                const rule = settings!.variant_rules.find(
+                  (r) => r.variant_id === variant.id,
+                );
+                return (
+                  <fieldset data-variant={variant.id} class="module-variant-rule">
+                    <legend class="sr-only">{variant.name}</legend>
+                    <div class="module-variant-fields">
+                      <label class="module-variant-toggle">
+                        <input
+                          type="checkbox"
+                          name={`enabled:${variant.id}`}
+                          checked={Boolean(rule)}
+                        />{" "}
+                        <span>{variant.name}</span>
+                      </label>
+                      <label class="module-field">
+                        {t.minimum}
+                        <input
+                          inputmode="decimal"
+                          name={`min:${variant.id}`}
+                          value={rule?.min_quantity ?? "0.001"}
+                          disabled={!rule}
+                        />
+                      </label>
+                      <label class="module-field">
+                        {t.maximum}
+                        <input
+                          inputmode="decimal"
+                          name={`max:${variant.id}`}
+                          value={rule?.max_quantity ?? "100"}
+                          disabled={!rule}
+                        />
+                      </label>
+                      <label class="module-field">
+                        {t.step}
+                        <input
+                          inputmode="decimal"
+                          name={`step:${variant.id}`}
+                          value={rule?.step ?? "0.001"}
+                          disabled={!rule}
+                        />
+                      </label>
+                    </div>
+                  </fieldset>
+                );
+              })}
+              </div>
+            </section>
+          )}
+          <div class="module-settings-actions">
+            <p role="status" aria-live="polite" class="module-message" data-message />
+            <button class="module-button" data-tour="module-save">{t.saveSettings}</button>
+          </div>
+        </form>
+        {module === "appointments" && (
+          <>
+            <section class="module-settings-section" data-tour="module-services">
+            <h2>{t.services}</h2>
+            <div class="module-settings-records">
+            {[...services, null].map((service) => (
+              <form
+                class="module-card module-stack"
+                data-service
+                data-id={service?.id ?? ""}
+              >
+                <h3 class="module-editor-title">{service?.name || t.addService}</h3>
+                <div class="module-service-fields">
+                  <label class="module-field">
+                    {t.name}
+                    <input
+                      name="name"
+                      required
+                      maxlength="120"
+                      value={service?.name ?? ""}
+                    />
+                  </label>
+                  <label class="module-field">
+                    {t.duration} ({t.minutes})
+                    <input
+                      name="duration_minutes"
+                      type="number"
+                      min="5"
+                      max="1440"
+                      required
+                      value={service?.duration_minutes ?? 30}
+                    />
+                  </label>
+                  <label class="module-field">
+                    {t.price}
+                    <input
+                      name="price"
+                      inputmode="decimal"
+                      value={service?.price ?? ""}
+                    />
+                  </label>
+                </div>
+                <label class="module-field">
+                  {t.description}
+                  <textarea name="description">
+                    {service?.description ?? ""}
+                  </textarea>
+                </label>
+                {advanced && (
+                  <label class="module-field">
+                    {t.bufferAfter} ({t.minutes})
+                    <input
+                      name="buffer_minutes"
+                      type="number"
+                      min="0"
+                      value={service?.buffer_minutes ?? 0}
+                    />
+                  </label>
+                )}
+                <div class="module-row">
+                <label>
+                  <input
+                    type="checkbox"
+                    name="active"
+                    checked={service?.active ?? true}
+                  />{" "}
+                  {t.active}
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="is_public"
+                    checked={service?.is_public ?? true}
+                  />{" "}
+                  {t.publicService}
+                </label>
+                </div>
+                <button class="module-button">
+                  {service ? t.save : t.add}
+                </button>
+                <p role="status" data-message />
+              </form>
+            ))}
+            </div>
+            </section>
+            <section class="module-settings-section" data-tour="module-calendars">
+            <h2>{t.resources}</h2>
+            <div class="module-settings-records">
+            {[
+              ...resources,
+              ...(resources.filter((r) => r.active).length <
+              (access?.modules.appointments.max_resources ?? 1)
+                ? [null]
+                : []),
+            ].map((resource) => (
+              <form
+                class="module-card module-stack"
+                data-resource
+                data-id={resource?.id ?? ""}
+              >
+                <h3 class="module-editor-title">{resource?.name || t.addResource}</h3>
+                <label class="module-field">
+                  {t.name}
+                  <input
+                    name="name"
+                    required
+                    maxlength="120"
+                    value={resource?.name ?? ""}
+                  />
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="active"
+                    checked={resource?.active ?? true}
+                  />{" "}
+                  {t.active}
+                </label>
+                {advanced ? (
+                  <fieldset>
+                    <legend>{t.services}</legend>
+                    {services.map((service) => (
+                      <label class="mr-3">
+                        <input
+                          name="service_ids"
+                          type="checkbox"
+                          value={service.id}
+                          checked={
+                            resource?.service_ids.includes(service.id) ?? false
+                          }
+                        />{" "}
+                        {service.name}
+                      </label>
+                    ))}
+                  </fieldset>
+                ) : (
+                  <p class="module-muted">{t.allServicesResource}</p>
+                )}
+                {advanced && (
+                  <details>
+                    <summary>{t.schedules}</summary>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="custom_hours"
+                        checked={Boolean(resource?.hours.length)}
+                      />{" "}
+                      {t.schedules}
+                    </label>
+                    <HoursFields hours={resource?.hours ?? settings!.hours} />
+                    <label class="module-field">
+                      {t.closures}
+                      <textarea name="closed_dates">
+                        {resource?.closed_dates.join("\n") ?? ""}
+                      </textarea>
+                    </label>
+                  </details>
+                )}
+                <button class="module-button">
+                  {resource ? t.save : t.add}
+                </button>
+                <p role="status" data-message />
+              </form>
+            ))}
+            </div>
+            </section>
+          </>
+        )}
+      </>
+    ) : (
+      <ModuleState kind={settings ? "restricted" : "error"} />
+    )
+  }
+  </div>
+</main>
+<script>
+  import { moduleFetch, submissionKey } from "@/lib/module-client";
+  import { ui } from "@/lib/i18n-client";
+  import { attachFormDraft, captureDraft, formDraftKey } from "@/lib/form-drafts";
+  const root = document.querySelector<HTMLElement>("[data-owner-settings]")!,
+    module = root.dataset.module!,
+    t = ui().modules;
+  const hours = (data: FormData) =>
+    Array.from({ length: 7 }, (_, day) => ({
+      day_of_week: day,
+      opens_at: String(data.get(`open:${day}`)),
+      closes_at: String(data.get(`close:${day}`)),
+      is_closed: data.has(`closed:${day}`),
+    }));
+  const dates = (data: FormData) =>
+    String(data.get("closed_dates") ?? "")
+      .split(/\s+/)
+      .filter(Boolean);
+  let storage: Storage | null = null;
+  try { storage = window.sessionStorage; } catch { /* Storage may be disabled. */ }
+  const drafts = new Map<HTMLFormElement, ReturnType<typeof attachFormDraft>>();
+  for (const form of root.querySelectorAll<HTMLFormElement>("form")) {
+    const kind = form.hasAttribute("data-settings") ? "settings" : form.hasAttribute("data-service") ? "service" : "calendar";
+    const draft = attachFormDraft(form, formDraftKey(root.dataset.user!, root.dataset.business!, module, `${kind}:${form.dataset.id || "new"}`), storage);
+    drafts.set(form, draft);
+    if (draft.restored) form.querySelector("[data-message]")!.textContent = t.draftRestored;
+  }
+  for (const row of root.querySelectorAll<HTMLElement>("[data-variant]")) {
+    const toggle = row.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const sync = () => {
+      row.querySelectorAll<HTMLInputElement>('input:not([type="checkbox"])').forEach((input) => {
+        input.disabled = !toggle.checked;
+      });
+    };
+    sync();
+    toggle.addEventListener("change", sync);
+  }
+  for (const form of root.querySelectorAll<HTMLFormElement>("form")) {
+    const key = submissionKey();
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!form.reportValidity()) return;
+      const data = new FormData(form);
+      const submittedDraft = captureDraft(form);
+      let path = "",
+        method = "PATCH",
+        body: Record<string, unknown> = {};
+      if (form.hasAttribute("data-settings")) {
+        path = `owner/${module}/settings`;
+        body = {
+          enabled: data.has("enabled"),
+          hours: hours(data),
+          closed_dates: dates(data),
+        };
+        for (const field of [
+          "lead_minutes",
+          "horizon_days",
+          "cancel_before_minutes",
+          "slot_minutes",
+          "max_orders_per_slot",
+        ]) {
+          if (data.has(field)) body[field] = Number(data.get(field));
+        }
+        if (data.has("daily_cutoff"))
+          body.daily_cutoff = data.get("daily_cutoff");
+        if (module === "preorders")
+          body.variant_rules = Array.from(
+            form.querySelectorAll<HTMLElement>("[data-variant]"),
+          )
+            .filter((row) => data.has(`enabled:${row.dataset.variant}`))
+            .map((row) => {
+              const id = row.dataset.variant;
+              return {
+                variant_id: id,
+                min_quantity: data.get(`min:${id}`),
+                max_quantity: data.get(`max:${id}`),
+                step: data.get(`step:${id}`),
+              };
+            });
+      } else if (form.hasAttribute("data-service")) {
+        path = `owner/services${form.dataset.id ? `/${form.dataset.id}` : ""}`;
+        method = form.dataset.id ? "PATCH" : "POST";
+        body = {
+          name: data.get("name"),
+          description: data.get("description"),
+          duration_minutes: Number(data.get("duration_minutes")),
+          price: data.get("price") || null,
+          active: data.has("active"),
+          is_public: data.has("is_public"),
+        };
+        if (data.has("buffer_minutes"))
+          body.buffer_minutes = Number(data.get("buffer_minutes"));
+      } else {
+        path = `owner/appointment-resources${form.dataset.id ? `/${form.dataset.id}` : ""}`;
+        method = form.dataset.id ? "PATCH" : "POST";
+        body = {
+          name: data.get("name"),
+          active: data.has("active"),
+          service_ids: data.getAll("service_ids"),
+          hours: data.has("custom_hours") ? hours(data) : [],
+          closed_dates: dates(data),
+        };
+      }
+      const button = form.querySelector<HTMLButtonElement>("button")!,
+        message = form.querySelector("[data-message]")!;
+      button.disabled = true;
+      message.textContent = t.saving;
+      try {
+        await moduleFetch(path, { method, body, key: key(body) });
+        drafts.get(form)?.saved(submittedDraft);
+        message.textContent = t.saved;
+        if (method === "POST" || form.hasAttribute("data-settings"))
+          location.reload();
+      } catch (error) {
+        message.textContent =
+          error instanceof Error ? error.message : t.unavailable;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>

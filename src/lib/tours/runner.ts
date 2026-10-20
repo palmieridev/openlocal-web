@@ -73,7 +73,10 @@ export async function runTour(id: string): Promise<boolean> {
     };
   });
 
+  const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const run = driver({
+    animate: !motion.matches,
+    smoothScroll: false,
     showProgress: true,
     showButtons: ["next", "previous", "close"],
     allowClose: true,
@@ -92,6 +95,7 @@ export async function runTour(id: string): Promise<boolean> {
     }),
     steps: driveSteps,
     onDestroyed: () => {
+      motion.removeEventListener("change", updateMotion);
       try {
         localStorage.setItem(tourDoneKey(id), new Date().toISOString());
       } catch {
@@ -100,6 +104,10 @@ export async function runTour(id: string): Promise<boolean> {
     },
   });
 
+  function updateMotion() {
+    run.setConfig({ ...run.getConfig(), animate: !motion.matches });
+  }
+  motion.addEventListener("change", updateMotion);
   run.drive();
   return true;
 }

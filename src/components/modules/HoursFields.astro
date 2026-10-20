@@ -1,0 +1,61 @@
+---
+import { useT } from "@/i18n";
+import type { ScheduleDay } from "@/types/modules";
+interface Props {
+  hours: ScheduleDay[];
+  prefix?: string;
+}
+const { hours, prefix = "" } = Astro.props,
+  dict = useT(Astro.locals.locale),
+  t = dict.modules;
+const names = [
+  dict.hours.monday,
+  dict.hours.tuesday,
+  dict.hours.wednesday,
+  dict.hours.thursday,
+  dict.hours.friday,
+  dict.hours.saturday,
+  dict.hours.sunday,
+];
+---
+
+<div class="module-hours">
+  <div class="module-hours-heading" aria-hidden="true"><span /><span>{t.open}</span><span>{t.close}</span><span /></div>
+  {
+    names.map((name, day) => {
+      const row = hours.find((h) => h.day_of_week === day);
+      return (
+        <fieldset class="module-hours-day">
+            <legend class="sr-only">{name}</legend>
+          <div class="module-hours-row">
+            <span class="module-hours-name" aria-hidden="true">{name}</span>
+            <label class="module-field module-hours-open">
+              <span class="module-hours-label">{t.open}</span>
+              <input
+                type="time"
+                name={`${prefix}open:${day}`}
+                value={row?.opens_at ?? "09:00"}
+              />
+            </label>
+            <label class="module-field module-hours-close">
+              <span class="module-hours-label">{t.close}</span>
+              <input
+                type="time"
+                name={`${prefix}close:${day}`}
+                value={row?.closes_at ?? "18:00"}
+              />
+            </label>
+            <label class="module-hours-closed">
+              <input
+                type="checkbox"
+                name={`${prefix}closed:${day}`}
+                checked={!row || row.is_closed}
+              />{" "}
+              {t.closed}
+            </label>
+          </div>
+        </fieldset>
+      );
+    })
+  }
+</div>

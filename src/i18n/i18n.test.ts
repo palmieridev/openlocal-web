@@ -123,6 +123,7 @@ describe("clientDict", () => {
       "inventory",
       "lightbox",
       "marketplace",
+      "modules",
       "movementModal",
       "movements",
       "onboarding",

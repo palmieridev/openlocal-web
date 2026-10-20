@@ -1,0 +1,50 @@
+---
+title: Set up Pickup orders
+description: Choose products, quantities and pickup windows for your storefront.
+category: cuenta-y-equipo
+order: 3
+updated: 2026-10-19
+readingMinutes: 5
+tour: configurar-pedidos
+---
+
+First subscribe to **Pickup orders** in **Modules → Subscription**. The tour requires module access and only explains controls: it does not change or save settings.
+
+## 1. Prepare your catalogue
+
+Create products and their variants in **Products**. Publish the product and keep eligible variants visible. Make sure the price and unit match what you sell.
+
+## 2. Enable variants
+
+Open **Pickup orders → Settings**. Under **Enabled products**, select each variant you accept and set its minimum quantity, maximum quantity and increment.
+
+For example:
+
+- Whole chickens: minimum 1, maximum 10, increment 1.
+- Chicken sold by kilogram: minimum 0.5, maximum 5, increment 0.5.
+
+Values use the variant's unit. Do not allow fractional quantities for whole pieces. Unchecked variants are not offered for pickup orders even if they remain visible in the catalogue.
+
+## 3. Set pickup availability
+
+Under **Weekly availability**, uncheck **Closed** on working days and set pickup hours. These hours use the business time zone.
+
+Under **Pickup rules**, set notice, booking horizon, cancellation deadline and pickup window duration. Add closed dates. Business supports capacity per window and a daily cutoff; current limits appear in Subscription.
+
+## 4. Open intake
+
+Enable **Accept new requests** and select **Save settings**. Open **Public storefront** and check the pickup button. If products are missing, check that they are enabled here and visible in the catalogue.
+
+## 5. Try an order
+
+In the storefront, select products, quantities and a pickup time, then save using fictional contact details. The order should appear in the owner's queue even if you do not send WhatsApp. Open its details, confirm it and check the status through the customer's private link.
+
+Test confirmations also consume quota. Cancelling later does not restore it.
+
+## What this module does and does not do
+
+Openlocal saves requests and their history. You confirm availability, record preparation and mark collection. You can pause new requests without deleting existing records.
+
+<Callout tone="warning" title="Not an automatic sale or payment">
+An order does not deduct inventory or charge the customer. Record inventory movements separately and collect payment directly. For goods sold by weight, the first amount is an estimate; record the final quantity from the order.
+</Callout>

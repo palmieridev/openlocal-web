@@ -82,6 +82,27 @@ describe("tour anchors", () => {
 });
 
 describe("tour copy", () => {
+  it("module articles in both locales launch their matching dashboard tours", () => {
+    const modules = [
+      "configurar-citas",
+      "configurar-pedidos",
+      "gestionar-citas",
+      "gestionar-pedidos",
+      "modulos-y-suscripcion",
+    ] as const;
+    for (const id of modules) {
+      for (const locale of ["es", "en"]) {
+        const article = readFileSync(
+          join(SRC, "content/support", locale, "cuenta-y-equipo", `${id}.mdx`),
+          "utf8",
+        );
+        expect(article).toContain(`tour: ${id}\n`);
+        expect(article).not.toContain("draft: true");
+      }
+      expect(tourHref(id)).toBe(`${TOURS[id].path}?tour=${id}`);
+    }
+  });
+
   it.each(TOUR_IDS)("%s has prose for every step in both locales", (id) => {
     const steps: TourStep[] = TOURS[id].steps;
     const keys = steps.map((step) => step.key ?? step.anchor);

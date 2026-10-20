@@ -58,6 +58,58 @@ export const TOURS = {
       { anchor: "stock-table", side: "top", align: "start" },
     ],
   },
+  "configurar-citas": {
+    id: "configurar-citas",
+    path: "/dashboard/appointments/settings",
+    steps: [
+      { anchor: "module-services", side: "bottom", align: "start" },
+      { anchor: "module-calendars", side: "bottom", align: "start" },
+      { anchor: "module-hours", side: "bottom", align: "start" },
+      { anchor: "module-rules", side: "bottom", align: "start" },
+      { anchor: "module-intake", side: "bottom", align: "start" },
+      { anchor: "module-save", side: "bottom", align: "start" },
+    ],
+  },
+  "configurar-pedidos": {
+    id: "configurar-pedidos",
+    path: "/dashboard/preorders/settings",
+    steps: [
+      { anchor: "module-products", side: "bottom", align: "start" },
+      { anchor: "module-hours", side: "bottom", align: "start" },
+      { anchor: "module-rules", side: "bottom", align: "start" },
+      { anchor: "module-intake", side: "bottom", align: "start" },
+      { anchor: "module-save", side: "bottom", align: "start" },
+    ],
+  },
+  "gestionar-citas": {
+    id: "gestionar-citas",
+    path: "/dashboard/appointments",
+    steps: [
+      { anchor: "module-usage", side: "bottom", align: "start" },
+      { anchor: "module-filters", side: "bottom", align: "start" },
+      { anchor: "module-requests", side: "bottom", align: "start" },
+    ],
+  },
+  "gestionar-pedidos": {
+    id: "gestionar-pedidos",
+    path: "/dashboard/preorders",
+    steps: [
+      { anchor: "module-usage", side: "bottom", align: "start" },
+      { anchor: "module-filters", side: "bottom", align: "start" },
+      { anchor: "module-requests", side: "bottom", align: "start" },
+    ],
+  },
+  "modulos-y-suscripcion": {
+    id: "modulos-y-suscripcion",
+    path: "/dashboard/billing",
+    steps: [
+      { anchor: "billing-current", side: "bottom", align: "start" },
+      { anchor: "billing-plans", side: "bottom", align: "start" },
+      { anchor: "billing-modules", side: "bottom", align: "start" },
+      { anchor: "billing-summary", side: "bottom", align: "start" },
+      { anchor: "billing-review", side: "bottom", align: "start" },
+    ],
+  },
 } satisfies Record<string, TourDefinition>;
 
 export type TourId = keyof typeof TOURS;

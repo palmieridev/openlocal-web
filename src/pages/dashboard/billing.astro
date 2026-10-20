@@ -1,0 +1,310 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import PlanCards from "@/components/modules/PlanCards.astro";
+import ModuleHeader from "@/components/modules/ModuleHeader.astro";
+import ModuleState from "@/components/modules/ModuleState.astro";
+import { intlLocale, useT } from "@/i18n";
+import { getServerAuth } from "@/lib/api/server";
+import { moduleApi, modulePublic } from "@/lib/api/modules";
+import type {
+  AppointmentResource,
+  PlanCatalog,
+  Subscription,
+  Module,
+  Tier,
+} from "@/types/modules";
+import "@/styles/modules.css";
+const locale = Astro.locals.locale,
+  t = useT(locale).modules,
+  { token, businessId } = await getServerAuth(Astro);
+let subscription: Subscription | null = null,
+  catalog: PlanCatalog | null = null,
+  resources: AppointmentResource[] = [];
+try {
+  if (token && businessId) {
+    const api = moduleApi(token, businessId);
+    [subscription, catalog] = await Promise.all([
+      api.subscription(),
+      modulePublic.plans(),
+    ]);
+    if (subscription.modules.includes("appointments"))
+      resources = await api.resources();
+  }
+} catch {}
+const requestedTier = Astro.url.searchParams.get("tier"),
+  requestedModule = Astro.url.searchParams.get("module"),
+  tier: Tier = requestedTier === "free" || requestedTier === "essential" || requestedTier === "business"
+    ? requestedTier
+    : subscription?.tier && subscription.tier !== "free" ? subscription.tier : "essential",
+  selected: Module[] = [...(subscription?.modules ?? [])];
+if ((requestedModule === "appointments" || requestedModule === "preorders") && !selected.includes(requestedModule)) selected.push(requestedModule);
+if (!selected.length) selected.push("appointments");
+const activeResources = resources.filter((resource) => resource.active),
+  hasPaidSubscription = Boolean(subscription && subscription.tier !== "free" && subscription.status !== "pilot"),
+  canManage = Boolean(subscription?.billing_available && hasPaidSubscription),
+  date = (value: string) => new Date(value).toLocaleDateString(intlLocale(locale));
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<DashboardLayout title={t.billing} active="modules">
+  <main class="module-page module-dashboard" data-billing
+    data-tier={subscription?.tier} data-period={subscription?.period_end} data-business={businessId}
+    data-modules={JSON.stringify(subscription?.modules.slice().sort() ?? [])}
+    data-status={subscription?.status} data-can-manage={String(canManage)} data-paid={String(hasPaidSubscription)}
+    data-billing-available={String(Boolean(subscription?.billing_available))}
+    data-cancel-at-end={String(Boolean(subscription?.cancel_at_period_end))}>
+    <ModuleHeader title={t.billing} description={t.billingIntro}>
+      {canManage && <Button slot="actions" variant="secondary" icon="lucide:credit-card" class="min-h-11" data-portal>{t.portal}</Button>}
+    </ModuleHeader>
+    <div class="module-content billing-content">
+      <p role="status" aria-live="polite" class="module-message" data-portal-message hidden />
+      {subscription && catalog ? <>
+        <section class="module-card billing-current" aria-labelledby="current-plan-title" data-tour="billing-current">
+          <div class="module-row billing-current-heading">
+            <div><p class="module-muted">{t.currentPlan}</p><h2 id="current-plan-title">{t[subscription.tier]}</h2></div>
+            <span class="module-status">{t.billingStatuses[subscription.status as keyof typeof t.billingStatuses] ?? t.unavailable}</span>
+            {subscription.period_end && <p class="module-muted">{t.resets}: {date(subscription.period_end)}</p>}
+          </div>
+          {subscription.entitlements && subscription.modules.length > 0 && <div class="billing-usage">
+            {subscription.modules.map((module) => <div>
+              <span>{t[module]}</span>
+              <strong>{subscription!.entitlements!.modules[module].usage} / {subscription!.entitlements!.modules[module].limit}</strong>
+              <small>{t.usage}</small>
+            </div>)}
+          </div>}
+          {subscription.cancel_at_period_end && <p class="module-notice">{t.cancelAtEnd}</p>}
+          <p class="module-notice" data-scheduled-change hidden={!subscription.scheduled_change}>
+            {subscription.scheduled_change && (t.effective + ": " + date(subscription.scheduled_change.effective_at) + " · " + t[subscription.scheduled_change.tier] + " · " + subscription.scheduled_change.modules.map((module) => t[module]).join(", "))}
+          </p>
+        </section>
+        <form data-billing-form class="module-card billing-editor" data-second-price={catalog.second_module_price}>
+          <fieldset class="billing-section" data-tour="billing-plans">
+            <legend>{t.chooseTier}</legend>
+            <PlanCards catalog={catalog} selectable selectedTier={tier} currentTier={subscription.tier} />
+          </fieldset>
+          <fieldset class="billing-section" data-module-selector hidden={tier === "free"} data-tour="billing-modules">
+            <legend>{t.chooseModules}</legend>
+            <p class="module-muted">{t.chooseModulesHelp} {t.secondModule}: {"+$" + catalog.second_module_price} {catalog.currency} {t.month}.</p>
+            <div class="billing-module-grid">
+              {(["appointments", "preorders"] as Module[]).map((module) => <label class="billing-module-choice">
+                <input type="checkbox" name="modules" value={module} checked={selected.includes(module)} />
+                <span><strong>{t[module]}</strong><small>{module === "appointments" ? t.appointmentsIntro : t.preordersIntro}</small></span>
+              </label>)}
+            </div>
+            {activeResources.length > 1 && <div data-retain-calendar hidden={tier !== "essential" || !selected.includes("appointments")}>
+              <label class="module-field">{t.retainCalendar}
+                <select name="retained_resource_id" disabled={tier !== "essential" || !selected.includes("appointments")} required>
+                  <option value="">{t.selectCalendar}</option>
+                  {activeResources.map((resource) => <option value={resource.id}>{resource.name}</option>)}
+                </select>
+              </label>
+              <p class="module-muted">{t.retainCalendarHelp}</p>
+            </div>}
+          </fieldset>
+          <div class="billing-summary" aria-live="polite" data-tour="billing-summary">
+            <div><p class="module-muted">{t.selectionSummary}</p><strong data-selection-summary /></div>
+            <div class="billing-total"><span class="module-muted">{t.monthlyTotal}</span><strong data-monthly-total /></div>
+          </div>
+          <p class="module-notice" data-selection-notice role="status" />
+          <div class="billing-actions" data-tour="billing-review">
+            <button type="submit" class="module-button" data-action disabled={!subscription.billing_available}>{hasPaidSubscription ? t.preview : t.checkout}</button>
+            {!subscription.billing_available && <p class="module-muted">{t.paymentUnavailable}</p>}
+          </div>
+          <section class="module-notice billing-preview" data-preview hidden aria-labelledby="preview-title">
+            <h2 id="preview-title">{t.reviewSelection}</h2>
+            <p data-preview-selection />
+            <p data-amount />
+            <p class="module-muted" data-proration-notice hidden>{t.prorationNotice}</p>
+            <p data-effective />
+            <button type="button" class="module-button" data-apply>{t.apply}</button>
+          </section>
+          <p role="status" aria-live="polite" class="module-message" data-message />
+        </form>
+        <details class="billing-details">
+          <summary>{t.billingDetails}</summary>
+          <p class="module-muted">{t.usageNotice}</p>
+          <p class="module-muted">{t.quotaNotice}</p>
+          <p class="module-muted">{t.noMeta}</p>
+        </details>
+      </> : <ModuleState />}
+    </div>
+  </main>
+</DashboardLayout>
+<script>
+  import { moduleFetch, submissionKey } from "@/lib/module-client";
+  import { ui, uiLocale } from "@/lib/i18n-client";
+  import { intlLocale } from "@/i18n";
+  import type { Subscription, Tier, Module } from "@/types/modules";
+  import { sumAmounts } from "@/lib/modules";
+  import { billingChangeMessage, type BillingChangeResult } from "@/lib/billing";
+  const root = document.querySelector<HTMLElement>("[data-billing]")!,
+    form = root.querySelector<HTMLFormElement>("[data-billing-form]"),
+    message = root.querySelector<HTMLElement>("[data-message]"),
+    portalMessage = root.querySelector<HTMLElement>("[data-portal-message]")!,
+    action = form?.querySelector<HTMLButtonElement>("[data-action]"),
+    preview = root.querySelector<HTMLElement>("[data-preview]"),
+    t = ui().modules, key = submissionKey(),
+    canManage = root.dataset.canManage === "true",
+    hasPaidSubscription = root.dataset.paid === "true",
+    billingAvailable = root.dataset.billingAvailable === "true",
+    receiptKey = "ol_billing_notice:" + root.dataset.business;
+  let selection: Record<string, unknown> | null = null,
+    pending = false, applied = false,
+    syncMessage = t.paymentPending;
+  function currentSelection() {
+    return {
+      tier: form!.querySelector<HTMLInputElement>("input[name=tier]:checked")!.value as Tier,
+      modules: [...form!.querySelectorAll<HTMLInputElement>("input[name=modules]:checked")].map((input) => input.value as Module),
+    };
+  }
+  function describe(tier: Tier, modules: Module[]) {
+    return t[tier] + (tier === "free" || !modules.length ? "" : " · " + modules.map((module) => t[module]).join(", "));
+  }
+  function redirect(url: string) {
+    const destination = new URL(url);
+    if (destination.protocol !== "https:" || !["checkout.stripe.com", "billing.stripe.com"].includes(destination.hostname))
+      throw new Error(t.unavailable);
+    location.assign(destination.href);
+  }
+  function updateSelection() {
+    if (!form || !action) return;
+    const { tier, modules } = currentSelection(), free = tier === "free",
+      tierInput = form.querySelector<HTMLInputElement>("input[name=tier]:checked")!,
+      unchanged = hasPaidSubscription && tier === root.dataset.tier && JSON.stringify(modules.slice().sort()) === root.dataset.modules;
+    form.querySelector<HTMLElement>("[data-module-selector]")!.hidden = free;
+    const retain = form.querySelector<HTMLElement>("[data-retain-calendar]"),
+      retainSelect = form.elements.namedItem("retained_resource_id") as HTMLSelectElement | null,
+      needsCalendar = !free && tier === "essential" && modules.includes("appointments");
+    if (retain) retain.hidden = !needsCalendar;
+    if (retainSelect) retainSelect.disabled = pending || !needsCalendar;
+    const prices = [tierInput.dataset.price!];
+    if (!free && modules.length > 1) prices.push(form.dataset.secondPrice!);
+    form.querySelector("[data-monthly-total]")!.textContent = !free && !modules.length ? "—" : "$" + sumAmounts(...prices) + " MXN " + t.month;
+    form.querySelector("[data-selection-summary]")!.textContent = describe(tier, modules);
+    const notice = form.querySelector<HTMLElement>("[data-selection-notice]")!;
+    notice.textContent = free ? hasPaidSubscription ? t.freeChangeHelp : t.freeCurrent
+      : !modules.length ? t.noModulesSelected : unchanged ? t.sameSubscription : "";
+    notice.hidden = !notice.textContent;
+    action.textContent = free ? hasPaidSubscription ? t.continueFree : t.currentPlan : hasPaidSubscription ? t.preview : t.checkout;
+    action.disabled = pending || applied || !billingAvailable || (free ? !canManage || root.dataset.cancelAtEnd === "true" : !modules.length || unchanged);
+  }
+  function busy(value: boolean) {
+    pending = value;
+    root.querySelectorAll<HTMLButtonElement>("button").forEach((button) => { button.disabled = value; });
+    form?.querySelectorAll<HTMLInputElement>("input").forEach((input) => { input.disabled = value; });
+    updateSelection();
+  }
+  function feedback(target: HTMLElement, text: string, error = false) {
+    target.textContent = text;
+    target.classList.toggle("module-error", error);
+    if (target === portalMessage) target.hidden = !text;
+  }
+  // Keep the confirmed result visible when polling reloads updated entitlements.
+  try {
+    const saved = sessionStorage.getItem(receiptKey);
+    sessionStorage.removeItem(receiptKey);
+    if (saved) {
+      const receipt = JSON.parse(saved);
+      if (typeof receipt.message === "string" && Date.now() - receipt.at < 300_000)
+        feedback(message ?? portalMessage, receipt.message);
+    }
+  } catch { /* Storage can be unavailable in private browsing. */ }
+  async function openPortal(target: HTMLElement) {
+    busy(true);
+    feedback(target, t.loading);
+    try {
+      const body = { locale: uiLocale() },
+        result = await moduleFetch<{ url: string }>("owner/billing/portal", { method: "POST", body, key: key(body) });
+      redirect(result.url);
+    } catch (error) {
+      feedback(target, error instanceof Error ? error.message : t.unavailable, true);
+    } finally { busy(false); }
+  }
+  form?.addEventListener("change", () => {
+    selection = null;
+    applied = false;
+    preview!.hidden = true;
+    feedback(message!, "");
+    updateSelection();
+  });
+  updateSelection();
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (action?.disabled) return;
+    const selected = currentSelection();
+    if (selected.tier === "free") { await openPortal(message!); return; }
+    const data = new FormData(form), body: Record<string, unknown> = { ...selected, locale: uiLocale() };
+    if (!selected.modules.length) { feedback(message!, t.noModulesSelected, true); return; }
+    if (data.get("retained_resource_id")) body.retained_resource_id = data.get("retained_resource_id");
+    selection = null;
+    preview!.hidden = true;
+    busy(true);
+    feedback(message!, t.loading);
+    try {
+      if (!canManage) {
+        const result = await moduleFetch<{ url: string }>("owner/billing/checkout", { method: "POST", body, key: key(body) });
+        redirect(result.url);
+      } else {
+        const result = await moduleFetch<{ amount_due: string; effective_at: string; timing: string; proration_date: number }>("owner/billing/preview", { method: "POST", body, key: key(body) });
+        selection = { ...body, proration_date: result.proration_date };
+        preview!.hidden = false;
+        preview!.querySelector("[data-preview-selection]")!.textContent = describe(selected.tier, selected.modules);
+        preview!.querySelector("[data-amount]")!.textContent = (result.timing === "period_end" ? t.nextPayment : t.estimatedChangeAmount) + ": $" + result.amount_due + " MXN";
+        preview!.querySelector("[data-effective]")!.textContent = t.effective + ": " + new Date(result.effective_at).toLocaleString(intlLocale(uiLocale()));
+        preview!.querySelector<HTMLElement>("[data-proration-notice]")!.hidden = result.timing !== "immediate";
+        feedback(message!, "");
+      }
+    } catch (error) {
+      feedback(message!, error instanceof Error ? error.message : t.unavailable, true);
+    } finally {
+      busy(false);
+      if (selection) preview!.querySelector<HTMLButtonElement>("[data-apply]")!.focus({ preventScroll: true });
+    }
+  });
+  root.querySelector("[data-apply]")?.addEventListener("click", async () => {
+    if (!selection) return;
+    busy(true);
+    feedback(message!, t.loading);
+    try {
+      const result = await moduleFetch<BillingChangeResult>("owner/billing/change", { method: "POST", body: selection, key: key(selection) });
+      if (result.timing === "period_end") {
+        const notice = root.querySelector<HTMLElement>("[data-scheduled-change]")!;
+        notice.hidden = false;
+        notice.textContent = t.effective + ": " + new Date(result.effective_at).toLocaleDateString(intlLocale(uiLocale())) + " · " + describe(selection.tier as Tier, selection.modules as Module[]);
+        feedback(message!, t.scheduledSaved.replace("{date}", new Date(result.effective_at).toLocaleDateString(intlLocale(uiLocale()))));
+        applied = true;
+      } else {
+        syncMessage = billingChangeMessage(result, uiLocale());
+        feedback(message!, syncMessage);
+        if (result.payment_status === "settled" && !result.pending) {
+          try { sessionStorage.setItem(receiptKey, JSON.stringify({ message: syncMessage, at: Date.now() })); } catch {}
+        }
+        applied = true;
+        attempts = 0;
+        void poll();
+      }
+      selection = null;
+      preview!.hidden = true;
+    } catch (error) {
+      feedback(message!, error instanceof Error ? error.message : t.unavailable, true);
+    } finally { busy(false); }
+  });
+  root.querySelector("[data-portal]")?.addEventListener("click", () => openPortal(portalMessage));
+  let attempts = 0;
+  async function poll() {
+    if (++attempts > 12) { feedback(message ?? portalMessage, syncMessage); return; }
+    try {
+      const subscription = await moduleFetch<Subscription>("owner/subscription");
+      if (subscription.tier !== root.dataset.tier || subscription.period_end !== root.dataset.period || subscription.status !== root.dataset.status || JSON.stringify(subscription.modules.slice().sort()) !== root.dataset.modules) {
+        location.assign(location.pathname);
+        return;
+      }
+    } catch {}
+    setTimeout(poll, 5000);
+  }
+  if (location.search.includes("success") || location.search.includes("session_id")) {
+    feedback(message ?? portalMessage, t.paymentPending);
+    void poll();
+  }
+</script>
