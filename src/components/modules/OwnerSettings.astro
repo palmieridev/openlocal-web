@@ -22,7 +22,7 @@ interface Props {
 const { module } = Astro.props,
   locale = Astro.locals.locale,
   t = useT(locale).modules;
-const { token, businessId } = await getServerAuth(Astro);
+const { token, businessId, userId } = await getServerAuth(Astro);
 let settings: ModuleSettings | null = null,
   services: AppointmentService[] = [],
   resources: AppointmentResource[] = [],
@@ -71,7 +71,7 @@ const advanced = access?.modules[module].advanced ?? false,
 Astro.response.headers.set("Cache-Control", "private, no-store");
 ---
 
-<main class="module-page module-dashboard" data-owner-settings data-module={module}>
+<main class="module-page module-dashboard" data-owner-settings data-module={module} data-business={businessId} data-user={userId}>
   <ModuleHeader title={`${t.settings} · ${t[module]}`} description={t.configureFirst} backHref={localePath(locale, `/dashboard/${module}`)} backLabel={t[module]} />
   <div class="module-content module-settings-content">
   {
@@ -386,6 +386,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
 <script>
   import { moduleFetch, submissionKey } from "@/lib/module-client";
   import { ui } from "@/lib/i18n-client";
+  import { attachFormDraft, captureDraft, formDraftKey } from "@/lib/form-drafts";
   const root = document.querySelector<HTMLElement>("[data-owner-settings]")!,
     module = root.dataset.module!,
     t = ui().modules;
@@ -400,13 +401,24 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
     String(data.get("closed_dates") ?? "")
       .split(/\s+/)
       .filter(Boolean);
+  let storage: Storage | null = null;
+  try { storage = window.sessionStorage; } catch { /* Storage may be disabled. */ }
+  const drafts = new Map<HTMLFormElement, ReturnType<typeof attachFormDraft>>();
+  for (const form of root.querySelectorAll<HTMLFormElement>("form")) {
+    const kind = form.hasAttribute("data-settings") ? "settings" : form.hasAttribute("data-service") ? "service" : "calendar";
+    const draft = attachFormDraft(form, formDraftKey(root.dataset.user!, root.dataset.business!, module, `${kind}:${form.dataset.id || "new"}`), storage);
+    drafts.set(form, draft);
+    if (draft.restored) form.querySelector("[data-message]")!.textContent = t.draftRestored;
+  }
   for (const row of root.querySelectorAll<HTMLElement>("[data-variant]")) {
     const toggle = row.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-    toggle.addEventListener("change", () => {
+    const sync = () => {
       row.querySelectorAll<HTMLInputElement>('input:not([type="checkbox"])').forEach((input) => {
         input.disabled = !toggle.checked;
       });
-    });
+    };
+    sync();
+    toggle.addEventListener("change", sync);
   }
   for (const form of root.querySelectorAll<HTMLFormElement>("form")) {
     const key = submissionKey();
@@ -414,6 +426,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       e.preventDefault();
       if (!form.reportValidity()) return;
       const data = new FormData(form);
+      const submittedDraft = captureDraft(form);
       let path = "",
         method = "PATCH",
         body: Record<string, unknown> = {};
@@ -479,6 +492,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       message.textContent = t.saving;
       try {
         await moduleFetch(path, { method, body, key: key(body) });
+        drafts.get(form)?.saved(submittedDraft);
         message.textContent = t.saved;
         if (method === "POST" || form.hasAttribute("data-settings"))
           location.reload();

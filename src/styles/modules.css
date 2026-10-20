@@ -506,6 +506,11 @@
   max-width: 100%;
   padding-inline: 0.5rem;
 }
+@container (max-width: 260px) {
+  .module-hours-row {
+    grid-template-areas: "day closed" "open open" "close close";
+  }
+}
 @container (min-width: 460px) {
   .module-hours-heading,
   .module-hours-row {

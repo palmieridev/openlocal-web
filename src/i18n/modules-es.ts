@@ -46,6 +46,7 @@ export const modulesEs = {
   submit: "Guardar solicitud",
   saving: "Guardando…",
   saved: "Guardado",
+  draftRestored: "Restauramos tu borrador de esta pestaña. Guarda el formulario para aplicar los cambios.",
   retry: "Intentar de nuevo",
   refresh: "Actualizar",
   lastUpdated: "Última actualización",

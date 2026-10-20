@@ -47,6 +47,7 @@ export const modulesEn: typeof modulesEs = {
   submit: "Save request",
   saving: "Saving…",
   saved: "Saved",
+  draftRestored: "Restored this tab's draft. Save the form to apply your changes.",
   retry: "Try again",
   refresh: "Refresh",
   lastUpdated: "Last refreshed",
