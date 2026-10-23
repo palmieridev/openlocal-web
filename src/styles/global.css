@@ -297,3 +297,14 @@
 .driver-popover.ol-tour .driver-popover-arrow {
   border-color: var(--color-surface-card);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .driver-overlay,
+  .driver-popover.ol-tour {
+    animation: none !important;
+    transition: none !important;
+  }
+}

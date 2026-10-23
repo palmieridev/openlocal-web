@@ -9,7 +9,9 @@
  * Deliberately *not* `as const`: the widened `string` types are what let the
  * English dictionary satisfy the same shape with different values.
  */
+import { modulesEs } from "./modules-es";
 export const es = {
+  modules: modulesEs,
   meta: {
     title: "Openlocal — Comercio local",
     description: "Descubre productos de negocios locales cerca de ti.",

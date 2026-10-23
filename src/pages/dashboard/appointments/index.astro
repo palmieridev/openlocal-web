@@ -1,0 +1,13 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import OwnerQueue from "@/components/modules/OwnerQueue.astro";
+import { useT } from "@/i18n";
+import { redirectUnsubscribedModule } from "@/lib/api/module-access";
+const redirect = await redirectUnsubscribedModule(Astro, "appointments");
+if (redirect) return redirect;
+---
+
+<DashboardLayout
+  title={useT(Astro.locals.locale).modules.appointments}
+  active="appointments"><OwnerQueue module="appointments" /></DashboardLayout
+>

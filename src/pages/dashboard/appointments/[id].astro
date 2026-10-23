@@ -1,0 +1,11 @@
+---
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import OwnerDetail from "@/components/modules/OwnerDetail.astro";
+import { useT } from "@/i18n";
+---
+
+<DashboardLayout
+  title={useT(Astro.locals.locale).modules.appointments}
+  active="appointments"
+  ><OwnerDetail module="appointments" id={Astro.params.id!} /></DashboardLayout
+>

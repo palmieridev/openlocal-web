@@ -1,0 +1,344 @@
+---
+import { localePath, useT } from "@/i18n";
+import Button from "@/components/ui/Button.astro";
+import StatTile from "@/components/ui/StatTile.astro";
+import ModuleHeader from "./ModuleHeader.astro";
+import ModuleState from "./ModuleState.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { moduleApi } from "@/lib/api/modules";
+import { formatModuleDate } from "@/lib/modules";
+import { authedApi } from "@/lib/api/client";
+import type {
+  Entitlements,
+  Module,
+  ModuleRequest,
+  AppointmentResource,
+  RequestStatus,
+} from "@/types/modules";
+import "@/styles/modules.css";
+interface Props {
+  module: Module;
+}
+const { module } = Astro.props;
+const locale = Astro.locals.locale,
+  t = useT(locale).modules,
+  to = (path: string) => localePath(locale, path);
+const { token, businessId } = await getServerAuth(Astro);
+let rows: ModuleRequest[] = [],
+  resources: AppointmentResource[] = [],
+  entitlements: Entitlements | null = null,
+  error = false,
+  total = 0;
+const date = Astro.url.searchParams.get("date") ?? "",
+  status = Astro.url.searchParams.get("status") ?? "",
+  resource = Astro.url.searchParams.get("resource_id") ?? "";
+const offset = Math.max(0, Number(Astro.url.searchParams.get("offset")) || 0);
+const view = Astro.url.searchParams.get("view") === "week" ? "week" : "list";
+let week: { date: string; items: ModuleRequest[]; total: number }[] = [];
+try {
+  if (token && businessId) {
+    const api = moduleApi(token, businessId);
+    const [list, access] = await Promise.all([
+      api.list(module, {
+        date,
+        status,
+        resource_id: resource,
+        offset: String(offset),
+      }),
+      api.entitlements(),
+    ]);
+    rows = list.items;
+    total = list.total;
+    entitlements = access;
+    if (module === "appointments") resources = await api.resources().catch(() => []);
+    if (module === "appointments" && view === "week") {
+      const business = await authedApi(token, businessId).getBusiness();
+      const localDate = date || new Intl.DateTimeFormat("en-CA", {
+        timeZone: business.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(new Date());
+      const monday = new Date(`${localDate}T12:00:00Z`);
+      if (!Number.isFinite(monday.getTime())) throw new Error("invalid date");
+      monday.setUTCDate(monday.getUTCDate() - (monday.getUTCDay() + 6) % 7);
+      week = await Promise.all(Array.from({ length: 7 }, async (_, day) => {
+        const current = new Date(monday); current.setUTCDate(current.getUTCDate() + day);
+        const date = current.toISOString().slice(0, 10);
+        const dayList = await api.list(module, { date, status, resource_id: resource, limit: "100" });
+        return { date, items: dayList.items, total: dayList.total };
+      }));
+    }
+  } else error = true;
+} catch {
+  error = true;
+}
+const access = entitlements?.modules[module];
+const statuses: RequestStatus[] = module === "appointments"
+  ? ["requested", "confirmed", "completed", "no_show", "rejected", "cancelled", "expired"]
+  : ["requested", "confirmed", "preparing", "ready", "collected", "uncollected", "rejected", "cancelled", "expired"];
+Astro.response.headers.set("Cache-Control", "private, no-store");
+---
+
+<main class="module-page module-dashboard" data-owner-queue data-module={module} data-loaded={!error}>
+  <ModuleHeader title={t[module]} description={module === "appointments" ? t.appointmentsIntro : t.preordersIntro}>
+    <Fragment slot="actions">
+      {access?.can_configure && <Button variant="secondary" class="min-h-11" icon="lucide:settings" href={to(`/dashboard/${module}/settings`)}>{t.settings}</Button>}
+      {access?.can_accept_new && access?.can_operate && <Button class="min-h-11" icon="lucide:plus" href={to(`/dashboard/${module}/new`)}>{t.newRequest}</Button>}
+    </Fragment>
+  </ModuleHeader>
+  <div class="module-content">
+  {
+    access && (
+      <div class="module-grid" data-tour="module-usage">
+        <StatTile label={t.usage} value={`${access.usage} / ${access.limit}`} icon="lucide:circle-check" />
+        <section class="module-card">
+        <p class="font-medium">{t.resets}: {entitlements?.period_end ? new Date(entitlements.period_end).toLocaleDateString(locale) : "—"}</p>
+        <p class="module-muted">{t.usageNotice}</p>
+        {!access.enabled && access.owned && <p class="module-muted">{t.paused}</p>}
+        {!access.can_accept_new && (!access.owned || access.enabled) && (
+          <a href={to("/dashboard/billing")}>{t.upgrade}</a>
+        )}
+        </section>
+      </div>
+    )
+  }
+  <form method="GET" class="module-row module-toolbar" hidden={error} data-tour="module-filters">
+    {module === "appointments" && <label class="module-field">{t.view}<select name="view"><option value="list" selected={view === "list"}>{t.list}</option><option value="week" selected={view === "week"}>{t.week}</option></select></label>}
+    <label class="module-field"
+      >{t.date}<input type="date" name="date" value={date} /></label
+    >
+    <label class="module-field"
+      >{t.status}<select name="status"
+        ><option value="">{t.all}</option>{
+          statuses.map((s) => (
+            <option value={s} selected={status === s}>
+              {t.statuses[s]}
+            </option>
+          ))
+        }</select
+      ></label
+    >
+    {
+      module === "appointments" && (
+        <label class="module-field">
+          {t.resource}
+          <select name="resource_id">
+            <option value="">{t.all}</option>
+            {resources.map((r) => (
+              <option value={r.id} selected={r.id === resource}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )
+    }
+    <button class="module-button secondary">{t.refresh}</button>
+  </form>
+  {
+    !error && week.length > 0 && <section class="module-week" aria-label={t.week}>
+      {week.map(day => <div class="module-card"><h2>{new Intl.DateTimeFormat(locale, {weekday: "short", month: "short", day: "numeric", timeZone: "UTC"}).format(new Date(`${day.date}T12:00:00Z`))}</h2>
+        {day.items.length ? day.items.map(record => <a class="module-calendar-item" href={to(`/dashboard/appointments/${record.id}`)}><strong>{new Intl.DateTimeFormat(locale, {timeStyle: "short", timeZone: record.timezone}).format(new Date(record.starts_at!))}</strong><span>{record.customer_name}</span><span class="module-muted">{resources.find(r => r.id === record.resource_id)?.name} · {t.statuses[record.status]}</span></a>) : <p class="module-muted">{t.empty}</p>}
+        {day.total > day.items.length && <a href={to(`/dashboard/appointments?date=${day.date}`)}>{t.list}</a>}
+      </div>)}
+    </section>
+  }
+  {
+    error ? (
+      <ModuleState />
+    ) : view === "list" && (
+      <>
+        <div class="module-stack mt-6" data-tour="module-requests">
+          {rows.length ? (
+            rows.map((record) => (
+              <a
+                class="module-card module-record"
+                href={to(`/dashboard/${module}/${record.id}`)}
+              >
+                <div class="module-row">
+                  <strong>
+                    {record.reference} · {record.customer_name}
+                  </strong>
+                  <span class="module-status" data-status={record.status}>{t.statuses[record.status]}</span>
+                </div>
+                <p>
+                  {formatModuleDate(record.starts_at, record.timezone, locale)}
+                </p>
+                <p class="module-muted">
+                  {record.service_name ??
+                    record.items
+                      ?.map((i) => `${i.quantity} ${i.unit} ${i.name}`)
+                      .join(", ")}
+                </p>
+              </a>
+            ))
+          ) : (
+            <ModuleState kind="empty" />
+          )}
+        </div>
+        <nav class="module-row mt-4">
+          {offset > 0 && (
+            <a
+              href={to(
+                `/dashboard/${module}?${new URLSearchParams({ date, status, resource_id: resource, offset: String(Math.max(0, offset - 25)) })}`,
+              )}
+            >
+              ← {t.from}
+            </a>
+          )}
+          {offset + 25 < total && (
+            <a
+              href={to(
+                `/dashboard/${module}?${new URLSearchParams({ date, status, resource_id: resource, offset: String(offset + 25) })}`,
+              )}
+            >
+              {t.to} →
+            </a>
+          )}
+        </nav>
+      </>
+    )
+  }
+  <p class="module-muted mt-4" data-updated hidden={error}>
+    {t.lastUpdated}: {new Date().toLocaleTimeString(locale)}
+  </p>
+  <p class="module-message module-error" data-sync-error role="status" hidden></p>
+  {
+    access?.can_export && (
+      <section class="module-card">
+        <>
+          <h2>{t.export}</h2>
+          <form data-export class="module-row">
+            <>
+              <label class="module-field">
+                {t.from}
+                <input type="date" name="from" required />
+              </label>
+              <label class="module-field">
+                {t.to}
+                <input type="date" name="to" required />
+              </label>
+              <button class="module-button secondary">{t.export}</button>
+            </>
+          </form>
+          <p data-report-message role="status" />
+        </>
+      </section>
+    )
+  }
+  {
+    module === "preorders" && access?.can_export && (
+      <section class="module-card">
+        <>
+          <h2>{t.summary}</h2>
+          <form data-summary class="module-row">
+            <>
+              <label class="module-field">
+                {t.date}
+                <input type="date" name="date" required value={date} />
+              </label>
+              <button class="module-button secondary">{t.refresh}</button>
+            </>
+          </form>
+          <div data-summary-output />
+        </>
+      </section>
+    )
+  }
+  <p class="module-muted mt-6">{t.existing}</p>
+  </div>
+</main>
+<script>
+  import { moduleFetch } from "@/lib/module-client";
+  import { ui, uiLocale } from "@/lib/i18n-client";
+  import type { ModuleRequest } from "@/types/modules";
+  const root = document.querySelector<HTMLElement>("[data-owner-queue]")!,
+    module = root.dataset.module!,
+    t = ui().modules;
+  const syncMessage = root.querySelector<HTMLElement>("[data-sync-error]")!;
+  let initial = "",
+    failures = 0;
+  async function refresh() {
+    if (
+      document.hidden ||
+      root.dataset.loaded !== "true" ||
+      failures >= 3 ||
+      document.activeElement?.matches("input,select")
+    )
+      return;
+    try {
+      const data = await moduleFetch<{ items: ModuleRequest[] }>(
+        `owner/${module}${location.search}`,
+      );
+      const signature = JSON.stringify(
+        data.items.map((r) => [r.id, r.version]),
+      );
+      if (initial && initial !== signature) {
+        location.reload();
+        return;
+      }
+      initial = signature;
+      failures = 0;
+      syncMessage.hidden = true;
+      root.querySelector("[data-updated]")!.textContent =
+        `${t.lastUpdated}: ${new Date().toLocaleTimeString(uiLocale())}`;
+    } catch {
+      failures++;
+      syncMessage.textContent = t.syncError;
+      syncMessage.hidden = false;
+    }
+  }
+  void refresh();
+  window.addEventListener("focus", refresh);
+  setInterval(refresh, 30000);
+  root
+    .querySelector<HTMLFormElement>("[data-export]")
+    ?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const data = new FormData(e.currentTarget as HTMLFormElement),
+        query = new URLSearchParams({
+          from: String(data.get("from")),
+          to: String(data.get("to")),
+        });
+      const msg = root.querySelector("[data-report-message]")!;
+      try {
+        const response = await fetch(
+          `/api/modules/owner/${module}/export?${query}`,
+          { cache: "no-store" },
+        );
+        if (!response.ok) throw new Error(t.unavailable);
+        const url = URL.createObjectURL(await response.blob());
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${module}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch {
+        msg.textContent = t.unavailable;
+      }
+    });
+  root
+    .querySelector<HTMLFormElement>("[data-summary]")
+    ?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const date = new FormData(e.currentTarget as HTMLFormElement).get("date");
+      const output = root.querySelector("[data-summary-output]")!;
+      try {
+        const data = await moduleFetch<{
+          orders: number;
+          total_estimated: string;
+          items: { name: string; quantity: string; unit: string }[];
+        }>(`owner/preorders/summary?date=${date}`);
+        output.replaceChildren();
+        for (const item of data.items) {
+          const p = document.createElement("p");
+          p.textContent = `${item.name}: ${item.quantity} ${item.unit}`;
+          output.append(p);
+        }
+        const p = document.createElement("p");
+        p.textContent = `${t.estimate}: $${data.total_estimated} MXN`;
+        output.append(p);
+      } catch (error) {
+        output.textContent =
+          error instanceof Error ? error.message : t.unavailable;
+      }
+    });
+</script>

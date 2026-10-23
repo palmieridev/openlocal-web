@@ -1,0 +1,66 @@
+---
+import { localePath, useT } from "@/i18n";
+import type { PlanCatalog, Tier } from "@/types/modules";
+interface Props {
+  catalog: PlanCatalog;
+  selectable?: boolean;
+  selectedTier?: Tier;
+  currentTier?: Tier;
+}
+const { catalog, selectable = false, selectedTier, currentTier } = Astro.props,
+  locale = Astro.locals.locale,
+  t = useT(locale).modules;
+---
+
+<div class:list={["module-grid", { "billing-plan-grid": selectable }]}>
+  {
+    catalog.plans.map((plan) => (
+      <section class:list={["module-card module-plan", { "billing-plan": selectable }]}>
+        {selectable && (
+          <label class="billing-plan-choice">
+            <input type="radio" name="tier" value={plan.id} checked={plan.id === selectedTier} data-price={plan.monthly_price} />
+            <span>{t[plan.id]}</span>
+            {plan.id === currentTier && <small class="module-status">{t.currentPlan}</small>}
+          </label>
+        )}
+        <>
+          {!selectable && <h2>{t[plan.id]}</h2>}
+          <p class="text-2xl font-semibold">
+            ${plan.monthly_price} {catalog.currency}{" "}
+            <span class="text-sm font-normal">{t.month}</span>
+          </p>
+        </>
+        {plan.id === "free" && <p class="module-muted">{t.freeDescription}</p>}
+        {plan.id !== "free" && (
+          <div class="module-plan-features">
+            <p>
+              {selectable ? t.planConfirmations : t.usage}: {plan.confirmation_limit}
+            </p>
+            <p>
+              {t.resources}: {plan.max_resources}
+            </p>
+            {!selectable && <p>{t.manual}</p>}
+            {plan.advanced && (
+              <p>
+                {t.customerHistory} · {t.export} · {t.capacity}
+              </p>
+            )}
+          </div>
+        )}
+        {!selectable && <a
+          class="module-button mt-4"
+          href={localePath(locale, `/dashboard/billing?tier=${plan.id}`)}
+        >
+          {t.choose}
+        </a>}
+      </section>
+    ))
+  }
+</div>
+{!selectable && <><p class="mt-4">
+  {t.secondModule}: +${catalog.second_module_price}{" "}
+  {catalog.currency}{" "}
+  {t.month}
+</p><p class="module-muted">{t.noMeta}</p><p class="module-muted">
+  {t.usageNotice}
+</p></>}

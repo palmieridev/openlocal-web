@@ -7,6 +7,7 @@ interface Props {
   description?: string;
   /** Add a class to <body> (e.g. to switch background per page). */
   bodyClass?: string;
+  privateRequest?: boolean;
 }
 
 const locale = Astro.locals.locale;
@@ -16,6 +17,7 @@ const {
   title = t.meta.title,
   description = t.meta.description,
   bodyClass = "",
+  privateRequest = false,
 } = Astro.props;
 
 // After the i18n rewrite `Astro.url` is the unprefixed route, which is exactly
@@ -31,6 +33,7 @@ const canonical = new URL(trim(Astro.originPathname), site);
 <!doctype html>
 <html lang={locale}>
   <head>
+    {privateRequest && <><meta name="robots" content="noindex, nofollow"/><meta name="referrer" content="no-referrer"/><script is:inline>window.__OL_REQUEST_ACCESS = new URLSearchParams(location.hash.slice(1)).get("access"); if (location.hash) history.replaceState(null, "", location.pathname);</script></>}
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content={description} />
