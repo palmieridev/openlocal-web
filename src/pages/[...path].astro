@@ -1,0 +1,11 @@
+---
+import NotFound from "./404.astro";
+
+// Locale-prefixed URLs are rewritten by middleware to the existing pages.
+// Register an SSR catch-all so Vercel sends those requests to Astro without
+// forcing its platform-level 404 status onto successful pages and redirects.
+// If middleware finds no page, this fallback still returns a real 404.
+Astro.response.status = 404;
+---
+
+<NotFound />
