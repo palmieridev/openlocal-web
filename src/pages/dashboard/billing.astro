@@ -104,8 +104,12 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           </fieldset>
           <div class="billing-summary" aria-live="polite" data-tour="billing-summary">
             <div><p class="module-muted">{t.selectionSummary}</p><strong data-selection-summary /></div>
-            <div class="billing-total"><span class="module-muted">{t.monthlyTotal}</span><strong data-monthly-total /></div>
+            <div class="billing-total"><span class="module-muted">{hasPaidSubscription ? t.monthlyTotal : t.monthlyBeforeDiscount}</span><strong data-monthly-total /></div>
           </div>
+          {!hasPaidSubscription && <details class="billing-discount" data-checkout-discount hidden={tier === "free"}>
+            <summary>{t.haveDiscountCode}</summary>
+            <p class="module-muted">{t.checkoutDiscountHelp}</p>
+          </details>}
           <p class="module-notice" data-selection-notice role="status" />
           <div class="billing-actions" data-tour="billing-review">
             <button type="submit" class="module-button" data-action disabled={!subscription.billing_available}>{hasPaidSubscription ? t.preview : t.checkout}</button>
@@ -173,6 +177,8 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       tierInput = form.querySelector<HTMLInputElement>("input[name=tier]:checked")!,
       unchanged = hasPaidSubscription && tier === root.dataset.tier && JSON.stringify(modules.slice().sort()) === root.dataset.modules;
     form.querySelector<HTMLElement>("[data-module-selector]")!.hidden = free;
+    const discount = form.querySelector<HTMLElement>("[data-checkout-discount]");
+    if (discount) discount.hidden = free;
     const retain = form.querySelector<HTMLElement>("[data-retain-calendar]"),
       retainSelect = form.elements.namedItem("retained_resource_id") as HTMLSelectElement | null,
       needsCalendar = !free && tier === "essential" && modules.includes("appointments");
