@@ -131,6 +131,7 @@ describe("clientDict", () => {
       "products",
       "scanner",
       "settings",
+      "shareStorefront",
       "stock",
       "storefront",
       "support",

@@ -1,0 +1,62 @@
+---
+import { Icon } from "astro-icon/components";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
+import StorefrontShare from "@/components/dashboard/StorefrontShare.astro";
+import { getServerAuth } from "@/lib/api/server";
+import { authedApi } from "@/lib/api/client";
+import { storefrontQr, storefrontUrl, type StorefrontQr } from "@/lib/storefront-qr";
+import { localePath, useT } from "@/i18n";
+import type { Business } from "@/types/api";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).shareStorefront;
+const to = (href: string) => localePath(locale, href);
+const { token, businessId } = await getServerAuth(Astro);
+let business: Business | null = null;
+if (token && businessId) {
+  try {
+    business = await authedApi(token, businessId).getBusiness();
+  } catch { /* The owner gets the standard API error state below. */ }
+}
+
+let url = "";
+let qr: StorefrontQr | null = null;
+if (business?.status === "active") {
+  try {
+    url = storefrontUrl(Astro.url, business.slug, locale);
+    qr = await storefrontQr(url);
+  } catch { /* Link sharing remains available if image generation fails. */ }
+}
+---
+
+<DashboardLayout title={t.title} active="compartir">
+  {!businessId ? (
+    <NeedsSetup reason="no-business" />
+  ) : !business ? (
+    <NeedsSetup reason="error" />
+  ) : (
+    <main class="mx-auto max-w-5xl px-6 py-8">
+      <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 class="font-heading text-2xl font-semibold">{t.heading}</h1>
+          <p class="mt-1 max-w-xl text-sm text-text-secondary">{t.intro}</p>
+        </div>
+        {url && <Button variant="secondary" href={to(`/business/${business.slug}`)} icon="lucide:external-link" target="_blank" rel="noopener noreferrer">{t.viewShop}</Button>}
+      </div>
+      {business.status !== "active" ? (
+        <section class="ol-card flex flex-col items-start gap-4 p-6">
+          <Icon name="lucide:store" width={28} height={28} class="text-accent" />
+          <h2 class="font-heading text-lg font-semibold">{t.unpublishedTitle}</h2>
+          <p class="max-w-xl text-sm text-text-secondary">{t.unpublishedBody}</p>
+          <Button href={to("/dashboard/settings")} icon="lucide:settings">{t.managePublishing}</Button>
+        </section>
+      ) : url ? (
+        <StorefrontShare name={business.name} slug={business.slug} url={url} qr={qr} />
+      ) : (
+        <NeedsSetup reason="error" />
+      )}
+    </main>
+  )}
+</DashboardLayout>
