@@ -26,6 +26,8 @@ Spanish-first and priced in pesos.
 
 - **Your own storefront** — a public page with your catalog, branding, and
   contact details.
+- **QR sharing** — download a PNG or printable SVG for your published shop,
+  copy its link, or share it on WhatsApp from **Dashboard → Share shop**.
 - **Product catalog** — add products with variants, photos, prices,
   categories, and tags. Mark items as handmade, made-to-order, or one-of-a-kind.
 - **Barcode & inventory** — scan barcodes to track stock, or generate internal
@@ -72,6 +74,8 @@ local en México: en español y con precios en pesos.
 
 - **Tu propia tienda** — una página pública con tu catálogo, tu marca y tus
   datos de contacto.
+- **Comparte con QR** — descarga un PNG o SVG para imprimir, copia el enlace
+  o compártelo por WhatsApp desde **Panel → Compartir tienda**.
 - **Catálogo de productos** — agrega productos con variantes, fotos, precios,
   categorías y etiquetas. Marca artículos hechos a mano, bajo pedido o únicos.
 - **Código de barras e inventario** — escanea códigos para controlar el stock,
