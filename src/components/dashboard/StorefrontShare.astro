@@ -1,0 +1,93 @@
+---
+import { Icon } from "astro-icon/components";
+import Button from "@/components/ui/Button.astro";
+import { interpolate, localePath, useT } from "@/i18n";
+import type { StorefrontQr } from "@/lib/storefront-qr";
+
+interface Props {
+  name: string;
+  slug: string;
+  url: string;
+  qr: StorefrontQr | null;
+}
+
+const { name, slug, url, qr } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).shareStorefront;
+const whatsapp = `https://wa.me/?text=${encodeURIComponent(interpolate(t.whatsappMessage, { name, url }))}`;
+---
+
+<div class="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+  <section class="ol-card flex min-w-0 flex-col items-center p-6 text-center" aria-labelledby="qr-preview-title">
+    <span class="mb-4 flex size-11 items-center justify-center rounded-xl bg-accent-soft text-accent" aria-hidden="true">
+      <Icon name="lucide:qr-code" width={24} height={24} />
+    </span>
+    <h2 id="qr-preview-title" class="max-w-full break-words font-heading text-xl font-semibold">{name}</h2>
+    <p class="mt-1 text-sm text-text-secondary">{t.scanPrompt}</p>
+    {qr ? (
+      <img
+        src={qr.svg}
+        alt={interpolate(t.qrAlt, { name })}
+        width="256"
+        height="256"
+        class="my-5 aspect-square w-64 max-w-full"
+      />
+    ) : (
+      <div class="my-5 rounded-xl bg-warning-soft p-5 text-sm" role="alert">
+        <p>{t.generationFailed}</p>
+        <a href={localePath(locale, "/dashboard/share")} class="mt-2 inline-block font-medium text-accent underline">{t.retry}</a>
+      </div>
+    )}
+    <p class="max-w-full break-all font-data text-xs text-text-secondary">{url}</p>
+  </section>
+
+  <div class="flex min-w-0 flex-col gap-6">
+    <section class="ol-card p-6" aria-labelledby="qr-download-title">
+      <h2 id="qr-download-title" class="font-heading font-semibold">{t.downloadTitle}</h2>
+      <p class="mt-1 text-sm text-text-secondary">{t.downloadIntro}</p>
+      {qr && (
+        <div class="mt-5 flex flex-wrap gap-3">
+          <Button href={qr.png} download={`${slug}-qr.png`} icon="lucide:download">{t.downloadPng}</Button>
+          <Button href={qr.svg} download={`${slug}-qr.svg`} variant="secondary" icon="lucide:download">{t.downloadSvg}</Button>
+        </div>
+      )}
+      <p class="mt-4 text-xs text-text-secondary">{t.printHint}</p>
+    </section>
+
+    <section class="ol-card p-6" aria-labelledby="qr-link-title" data-storefront-share>
+      <h2 id="qr-link-title" class="font-heading font-semibold">{t.linkTitle}</h2>
+      <p class="mt-1 text-sm text-text-secondary">{t.linkIntro}</p>
+      <label class="ol-label mt-4" for="storefront-share-url">{t.linkLabel}</label>
+      <input class="ol-input font-data text-xs" id="storefront-share-url" value={url} type="url" readonly />
+      <div class="mt-4 flex flex-wrap gap-3">
+        <Button variant="secondary" icon="lucide:copy" data-copy-storefront>{t.copyLink}</Button>
+        <Button href={whatsapp} variant="whatsapp" icon="lucide:message-circle" target="_blank" rel="noopener noreferrer">{t.shareWhatsapp}</Button>
+      </div>
+      <p class="mt-3 min-h-5 text-sm text-text-secondary" data-copy-status role="status" aria-live="polite"></p>
+    </section>
+    <p class="text-sm text-text-secondary">{t.urlChangesHint}</p>
+  </div>
+</div>
+
+<script>
+  import { ui } from "@/lib/i18n-client";
+
+  const section = document.querySelector<HTMLElement>("[data-storefront-share]");
+  const button = section?.querySelector<HTMLButtonElement>("[data-copy-storefront]");
+  const input = section?.querySelector<HTMLInputElement>("input");
+  const status = section?.querySelector<HTMLElement>("[data-copy-status]");
+
+  button?.addEventListener("click", async () => {
+    if (!input || !status) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+      status.textContent = ui().shareStorefront.copied;
+    } catch {
+      // The HTTP homelab and browsers denying clipboard permission still allow
+      // manual copying. Keep focus and selection on the visible, readonly URL.
+      input.focus();
+      input.select();
+      status.textContent = ui().shareStorefront.copyManually;
+    }
+  });
+</script>

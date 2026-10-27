@@ -48,6 +48,7 @@ const nav = [
   ...(modules?.modules.preorders.owned ? [{key:"preorders",tour:"nav-preorders",label:useT(locale).modules.preorders,icon:"lucide:shopping-bag",href:to("/dashboard/preorders")}] : []),
   {key:"modules",tour:"nav-modules",label:useT(locale).modules.modules,icon:"lucide:layers",href:to("/dashboard/modules")},
   { key: "tienda", tour: "nav-tienda", label: t.navStorefront, icon: "lucide:globe", href: storeHref || "#", external: true },
+  { key: "compartir", tour: "nav-compartir", label: t.navShare, icon: "lucide:qr-code", href: to("/dashboard/share") },
   { key: "ajustes", tour: "nav-ajustes", label: t.navSettings, icon: "lucide:settings", href: to("/dashboard/settings") },
 ];
 ---

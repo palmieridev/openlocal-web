@@ -85,7 +85,10 @@ const lng = text(business?.longitude);
           <h1 class="font-heading text-2xl font-semibold">{t.heading}</h1>
           <p class="mt-1 text-sm text-text-secondary">{business.name}</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" icon="lucide:qr-code" href={to("/dashboard/share")}>
+            {dict.dashboard.navShare}
+          </Button>
           {business.slug && (
             <Button
               variant="secondary"
