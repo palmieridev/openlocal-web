@@ -1,0 +1,46 @@
+---
+import { Icon } from 'astro-icon/components';
+import { useT } from '@/i18n';
+interface Props { url: string; title: string; }
+const { url, title } = Astro.props;
+const t = useT(Astro.locals.locale).shareStorefront;
+const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`;
+---
+<div data-share-links class="flex flex-col gap-2">
+  <div class="flex flex-wrap gap-2">
+    <button type="button" data-native-share data-url={url} data-title={title} class="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-surface-secondary focus-visible:outline-accent">
+      <Icon name="lucide:share-2" width={16} height={16} />{t.share}
+    </button>
+    <a href={whatsapp} target="_blank" rel="noopener noreferrer" class="inline-flex min-h-11 items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium hover:bg-surface-secondary">
+      <Icon name="lucide:message-circle" width={16} height={16} />{t.shareWhatsapp}
+    </a>
+  </div>
+  <div data-share-fallback hidden>
+    <input type="url" readonly value={url} aria-label={t.copyLink} class="ol-input text-xs" />
+  </div>
+  <p data-share-status role="status" aria-live="polite" class="text-xs text-text-secondary"></p>
+</div>
+<script>
+  import { ui } from '@/lib/i18n-client';
+  document.querySelectorAll<HTMLElement>('[data-share-links]').forEach(section => {
+    const button = section.querySelector<HTMLButtonElement>('[data-native-share]');
+    button?.addEventListener('click', async () => {
+      const url = button.dataset.url!;
+      const title = button.dataset.title!;
+      if (navigator.share) {
+        try { await navigator.share({ title, url }); return; }
+        catch (err) { if (err instanceof Error && err.name === 'AbortError') return; }
+      }
+      const status = section.querySelector<HTMLElement>('[data-share-status]')!;
+      try {
+        await navigator.clipboard.writeText(url);
+        status.textContent = ui().shareStorefront.copied;
+      } catch {
+        section.querySelector<HTMLElement>('[data-share-fallback]')!.hidden = false;
+        const input = section.querySelector<HTMLInputElement>('input')!;
+        input.focus(); input.select();
+        status.textContent = ui().shareStorefront.copyManually;
+      }
+    });
+  });
+</script>

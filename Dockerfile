@@ -35,6 +35,9 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=4321
 
+# Sharp uses this font to render public share-card text.
+RUN apk add --no-cache ttf-dejavu
+
 # Non-root runtime user.
 RUN addgroup -S openlocal && adduser -S -G openlocal openlocal
 

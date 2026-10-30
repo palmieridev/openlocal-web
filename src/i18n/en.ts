@@ -311,6 +311,13 @@ export const en = {
     tabEoq: "EOQ",
   },
   shareStorefront: {
+    previewHint: "Links include your shop name, description, and an image. The app where you share them decides how to display the preview.",
+    share: "Share",
+    viewProduct: "View product",
+    backToShop: "View the whole shop",
+    notFound: "Product unavailable",
+    notFoundBody: "This product is no longer available in the public shop.",
+
     title: "Share shop — Openlocal",
     heading: "Share your shop",
     intro: "Take customers straight to your public page with a QR code or a link.",

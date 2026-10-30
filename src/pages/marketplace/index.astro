@@ -1,6 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import PublicLayout from "@/layouts/PublicLayout.astro";
+import { variantPath } from "@/lib/sharing";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import BusinessCard from "@/components/ui/BusinessCard.astro";
 import { publicApi } from "@/lib/api/client";
@@ -311,7 +312,7 @@ const areaFields: Array<{ name: keyof typeof area; label: string; placeholder: s
                 priceNote={publicPriceNote(p)}
                 stockStatus={p.public_stock_status}
                 imageUrl={p.image_url}
-                href={path(`/business/${p.business_slug}`)}
+                href={path(variantPath(p.business_slug, p.variant_id))}
               />
             ))}
           </div>

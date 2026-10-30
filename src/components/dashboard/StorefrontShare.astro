@@ -57,6 +57,7 @@ const whatsapp = `https://wa.me/?text=${encodeURIComponent(interpolate(t.whatsap
     <section class="ol-card p-6" aria-labelledby="qr-link-title" data-storefront-share>
       <h2 id="qr-link-title" class="font-heading font-semibold">{t.linkTitle}</h2>
       <p class="mt-1 text-sm text-text-secondary">{t.linkIntro}</p>
+      <p class="mt-2 text-sm text-text-secondary">{t.previewHint}</p>
       <label class="ol-label mt-4" for="storefront-share-url">{t.linkLabel}</label>
       <input class="ol-input font-data text-xs" id="storefront-share-url" value={url} type="url" readonly />
       <div class="mt-4 flex flex-wrap gap-3">

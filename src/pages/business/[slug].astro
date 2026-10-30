@@ -3,6 +3,8 @@ import { Icon } from "astro-icon/components";
 import PublicLayout from "@/layouts/PublicLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import Badge from "@/components/ui/Badge.astro";
+import ShareLinks from "@/components/ui/ShareLinks.astro";
+import { shareImage, variantPath, variantUrl } from "@/lib/sharing";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import OpenBadge from "@/components/ui/OpenBadge.astro";
 import ImageLightbox from "@/components/ui/ImageLightbox.astro";
@@ -102,6 +104,8 @@ const headerTags = [
   ) : (
     <PublicLayout
       title={`${business.name} — Openlocal`}
+      image={shareImage(business, undefined, locale)}
+      imageAlt={business.name}
       description={
         business.description ||
         interpolate(t.storefront.metaDescription, { name: business.name })
@@ -185,6 +189,7 @@ const headerTags = [
                 </Button>
               )}
               <Button variant="secondary" icon="lucide:bookmark">{t.storefront.save}</Button>
+              <ShareLinks url={new URL(localePath(locale, `/business/${business.slug}`), Astro.url.origin).href} title={business.name} />
             </div>
           </div>
         </div>
@@ -288,6 +293,10 @@ const headerTags = [
                           </div>
                         )}
                       </ProductCard>
+                      {p.variant_id && <div class="mt-2 flex flex-col gap-2">
+                        <a href={localePath(locale, variantPath(business.slug, p.variant_id))} class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">{t.shareStorefront.viewProduct}</a>
+                        <ShareLinks url={variantUrl(Astro.url, business.slug, p.variant_id, locale)} title={[p.name, p.variant_name, business.name].filter(Boolean).join(" · ")} />
+                      </div>}
                     </div>
                   );
                 })}
