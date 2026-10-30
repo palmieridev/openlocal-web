@@ -2,6 +2,8 @@
 import { Icon } from "astro-icon/components";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
+import ShareLinks from "@/components/ui/ShareLinks.astro";
+import { variantUrl } from "@/lib/sharing";
 import ProductCard from "@/components/ui/ProductCard.astro";
 import NeedsSetup from "@/components/dashboard/NeedsSetup.astro";
 import ImageUploader from "@/components/dashboard/ImageUploader.astro";
@@ -231,6 +233,7 @@ const previewMeta = product
                         >
                           <Icon name="lucide:square-pen" width={13} height={13} /> {prod.edit}
                         </button>
+                        {business?.status === "active" && isVariantVisible(product, v) && <ShareLinks url={variantUrl(Astro.url, business.slug, v.id, locale)} title={`${product.name} · ${v.name} · ${formatPrice(v.price, v.currency, locale)} · ${business.name}`} />}
                       </div>
                     </article>
                   );

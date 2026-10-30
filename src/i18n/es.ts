@@ -319,6 +319,13 @@ export const es = {
     tabEoq: "EOQ",
   },
   shareStorefront: {
+    previewHint: "Los enlaces incluyen el nombre, la descripción y una imagen de tu tienda. La aplicación donde los compartas decide cómo mostrar la vista previa.",
+    share: "Compartir",
+    viewProduct: "Ver producto",
+    backToShop: "Ver toda la tienda",
+    notFound: "Producto no disponible",
+    notFoundBody: "Este producto ya no está disponible en la tienda pública.",
+
     title: "Compartir tienda — Openlocal",
     heading: "Comparte tu tienda",
     intro: "Lleva a tus clientes directo a tu página pública con un código QR o un enlace.",

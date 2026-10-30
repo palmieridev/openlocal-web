@@ -7,6 +7,8 @@ interface Props {
   description?: string;
   /** Add a class to <body> (e.g. to switch background per page). */
   bodyClass?: string;
+  image?: string;
+  imageAlt?: string;
   privateRequest?: boolean;
 }
 
@@ -17,6 +19,8 @@ const {
   title = t.meta.title,
   description = t.meta.description,
   bodyClass = "",
+  image,
+  imageAlt = title,
   privateRequest = false,
 } = Astro.props;
 
@@ -46,6 +50,16 @@ const canonical = new URL(trim(Astro.originPathname), site);
     <link rel="alternate" hreflang="x-default" href={new URL(route, site).href} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical.href} />
+    <meta property="og:site_name" content="Openlocal" />
+    {image && <>
+      <meta property="og:image" content={new URL(image, site).href} />
+      <meta property="og:image:alt" content={imageAlt} />
+    </>}
+    <meta name="twitter:card" content={image ? "summary_large_image" : "summary"} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {image && <><meta name="twitter:image" content={new URL(image, site).href} /><meta name="twitter:image:alt" content={imageAlt} /></>}
     <meta property="og:type" content="website" />
     <meta property="og:locale" content={locale === "es" ? "es_MX" : "en_US"} />
     <meta name="generator" content={Astro.generator} />
