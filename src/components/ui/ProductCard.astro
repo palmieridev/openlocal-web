@@ -43,17 +43,22 @@ const t = useT(locale);
 const stock = stockMeta(stockStatus, locale);
 const dist = formatDistance(distanceKm);
 const Tag = href ? "a" : "div";
+// Action controls belong only on standalone cards, never inside a linked card.
+const hasActions = !href && Astro.slots.has("actions");
 ---
 
 <Tag
-  class="group flex flex-col overflow-hidden rounded-2xl bg-surface-card shadow-card border border-border/60 transition-shadow hover:shadow-md"
+  class:list={[
+    "group flex min-w-0 flex-col overflow-hidden rounded-2xl bg-surface-card shadow-card border border-border/60 transition-shadow hover:shadow-md",
+    { "h-full": hasActions },
+  ]}
   {...href ? { href } : {}}
 >
   {/* Photos are stored uncropped, so the tile letterboxes them (object-contain)
       instead of centre-cropping — a portrait shot loses nothing. */}
   <div
     data-card-image
-    class="relative flex h-44 items-start justify-end bg-accent-soft p-3"
+    class="relative flex h-44 shrink-0 items-start justify-end bg-accent-soft p-3"
   >
     <img
       data-card-photo
@@ -115,4 +120,9 @@ const Tag = href ? "a" : "div";
     )}
     <slot name="details" />
   </div>
+  {hasActions && (
+    <div class="border-t border-border/60 p-3">
+      <slot name="actions" />
+    </div>
+  )}
 </Tag>
