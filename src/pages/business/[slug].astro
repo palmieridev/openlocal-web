@@ -244,7 +244,7 @@ const headerTags = [
                   const panelId = `variant-details-${p.variant_id || i}`;
                   return (
                     <div
-                      class="product-item"
+                      class="product-item min-w-0"
                       data-brand={text(p.brand)}
                       data-price={Number(p.price) || 0}
                       data-name={p.name}
@@ -292,11 +292,20 @@ const headerTags = [
                             </div>
                           </div>
                         )}
+                        {p.variant_id && (
+                          <div slot="actions">
+                            <ShareLinks compact url={variantUrl(Astro.url, business.slug, p.variant_id, locale)} title={[p.name, p.variant_name, business.name].filter(Boolean).join(" · ")}>
+                              <a
+                                href={localePath(locale, variantPath(business.slug, p.variant_id))}
+                                class="inline-flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-lg px-1 text-sm font-medium text-accent hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                              >
+                                {t.shareStorefront.viewProduct}
+                                <Icon name="lucide:arrow-up-right" width={14} height={14} class="shrink-0" />
+                              </a>
+                            </ShareLinks>
+                          </div>
+                        )}
                       </ProductCard>
-                      {p.variant_id && <div class="mt-2 flex flex-col gap-2">
-                        <a href={localePath(locale, variantPath(business.slug, p.variant_id))} class="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline">{t.shareStorefront.viewProduct}</a>
-                        <ShareLinks url={variantUrl(Astro.url, business.slug, p.variant_id, locale)} title={[p.name, p.variant_name, business.name].filter(Boolean).join(" · ")} />
-                      </div>}
                     </div>
                   );
                 })}
