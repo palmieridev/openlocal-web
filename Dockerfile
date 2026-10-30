@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# Frontend image for the k8s dev environment (NOT used by Vercel prod, which
-# builds with the @astrojs/vercel adapter). Here VERCEL is unset, so
+# Frontend image for manual local or self-hosted builds. Vercel production
+# builds from source with the @astrojs/vercel adapter. Here VERCEL is unset, so
 # astro.config.mjs selects the @astrojs/node standalone adapter.
 #
 # NOTE: PUBLIC_* vars are baked into the client bundle at build time, so this

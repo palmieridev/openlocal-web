@@ -83,7 +83,7 @@ const whatsapp = `https://wa.me/?text=${encodeURIComponent(interpolate(t.whatsap
       await navigator.clipboard.writeText(input.value);
       status.textContent = ui().shareStorefront.copied;
     } catch {
-      // The HTTP homelab and browsers denying clipboard permission still allow
+      // Local HTTP testing and browsers denying clipboard permission still allow
       // manual copying. Keep focus and selection on the visible, readonly URL.
       input.focus();
       input.select();

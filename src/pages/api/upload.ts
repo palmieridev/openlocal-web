@@ -11,7 +11,7 @@ export const prerender = false;
 /**
  * Upload an image to Vercel Blob and return its public URL. The token is a plain
  * bearer credential to the Blob API, so this works both on Vercel and from the
- * k8s dev deployment as long as BLOB_READ_WRITE_TOKEN is set at runtime.
+ * local Docker container as long as BLOB_READ_WRITE_TOKEN is set at runtime.
  *
  * The caller persists the returned URL by saving the owning resource (e.g. the
  * business cover_image_url on the settings form) — this route only stores bytes.

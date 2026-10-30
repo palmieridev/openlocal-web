@@ -60,9 +60,8 @@ export async function getServerAuth(ctx: AuthCtx): Promise<ServerAuth> {
 
 /**
  * Whether to set the Secure flag on the business cookie. Normally on in prod
- * builds, but the k8s dev environment serves a production build over plain HTTP
- * (http://openlocal-dev.home) — Secure would make the browser drop `ol_bid` and
- * break the owner area. Set OL_INSECURE_COOKIES=1 there to opt out.
+ * builds. For manual local Docker runs over plain HTTP, set
+ * OL_INSECURE_COOKIES=1 to allow the browser to retain `ol_bid`.
  */
 function useSecureCookie(): boolean {
   return import.meta.env.PROD && process.env.OL_INSECURE_COOKIES !== "1";
