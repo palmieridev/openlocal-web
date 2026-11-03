@@ -21,7 +21,7 @@ export const en = {
     "ordersDescription": "View your activity with businesses that offer orders or appointments here in the future.",
     "business": "Your businesses",
     "businessDescription": "Your personal space and business management are separate. Choose a business to work with your team.",
-    "openDashboard": "Open business dashboard",
+    "openDashboard": "Open my Local",
     "startBusiness": "Register my business",
     "startDescription": "Have a business? Create its storefront and manage it from your dashboard.",
     "membershipError": "We couldn’t load your businesses. Reload the page to try again."
@@ -35,7 +35,7 @@ export const en = {
     marketplace: "Marketplace",
     sell: "Sell",
     signIn: "Sign in",
-    panel: "Dashboard",
+    panel: "Local",
     openMenu: "Open menu",
   },
   footer: {
@@ -47,7 +47,7 @@ export const en = {
     handmade: "Handmade",
     forBusinesses: "For businesses",
     sellOnOpenlocal: "Sell on Openlocal",
-    dashboard: "Dashboard",
+    dashboard: "Local",
     signIn: "Sign in",
     project: "Project",
     openSource: "Open source",
@@ -304,7 +304,7 @@ export const en = {
     addArea: "+ Add another area",
   },
   dashboard: {
-    title: "Dashboard — Openlocal",
+    title: "Local — Openlocal",
     openMenu: "Open menu",
     navHome: "Home",
     navProducts: "Products",

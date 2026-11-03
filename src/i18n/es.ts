@@ -26,7 +26,7 @@ export const es = {
     "ordersDescription": "Aquí podrás consultar tu actividad en los negocios que ofrecen pedidos o citas.",
     "business": "Tus negocios",
     "businessDescription": "Tu espacio personal y la administración de tus negocios están separados. Elige un negocio para trabajar con tu equipo.",
-    "openDashboard": "Ir al panel del negocio",
+    "openDashboard": "Ir a mi Local",
     "startBusiness": "Registrar mi negocio",
     "startDescription": "¿Tienes un negocio? Crea su tienda y adminístrala desde tu panel.",
     "membershipError": "No pudimos consultar tus negocios. Vuelve a cargar la página para intentarlo de nuevo."
@@ -40,7 +40,7 @@ export const es = {
     marketplace: "Marketplace",
     sell: "Vender",
     signIn: "Iniciar sesión",
-    panel: "Panel",
+    panel: "Local",
     openMenu: "Abrir menú",
   },
   footer: {
@@ -52,7 +52,7 @@ export const es = {
     handmade: "Hecho a mano",
     forBusinesses: "Para negocios",
     sellOnOpenlocal: "Vender en Openlocal",
-    dashboard: "Panel de control",
+    dashboard: "Local",
     signIn: "Iniciar sesión",
     project: "Proyecto",
     openSource: "Código abierto",
@@ -312,7 +312,7 @@ export const es = {
     addArea: "+ Agregar otra zona",
   },
   dashboard: {
-    title: "Panel — Openlocal",
+    title: "Local — Openlocal",
     openMenu: "Abrir menú",
     navHome: "Inicio",
     navProducts: "Productos",
