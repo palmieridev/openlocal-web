@@ -1,0 +1,52 @@
+---
+import PublicLayout from "@/layouts/PublicLayout.astro";
+import RequestDetails from "@/components/modules/RequestDetails.astro";
+import { apiFetch, ApiError } from "@/lib/api/client";
+import { privateHeaders } from "@/lib/api/module-relay";
+import { localePath, useT } from "@/i18n";
+import type { CustomerRequest } from "@/types/account";
+import "@/styles/modules.css";
+const locale = Astro.locals.locale, t = useT(locale), { module, id } = Astro.params;
+for (const [name, value] of Object.entries(privateHeaders)) Astro.response.headers.set(name, value);
+const path = `me/activity/${encodeURIComponent(module ?? "")}/${encodeURIComponent(id ?? "")}`;
+let record: CustomerRequest | null = null;
+let missing = false;
+if (!["appointments", "preorders"].includes(module ?? "") || !/^[\w-]+$/.test(id ?? "")) missing = true;
+else {
+  try { const token = await Astro.locals.auth().getToken(); record = await apiFetch<CustomerRequest>(`/api/v1/${path}`, {token:token ?? undefined, init:{cache:"no-store", signal:AbortSignal.timeout(15000)}}); }
+  catch (error) { missing = error instanceof ApiError && error.status === 404; }
+}
+if (missing) Astro.response.status = 404;
+---
+<PublicLayout title={t.account.details}>
+  <div class="module-page" data-personal-detail={path} data-version={record?.version}>
+    <a href={localePath(locale, "/account")}>← {t.account.back}</a>
+    <h1>{t.account.details}</h1>
+    {record ? <>
+      <RequestDetails record={record} />
+      {record.business.available && record.business.slug && <a href={localePath(locale, `/business/${encodeURIComponent(record.business.slug)}`)}>{t.modules.backToStorefront}</a>}
+      <div class="module-row">
+        <a class="module-button secondary" href={localePath(locale, `/account/activity/${module}/${id}`)}>{t.modules.refresh}</a>
+        {record.allowed_transitions.includes("cancelled") && <button type="button" class="module-button secondary" data-personal-cancel>{t.modules.cancel}</button>}
+      </div>
+    </> : <p role="status">{missing ? t.modules.invalidLink : t.account.loadError}</p>}
+    <p data-personal-message role="status" aria-live="polite"></p>
+  </div>
+</PublicLayout>
+<script>
+  import { moduleFetch, submissionKey } from "@/lib/module-client";
+  import { ui } from "@/lib/i18n-client";
+  const root = document.querySelector<HTMLElement>("[data-personal-detail]")!;
+  const button = root.querySelector<HTMLButtonElement>("[data-personal-cancel]");
+  const key = submissionKey();
+  button?.addEventListener("click", async () => {
+    if (!confirm(ui().account.cancelConfirm)) return;
+    button.disabled = true;
+    const message = root.querySelector<HTMLElement>("[data-personal-message]")!;
+    try {
+      const body = {version:Number(root.dataset.version)};
+      await moduleFetch(`${root.dataset.personalDetail}/cancel`, {method:"POST", body, key:key(body)});
+      location.reload();
+    } catch { message.textContent = ui().account.cancelError; button.disabled = false; }
+  });
+</script>

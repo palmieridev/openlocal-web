@@ -4,6 +4,12 @@ import { getServerAuth } from "./server";
 
 const safeId = "[a-zA-Z0-9_-]+";
 const rules: [RegExp, string[]][] = [
+  [/^me\/saved-businesses$/, ["GET"]],
+  [new RegExp(`^me/saved-businesses/${safeId}$`), ["GET", "PUT", "DELETE"]],
+  [/^me\/activity$/, ["GET"]],
+  [new RegExp(`^me/activity/(appointments|preorders)/${safeId}$`), ["GET"]],
+  [new RegExp(`^me/activity/(appointments|preorders)/${safeId}/cancel$`), ["POST"]],
+  [new RegExp(`^me/businesses/${safeId}/(appointments|preorders)$`), ["POST"]],
   [
     new RegExp(
       `^public/businesses/${safeId}/appointments/(services|availability)$`,
@@ -42,6 +48,8 @@ const rules: [RegExp, string[]][] = [
   [new RegExp(`^owner/module-customers/${safeId}/history$`), ["GET"]],
 ];
 const allowedQuery = new Set([
+  "cursor",
+  "module",
   "date",
   "service_id",
   "resource_id",
@@ -91,7 +99,7 @@ export async function relayModule(ctx: APIContext): Promise<Response> {
   if (mutation && !sameOrigin(ctx.request, ctx.url))
     return json({ code: "forbidden" }, 403);
   let body: Record<string, unknown> | undefined;
-  if (mutation) {
+  if (mutation && method !== "PUT" && method !== "DELETE") {
     if (
       !ctx.request.headers.get("content-type")?.startsWith("application/json")
     )
@@ -109,9 +117,15 @@ export async function relayModule(ctx: APIContext): Promise<Response> {
   const headers = new Headers({ Accept: "application/json" });
   if (body) headers.set("Content-Type", "application/json");
   const key = ctx.request.headers.get("idempotency-key");
-  if (key && /^[\w-]{8,128}$/.test(key)) headers.set("Idempotency-Key", key);
+  if (key && /^[\w.:-]{8,128}$/.test(key)) headers.set("Idempotency-Key", key);
   let upstream = path;
-  if (path.startsWith("owner/")) {
+  if (path.startsWith("me/")) {
+    const auth = ctx.locals.auth();
+    if (!auth.userId) return json({ code: "unauthorized" }, 401);
+    const token = await auth.getToken();
+    if (!token) return json({ code: "unauthorized" }, 401);
+    headers.set("Authorization", `Bearer ${token}`);
+  } else if (path.startsWith("owner/")) {
     const { token, businessId } = await getServerAuth(ctx);
     if (!token) return json({ code: "unauthorized" }, 401);
     if (!businessId) return json({ code: "not_found" }, 404);

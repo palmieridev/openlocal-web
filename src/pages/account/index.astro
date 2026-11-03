@@ -1,4 +1,5 @@
 ---
+import AccountActivity from "@/components/account/AccountActivity.astro";
 import { Icon } from "astro-icon/components";
 import { OrganizationSwitcher } from "@clerk/astro/components";
 import { clerkClient } from "@clerk/astro/server";
@@ -26,10 +27,6 @@ if (userId && !orgId) {
     membershipError = true;
   }
 }
-const upcoming = [
-  { title: t.favorites, description: t.favoritesDescription, icon: "lucide:heart" },
-  { title: t.orders, description: t.ordersDescription, icon: "lucide:shopping-bag" },
-];
 ---
 
 <PublicLayout title={t.title}>
@@ -51,21 +48,7 @@ const upcoming = [
       <Icon name="lucide:chevron-right" width={20} height={20} class="shrink-0" />
     </a>
 
-    <section aria-labelledby="activity-heading">
-      <h2 id="activity-heading" class="mb-4 font-heading text-xl font-semibold">{t.activity}</h2>
-      <div class="grid gap-4 sm:grid-cols-2">
-        {upcoming.map((item) => (
-          <div class="ol-card p-6">
-            <div class="flex flex-wrap items-center gap-3">
-              <Icon name={item.icon} width={22} height={22} class="text-text-muted" />
-              <span class="rounded-full bg-surface-secondary px-3 py-1 text-xs text-text-secondary">{t.upcoming}</span>
-            </div>
-            <h3 class="mt-4 font-heading text-lg font-semibold">{item.title}</h3>
-            <p class="mt-2 text-sm text-text-secondary">{item.description}</p>
-          </div>
-        ))}
-      </div>
-    </section>
+    <AccountActivity />
 
     <section class="ol-card space-y-4 p-6" aria-labelledby="business-heading">
       <h2 id="business-heading" class="font-heading text-xl font-semibold">{t.business}</h2>

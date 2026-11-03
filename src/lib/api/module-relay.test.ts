@@ -192,3 +192,62 @@ describe("module BFF", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe("personal account BFF", () => {
+  beforeEach(() => { vi.resetAllMocks(); vi.stubGlobal("fetch", fetchMock); });
+  function personal(path: string, method = "GET", body?: unknown, userId: string | null = "customer") {
+    const ctx = context(path, method, body);
+    ctx.locals.auth = (() => ({userId, getToken: async () => "customer-secret"})) as never;
+    return ctx;
+  }
+  it("uses verified personal auth without resolving a business cookie", async () => {
+    fetchMock.mockResolvedValue(new Response('{"items":[],"next_cursor":null,"limit":25}'));
+    const ctx = personal("me/activity");
+    ctx.url.searchParams.set("cursor", "opaque+/=");
+    ctx.url.searchParams.set("module", "appointments");
+    ctx.url.searchParams.set("user_id", "attacker");
+    const response = await relayModule(ctx);
+    expect(response.status).toBe(200);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(new URL(url).searchParams.get("cursor")).toBe("opaque+/=");
+    expect(new URL(url).searchParams.has("user_id")).toBe(false);
+    expect(options.headers.get("Authorization")).toBe("Bearer customer-secret");
+    expect(getServerAuth).not.toHaveBeenCalled();
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
+  it("rejects visitors without calling the API", async () => {
+    expect((await relayModule(personal("me/activity", "GET", undefined, null))).status).toBe(401);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it.each(["PUT", "DELETE"])("allows bodyless %s for saves and prevents cross-origin writes", async (method) => {
+    fetchMock.mockResolvedValue(new Response(null, {status:204}));
+    const ctx = personal("me/saved-businesses/shop", method);
+    expect((await relayModule(ctx)).status).toBe(204);
+    expect(fetchMock.mock.calls[0][1].body).toBeUndefined();
+    fetchMock.mockClear();
+    const cross = personal("me/saved-businesses/shop", method);
+    cross.request = new Request(cross.url, {method, headers:{Origin:"https://evil.example"}});
+    expect((await relayModule(cross)).status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+  it("preserves account creation responses without guest cookies", async () => {
+    fetchMock.mockResolvedValue(new Response('{"id":"record","version":1}', {status:201}));
+    const ctx = personal("me/businesses/shop/appointments", "POST", {customer_name:"Customer"});
+    const response = await relayModule(ctx);
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({id:"record",version:1});
+    expect(ctx.cookies.set).not.toHaveBeenCalled();
+  });
+  it("forwards versioned cancellation and the complete idempotency key alphabet", async () => {
+    fetchMock.mockResolvedValue(new Response('{}'));
+    const ctx = personal("me/activity/preorders/record/cancel", "POST", {version:2});
+    ctx.request = new Request(ctx.url, {method:"POST",headers:{Origin:ctx.url.origin,"Content-Type":"application/json","Idempotency-Key":"cancel:abc.def_123-456"},body:JSON.stringify({version:2})});
+    await relayModule(ctx);
+    expect(fetchMock.mock.calls[0][1].headers.get("Idempotency-Key")).toBe("cancel:abc.def_123-456");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({version:2});
+  });
+  it("rejects arbitrary personal routes", async () => {
+    expect((await relayModule(personal("me/users", "DELETE"))).status).toBe(404);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});

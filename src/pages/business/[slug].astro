@@ -1,6 +1,7 @@
 ---
 import { Icon } from "astro-icon/components";
 import PublicLayout from "@/layouts/PublicLayout.astro";
+import SaveBusiness from "@/components/ui/SaveBusiness.astro";
 import Button from "@/components/ui/Button.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ShareLinks from "@/components/ui/ShareLinks.astro";
@@ -190,7 +191,7 @@ const headerTags = [
               )}
               <div class="min-w-0 sm:max-w-full">
                 <ShareLinks compact url={new URL(localePath(locale, `/business/${business.slug}`), Astro.url.origin).href} title={business.name}>
-                  <Button class="h-11 min-w-0 flex-1 sm:flex-none" variant="secondary" icon="lucide:bookmark">{t.storefront.save}</Button>
+                  <SaveBusiness businessId={business.id} />
                 </ShareLinks>
               </div>
             </div>
