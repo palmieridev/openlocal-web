@@ -127,15 +127,15 @@ const headerTags = [
 
         {/* Business header — white card, shaded, overlapping the cover */}
         <div class="relative -mt-12 rounded-2xl border border-border/60 bg-surface-card p-5 shadow-card sm:-mt-14 sm:p-6">
-          <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="flex items-center gap-4">
+          <div class="flex min-w-0 flex-col gap-4">
+            <div class="flex min-w-0 items-center gap-4">
               <div
                 class="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-accent text-text-inverse shadow-card"
                 style={business.logo_url ? `background-image:url('${business.logo_url}');background-size:cover;background-position:center;` : ""}
               >
                 {!business.logo_url && <Icon name="lucide:store" width={32} height={32} />}
               </div>
-              <div>
+              <div class="min-w-0 break-words">
                 <div class="flex flex-wrap items-center gap-2">
                   <h1 class="font-heading text-2xl font-semibold">{business.name}</h1>
                   <OpenBadge hours={business.hours} timezone={business.timezone} />
@@ -180,16 +180,19 @@ const headerTags = [
               </div>
             </div>
 
-            <div class="flex gap-2 sm:flex-col sm:items-stretch">
-              {appointmentIntake && <Button href={localePath(locale, `/business/${business.slug}/appointments`)} icon="lucide:calendar">{t.modules.requestAppointment}</Button>}
-              {preorderIntake && <Button href={localePath(locale, `/business/${business.slug}/preorders`)} icon="lucide:shopping-bag">{t.modules.requestPreorder}</Button>}
+            <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start">
+              {appointmentIntake && <Button class="min-h-11 whitespace-normal! text-center sm:max-w-full" href={localePath(locale, `/business/${business.slug}/appointments`)} icon="lucide:calendar">{t.modules.requestAppointment}</Button>}
+              {preorderIntake && <Button class="min-h-11 whitespace-normal! text-center sm:max-w-full" href={localePath(locale, `/business/${business.slug}/preorders`)} icon="lucide:shopping-bag">{t.modules.requestPreorder}</Button>}
               {waHref && (
-                <Button variant="whatsapp" href={waHref} icon="lucide:message-circle">
+                <Button class="min-h-11 whitespace-normal! text-center sm:max-w-full" variant="whatsapp" href={waHref} icon="lucide:message-circle">
                   {t.storefront.contactWhatsapp}
                 </Button>
               )}
-              <Button variant="secondary" icon="lucide:bookmark">{t.storefront.save}</Button>
-              <ShareLinks url={new URL(localePath(locale, `/business/${business.slug}`), Astro.url.origin).href} title={business.name} />
+              <div class="min-w-0 sm:max-w-full">
+                <ShareLinks compact url={new URL(localePath(locale, `/business/${business.slug}`), Astro.url.origin).href} title={business.name}>
+                  <Button class="h-11 min-w-0 flex-1 sm:flex-none" variant="secondary" icon="lucide:bookmark">{t.storefront.save}</Button>
+                </ShareLinks>
+              </div>
             </div>
           </div>
         </div>
