@@ -2,12 +2,12 @@
 import { SignIn } from "@clerk/astro/components";
 import AuthLayout from "@/layouts/AuthLayout.astro";
 import ClerkLocalization from "@/components/ClerkLocalization.astro";
-import { useT } from "@/i18n";
+import { localePath, useT } from "@/i18n";
 
 const t = useT(Astro.locals.locale);
 ---
 
 <AuthLayout title={t.auth.signInTitle}>
-  <SignIn />
+  <SignIn fallbackRedirectUrl={localePath(Astro.locals.locale, "/account")} />
   <ClerkLocalization />
 </AuthLayout>

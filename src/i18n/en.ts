@@ -7,6 +7,25 @@ import { modulesEn } from "./modules-en";
  */
 export const en = {
   modules: modulesEn,
+  account: {
+    "title": "My account",
+    "intro": "Your personal space on Openlocal.",
+    "explore": "Explore businesses",
+    "profile": "Profile and security",
+    "profileDescription": "Manage your personal details, sign-in methods, and account security.",
+    "activity": "Your activity",
+    "upcoming": "Coming soon",
+    "favorites": "Saved businesses",
+    "favoritesDescription": "Find the businesses you save as favorites here in the future.",
+    "orders": "Orders and appointments",
+    "ordersDescription": "View your activity with businesses that offer orders or appointments here in the future.",
+    "business": "Your businesses",
+    "businessDescription": "Your personal space and business management are separate. Choose a business to work with your team.",
+    "openDashboard": "Open business dashboard",
+    "startBusiness": "Register my business",
+    "startDescription": "Have a business? Create its storefront and manage it from your dashboard.",
+    "membershipError": "We couldn’t load your businesses. Reload the page to try again."
+},
   meta: {
     title: "Openlocal — Local commerce",
     description: "Discover products from local businesses near you.",

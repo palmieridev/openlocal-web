@@ -1,0 +1,94 @@
+---
+import { Icon } from "astro-icon/components";
+import { OrganizationSwitcher } from "@clerk/astro/components";
+import { clerkClient } from "@clerk/astro/server";
+import ClerkLocalization from "@/components/ClerkLocalization.astro";
+import PublicLayout from "@/layouts/PublicLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).account;
+const to = (path: string) => localePath(locale, path);
+const { userId, orgId } = Astro.locals.auth();
+Astro.response.headers.set("Cache-Control", "private, no-store");
+Astro.response.headers.set("X-Robots-Tag", "noindex, nofollow");
+
+// Membership belongs to a business, not to a separate kind of personal account.
+// Check memberships even with no active org, so returning staff can select one.
+let hasMembership = !!orgId;
+let membershipError = false;
+if (userId && !orgId) {
+  try {
+    const memberships = await clerkClient(Astro).users.getOrganizationMembershipList({ userId, limit: 1 });
+    hasMembership = memberships.totalCount > 0;
+  } catch {
+    membershipError = true;
+  }
+}
+const upcoming = [
+  { title: t.favorites, description: t.favoritesDescription, icon: "lucide:heart" },
+  { title: t.orders, description: t.ordersDescription, icon: "lucide:shopping-bag" },
+];
+---
+
+<PublicLayout title={t.title}>
+  <div class="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h1 class="font-heading text-3xl font-semibold tracking-tight">{t.title}</h1>
+        <p class="mt-2 text-text-secondary">{t.intro}</p>
+      </div>
+      <Button href={to("/marketplace")} variant="secondary" icon="lucide:search">{t.explore}</Button>
+    </div>
+
+    <a href={to("/account/profile")} class="ol-card flex items-center gap-4 p-6 transition-colors hover:bg-surface-secondary">
+      <Icon name="lucide:user-round" width={24} height={24} class="shrink-0 text-accent" />
+      <div class="min-w-0 flex-1">
+        <h2 class="font-heading text-lg font-semibold">{t.profile}</h2>
+        <p class="mt-1 text-sm text-text-secondary">{t.profileDescription}</p>
+      </div>
+      <Icon name="lucide:chevron-right" width={20} height={20} class="shrink-0" />
+    </a>
+
+    <section aria-labelledby="activity-heading">
+      <h2 id="activity-heading" class="mb-4 font-heading text-xl font-semibold">{t.activity}</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        {upcoming.map((item) => (
+          <div class="ol-card p-6">
+            <div class="flex flex-wrap items-center gap-3">
+              <Icon name={item.icon} width={22} height={22} class="text-text-muted" />
+              <span class="rounded-full bg-surface-secondary px-3 py-1 text-xs text-text-secondary">{t.upcoming}</span>
+            </div>
+            <h3 class="mt-4 font-heading text-lg font-semibold">{item.title}</h3>
+            <p class="mt-2 text-sm text-text-secondary">{item.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section class="ol-card space-y-4 p-6" aria-labelledby="business-heading">
+      <h2 id="business-heading" class="font-heading text-xl font-semibold">{t.business}</h2>
+      {membershipError ? <p role="status" class="text-sm text-text-secondary">{t.membershipError}</p> : hasMembership ? (
+        <>
+          <p class="text-sm text-text-secondary">{t.businessDescription}</p>
+          <div class="flex flex-wrap items-center gap-4">
+            <OrganizationSwitcher
+              hidePersonal
+              afterSelectOrganizationUrl={to("/dashboard")}
+              createOrganizationMode="navigation"
+              createOrganizationUrl={to("/onboarding")}
+            />
+            {orgId && <Button href={to("/dashboard")} icon="lucide:store">{t.openDashboard}</Button>}
+          </div>
+        </>
+      ) : (
+        <>
+          <p class="text-sm text-text-secondary">{t.startDescription}</p>
+          <Button href={to("/onboarding")} variant="secondary" icon="lucide:store">{t.startBusiness}</Button>
+        </>
+      )}
+    </section>
+  </div>
+  <ClerkLocalization />
+</PublicLayout>

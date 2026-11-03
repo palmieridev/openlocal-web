@@ -9,12 +9,12 @@ import {
   splitLocale,
 } from "@/i18n";
 
-// Business owner area requires an authenticated Clerk session.
-const isProtected = createRouteMatcher(["/dashboard(.*)", "/onboarding(.*)"]);
+// Personal and business areas require an authenticated Clerk session.
+const isProtected = createRouteMatcher(["/account(.*)", "/dashboard(.*)", "/onboarding(.*)"]);
 
 const auth = clerkMiddleware((auth, context) => {
   if (isProtected(context.request)) {
-    const { userId, redirectToSignIn } = auth();
+    const { userId, orgId, redirectToSignIn } = auth();
     if (!userId) {
       // Clerk's own helper targets the configured (unprefixed) sign-in URL,
       // which would drop an English visitor onto the Spanish page. Keep them in
@@ -27,6 +27,10 @@ const auth = clerkMiddleware((auth, context) => {
         return context.redirect(signIn.toString());
       }
       return redirectToSignIn();
+    }
+    // Personal accounts must choose a business before entering its workspace.
+    if (/^\/dashboard(?:\/|$)/.test(context.url.pathname) && !orgId) {
+      return context.redirect(localePath(context.locals.locale, "/account"));
     }
   }
 });

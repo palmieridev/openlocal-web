@@ -141,3 +141,12 @@ Replace `<host-lan-ip>` with a host address reachable from both the browser and
 the container. `OL_INSECURE_COOKIES=1` is for local HTTP testing only. / Sustituye
 `<host-lan-ip>` por una dirección del host accesible desde el navegador y el
 contenedor. `OL_INSECURE_COOKIES=1` es solo para pruebas locales por HTTP.
+
+
+### Personal accounts and business membership
+
+- Visitors can browse the marketplace and storefronts without signing in.
+- Every signed-in user has a personal area at `/account` (`/en/account` in English), with profile and security settings at `/account/profile`.
+- Owners and staff keep the same personal account. Business access comes from Clerk organization membership; the account page lets members select a business before opening `/dashboard`. The API remains responsible for business-specific permissions.
+- Sign-in defaults to the personal area, while explicit return URLs still take precedence. Shopper registration also lands there; business registration continues to onboarding.
+- Favorites and customer order/appointment history are upcoming features. The account page does not yet retrieve these records. Customer history will require linking activity to the authenticated customer, independently of their business memberships. Historical activity should remain visible even if a business later disables its module; module availability controls new requests.

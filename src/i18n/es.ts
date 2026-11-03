@@ -12,6 +12,25 @@
 import { modulesEs } from "./modules-es";
 export const es = {
   modules: modulesEs,
+  account: {
+    "title": "Mi cuenta",
+    "intro": "Tu espacio personal en Openlocal.",
+    "explore": "Explorar negocios",
+    "profile": "Perfil y seguridad",
+    "profileDescription": "Administra tus datos personales, tus métodos de acceso y la seguridad de tu cuenta.",
+    "activity": "Tu actividad",
+    "upcoming": "Próximamente",
+    "favorites": "Negocios guardados",
+    "favoritesDescription": "Aquí podrás encontrar los negocios que guardes como favoritos.",
+    "orders": "Pedidos y citas",
+    "ordersDescription": "Aquí podrás consultar tu actividad en los negocios que ofrecen pedidos o citas.",
+    "business": "Tus negocios",
+    "businessDescription": "Tu espacio personal y la administración de tus negocios están separados. Elige un negocio para trabajar con tu equipo.",
+    "openDashboard": "Ir al panel del negocio",
+    "startBusiness": "Registrar mi negocio",
+    "startDescription": "¿Tienes un negocio? Crea su tienda y adminístrala desde tu panel.",
+    "membershipError": "No pudimos consultar tus negocios. Vuelve a cargar la página para intentarlo de nuevo."
+},
   meta: {
     title: "Openlocal — Comercio local",
     description: "Descubre productos de negocios locales cerca de ti.",

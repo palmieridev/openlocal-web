@@ -7,13 +7,13 @@ import { localePath, useT } from "@/i18n";
 const locale = Astro.locals.locale;
 const t = useT(locale);
 
-// Shopper signup: plain account, no organization. Lands on the marketplace.
+// Shopper signup: plain account, no organization. Lands on the personal account.
 ---
 
 <AuthLayout title={t.auth.shopperPageTitle}>
   <SignUp
     signInUrl={localePath(locale, "/login")}
-    fallbackRedirectUrl={localePath(locale, "/marketplace")}
+    fallbackRedirectUrl={localePath(locale, "/account")}
   />
   <a
     href={localePath(locale, "/register")}
