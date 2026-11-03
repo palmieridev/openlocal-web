@@ -63,7 +63,7 @@ const url = (href: string) => localePath(locale, href);
             {t.account.title}
           </Button>
         </div>
-        {orgId && <div class="hidden lg:block"><Button variant="ghost" size="sm" href={url("/dashboard")}>{t.nav.panel}</Button></div>}
+        {orgId && <div class="hidden md:block"><Button variant="ghost" size="sm" href={url("/dashboard")}>{t.nav.panel}</Button></div>}
         <UserButton />
       </Show>
       <button
@@ -101,7 +101,7 @@ const url = (href: string) => localePath(locale, href);
         </a>
       </Show>
       <Show when="signed-in">
-        {orgId && <a href={url("/dashboard")} class="rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary lg:hidden">{t.nav.panel}</a>}
+        {orgId && <a href={url("/dashboard")} class="rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary md:hidden">{t.nav.panel}</a>}
         <a href={url("/account")} class="rounded-xl px-3 py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-secondary sm:hidden">
           {t.account.title}
         </a>
