@@ -1,4 +1,5 @@
 ---
+import { publicApi } from "@/lib/api/client";
 import { PUBLIC_TURNSTILE_SITE_KEY } from "astro:env/client";
 import { useT } from "@/i18n";
 import type { Module } from "@/types/modules";
@@ -10,6 +11,8 @@ interface Props {
 }
 const { module, slug, owner = false } = Astro.props;
 const t = useT(Astro.locals.locale).modules;
+const personal = !owner && !!Astro.locals.auth().userId;
+const business = personal ? await publicApi.getBusiness(slug) : null;
 ---
 
 <section
@@ -17,9 +20,11 @@ const t = useT(Astro.locals.locale).modules;
   data-module={module}
   data-slug={slug}
   data-owner={owner ? "true" : "false"}
+  data-personal={personal ? "true" : "false"}
+  data-business-id={business?.id}
   aria-busy="true"
 >
-  <p class="module-muted">{t.manual}</p>
+  {!personal && <p class="module-muted">{t.manual}</p>}
   <p class="module-message" data-loading role="status">{t.loading}</p>
   <form class="module-stack module-card">
     {
@@ -75,7 +80,7 @@ const t = useT(Astro.locals.locale).modules;
       >{t.notes}<textarea name="notes" rows="3" maxlength="2000"
       ></textarea></label
     >
-    <p class="module-muted">{t.policy}</p>
+    <p class="module-muted">{personal ? useT(Astro.locals.locale).account.personalPolicy : t.policy}</p>
     {
       !owner && PUBLIC_TURNSTILE_SITE_KEY && (
         <div
@@ -101,7 +106,7 @@ const t = useT(Astro.locals.locale).modules;
         target="_blank"
         rel="noopener noreferrer">{t.contact}</a>
     </div>
-    <p class="module-muted">{t.privateLink}</p>
+    <p class="module-muted">{personal ? useT(Astro.locals.locale).account.accountRequest : t.privateLink}</p>
   </div>
 </section>
 {
@@ -115,6 +120,7 @@ const t = useT(Astro.locals.locale).modules;
   )
 }
 <script>
+  import type { CustomerRequest } from "@/types/account";
   import { moduleFetch, submissionKey } from "@/lib/module-client";
   import {
     decimalTotal,
@@ -138,7 +144,8 @@ const t = useT(Astro.locals.locale).modules;
     const t = ui().modules,
       locale = uiLocale(),
       module = root.dataset.module!,
-      owner = root.dataset.owner === "true";
+      owner = root.dataset.owner === "true",
+      personal = root.dataset.personal === "true";
     const publicPath = `public/businesses/${encodeURIComponent(root.dataset.slug!)}/${module}`;
     const readsPath = owner ? `owner/${module}` : publicPath;
     const form = root.querySelector<HTMLFormElement>("form")!,
@@ -367,8 +374,8 @@ const t = useT(Astro.locals.locale).modules;
       message.classList.remove("module-error");
       message.textContent = t.saving;
       try {
-        const record = await moduleFetch<ModuleRequest>(
-          owner ? `owner/${module}` : publicPath,
+        const record = await moduleFetch<ModuleRequest | CustomerRequest>(
+          owner ? `owner/${module}` : personal ? `me/businesses/${encodeURIComponent(root.dataset.businessId ?? "")}/${module}` : publicPath,
           { method: "POST", body, key: key(body) },
         );
         if (owner) {
@@ -381,10 +388,10 @@ const t = useT(Astro.locals.locale).modules;
         root.querySelector<HTMLElement>("[data-success]")!.hidden = false;
         root.querySelector("[data-reference]")!.textContent = record.reference;
         root.querySelector<HTMLAnchorElement>("[data-manage]")!.href =
-          record.management_url ??
-          localePath(locale, `/requests/${record.public_id}`);
+          personal ? localePath(locale, `/account/activity/${module}/${record.id}`) : "public_id" in record ? record.management_url ??
+          localePath(locale, `/requests/${record.public_id}`) : localePath(locale, "/account");
         const wa = root.querySelector<HTMLAnchorElement>("[data-whatsapp]")!,
-          href = requestWhatsApp(record, locale);
+          href = "public_id" in record ? requestWhatsApp(record, locale) : null;
         wa.hidden = !href;
         if (href) wa.href = href;
         message.textContent = t.saved;

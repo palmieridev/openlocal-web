@@ -1,15 +1,16 @@
 ---
 import { useT } from "@/i18n";
 import { formatModuleDate, requestWhatsApp } from "@/lib/modules";
+import type { CustomerRequest } from "@/types/account";
 import type { ModuleRequest } from "@/types/modules";
 interface Props {
-  record: ModuleRequest;
+  record: ModuleRequest | CustomerRequest;
   owner?: boolean;
 }
 const { record, owner = false } = Astro.props;
 const locale = Astro.locals.locale,
   t = useT(locale).modules;
-const whatsapp = requestWhatsApp(record, locale, owner);
+const whatsapp = "public_id" in record ? requestWhatsApp(record, locale, owner) : null;
 ---
 
 <div class="module-card module-print">
@@ -72,7 +73,7 @@ const whatsapp = requestWhatsApp(record, locale, owner);
       </p>
     )
   }
-  {record.notes && <p class="whitespace-pre-wrap">{record.notes}</p>}
+  {"notes" in record && record.notes && <p class="whitespace-pre-wrap">{record.notes}</p>}
   {
     record.status === "requested" && record.expires_at && (
       <p class="module-muted">

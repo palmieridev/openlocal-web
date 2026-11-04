@@ -1,13 +1,19 @@
 ---
 import { SignIn } from "@clerk/astro/components";
+import { authReturnPath, authFlowLink } from "@/lib/auth-return";
 import AuthLayout from "@/layouts/AuthLayout.astro";
 import ClerkLocalization from "@/components/ClerkLocalization.astro";
-import { useT } from "@/i18n";
+import { localePath, useT } from "@/i18n";
 
+const returnPath = authReturnPath(Astro.url);
 const t = useT(Astro.locals.locale);
 ---
 
 <AuthLayout title={t.auth.signInTitle}>
-  <SignIn />
+  <SignIn
+    signUpUrl={authFlowLink(localePath(Astro.locals.locale, "/register"), returnPath)}
+    forceRedirectUrl={returnPath}
+    fallbackRedirectUrl={localePath(Astro.locals.locale, "/account")}
+  />
   <ClerkLocalization />
 </AuthLayout>

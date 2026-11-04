@@ -116,6 +116,7 @@ describe("interpolate", () => {
 describe("clientDict", () => {
   it("ships only the island-facing namespaces", () => {
     expect(Object.keys(clientDict("en")).sort()).toEqual([
+      "account",
       "analytics",
       "common",
       "hours",

@@ -1,0 +1,72 @@
+---
+import { apiFetch } from "@/lib/api/client";
+import { localePath, useT } from "@/i18n";
+import { formatModuleDate } from "@/lib/modules";
+import type { CursorPage, CustomerActivity, SavedBusiness } from "@/types/account";
+const locale = Astro.locals.locale, t = useT(locale).account, mt = useT(locale).modules;
+const to = (path: string) => localePath(locale, path);
+const token = await Astro.locals.auth().getToken();
+const module = ["appointments", "preorders"].includes(Astro.url.searchParams.get("module") ?? "") ? Astro.url.searchParams.get("module")! : "";
+const results = await Promise.allSettled([
+  apiFetch<CursorPage<SavedBusiness>>("/api/v1/me/saved-businesses", {token: token ?? undefined, query: {limit: 6, cursor: Astro.url.searchParams.get("saved_cursor")}, init: {cache: "no-store", signal: AbortSignal.timeout(15000)}}),
+  apiFetch<CursorPage<CustomerActivity>>("/api/v1/me/activity", {token: token ?? undefined, query: {limit: 10, cursor: Astro.url.searchParams.get("activity_cursor"), module}, init: {cache: "no-store", signal: AbortSignal.timeout(15000)}}),
+]);
+const saves = results[0].status === "fulfilled" ? results[0].value : null;
+const activity = results[1].status === "fulfilled" ? results[1].value : null;
+function nextPage(key: string, cursor: string) {
+  const params = new URLSearchParams(Astro.url.searchParams); params.set(key, cursor);
+  return `${to("/account")}?${params}`;
+}
+---
+<section aria-labelledby="saved-heading" class="space-y-4">
+  <h2 id="saved-heading" class="font-heading text-xl font-semibold">{t.favorites}</h2>
+  {!saves ? <p role="status">{t.loadError} <a class="underline" href={to("/account")}>{t.retry}</a></p> : <>
+    {!saves.items.length && <p class="text-text-secondary">{t.emptySaved}</p>}
+    <div class="grid gap-4 sm:grid-cols-2">
+      {saves.items.map((business) => <div class="ol-card flex flex-wrap items-center justify-between gap-3 p-5" data-saved-row>
+        {business.available && business.slug ? <a class="min-w-0 break-words font-semibold hover:underline" href={to(`/business/${encodeURIComponent(business.slug)}`)}>{business.name}</a> : <p>{t.unavailableBusiness}</p>}
+        <button type="button" data-remove-save={business.business_id} class="rounded-full border border-border px-3 py-2 text-sm disabled:opacity-50">{t.remove}</button>
+      </div>)}
+    </div>
+    {saves.next_cursor && <a class="inline-block underline" href={nextPage("saved_cursor", saves.next_cursor)}>{t.next}</a>}
+  </>}
+  <p data-saves-message role="status" aria-live="polite" class="text-sm text-text-secondary"></p>
+</section>
+<section aria-labelledby="activity-heading" class="space-y-4">
+  <h2 id="activity-heading" class="font-heading text-xl font-semibold">{t.orders}</h2>
+  <p class="text-sm text-text-secondary">{t.activityHint}</p>
+  <form action={to("/account")} class="flex flex-wrap items-center gap-3">
+    <label for="activity-module" class="sr-only">{t.activity}</label>
+    <select id="activity-module" name="module" class="ol-input w-auto">
+      <option value="" selected={!module}>{t.all}</option>
+      <option value="appointments" selected={module === "appointments"}>{mt.appointments}</option>
+      <option value="preorders" selected={module === "preorders"}>{mt.preorders}</option>
+    </select>
+    <button class="rounded-full border border-border px-4 py-2" type="submit">{t.filter}</button>
+  </form>
+  {!activity ? <p role="status">{t.loadError} <a class="underline" href={to("/account")}>{t.retry}</a></p> : <>
+    {!activity.items.length && <p class="text-text-secondary">{t.emptyActivity}</p>}
+    <div class="space-y-3">
+      {activity.items.map((item) => <a class="ol-card block space-y-2 p-5 hover:bg-surface-secondary" href={to(`/account/activity/${item.module}/${encodeURIComponent(item.id)}`)}>
+        <div class="flex flex-wrap justify-between gap-2"><span class="font-semibold">{item.business.name}</span><span class="text-sm">{mt.statuses[item.status]}</span></div>
+        <p class="text-sm text-text-secondary">{item.module === "appointments" ? mt.appointments : mt.preorders} · {item.reference}</p>
+        <p class="text-sm text-text-secondary">{formatModuleDate(item.starts_at, item.timezone, locale)} · {item.timezone}</p>
+        <span class="text-sm underline">{t.details}</span>
+      </a>)}
+    </div>
+    {activity.next_cursor && <a class="inline-block underline" href={nextPage("activity_cursor", activity.next_cursor)}>{t.next}</a>}
+  </>}
+</section>
+<script>
+  import { moduleFetch } from "@/lib/module-client";
+  import { ui } from "@/lib/i18n-client";
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-remove-save]")) {
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      const message = document.querySelector<HTMLElement>("[data-saves-message]")!;
+      message.textContent = "";
+      try { await moduleFetch(`me/saved-businesses/${encodeURIComponent(button.dataset.removeSave!)}`, {method:"DELETE"}); location.reload(); }
+      catch { message.textContent = ui().account.saveError; button.disabled = false; }
+    });
+  }
+</script>

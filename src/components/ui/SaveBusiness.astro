@@ -1,0 +1,60 @@
+---
+import { useT } from "@/i18n";
+interface Props { businessId: string }
+const { businessId } = Astro.props;
+const t = useT(Astro.locals.locale).account;
+---
+<div data-save-business={businessId} class="min-w-0 flex-1 sm:flex-none">
+  <button type="button" data-save class="h-11 w-full rounded-full border border-border bg-surface-card px-4 text-sm font-medium disabled:opacity-50" disabled aria-pressed="false">{t.save}</button>
+  <p data-save-message role="status" aria-live="polite" class="mt-1 max-w-xs text-sm text-text-secondary"></p>
+</div>
+<script>
+  import { moduleFetch, ModuleClientError } from "@/lib/module-client";
+  import { ui, uiLocale } from "@/lib/i18n-client";
+  import { localePath } from "@/i18n";
+  for (const root of document.querySelectorAll<HTMLElement>("[data-save-business]")) {
+    const id = root.dataset.saveBusiness!, path = `me/saved-businesses/${encodeURIComponent(id)}`;
+    const button = root.querySelector<HTMLButtonElement>("[data-save]")!;
+    const message = root.querySelector<HTMLElement>("[data-save-message]")!;
+    const t = ui().account, intentKey = "ol-save-intent";
+    let saved = false, signedOut = false, ready = false;
+    const intent = JSON.stringify({ id, path: location.pathname });
+    function remember(value: string | null) { try { if (value) sessionStorage.setItem(intentKey, value); else sessionStorage.removeItem(intentKey); } catch {} }
+    function remembered() { try { return sessionStorage.getItem(intentKey); } catch { return null; } }
+    function render() { button.textContent = saved ? t.saved : t.save; button.setAttribute("aria-pressed", String(saved)); }
+    async function update(save: boolean) {
+      await moduleFetch(path, { method: save ? "PUT" : "DELETE" });
+      saved = save; render(); remember(null);
+      document.dispatchEvent(new CustomEvent("ol-saves-changed"));
+    }
+    async function load() {
+      button.disabled = true;
+      try {
+        const state = await moduleFetch<{saved: boolean}>(path);
+        saved = state.saved; signedOut = false; ready = true; render();
+        if (remembered() === intent) { if (!saved) await update(true); else remember(null); }
+        message.textContent = "";
+      } catch (error) {
+        signedOut = error instanceof ModuleClientError && error.status === 401;
+        ready = signedOut;
+        message.textContent = signedOut ? "" : t.saveError;
+      } finally { button.disabled = false; }
+    }
+    button.addEventListener("click", async () => {
+      if (!ready) { await load(); return; }
+      if (signedOut) {
+        remember(intent);
+        const login = new URL(localePath(uiLocale(), "/login"), location.origin);
+        login.searchParams.set("redirect_url", location.pathname + location.search);
+        location.assign(login.href); return;
+      }
+      button.disabled = true; message.textContent = "";
+      try { await update(!saved); }
+      catch (error) {
+        if (error instanceof ModuleClientError && error.status === 401) { signedOut = true; }
+        message.textContent = t.saveError;
+      } finally { button.disabled = false; }
+    });
+    void load();
+  }
+</script>
