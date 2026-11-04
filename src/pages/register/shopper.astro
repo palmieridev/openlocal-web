@@ -1,10 +1,12 @@
 ---
 import { SignUp } from "@clerk/astro/components";
+import { authReturnPath, authFlowLink } from "@/lib/auth-return";
 import AuthLayout from "@/layouts/AuthLayout.astro";
 import ClerkLocalization from "@/components/ClerkLocalization.astro";
 import { localePath, useT } from "@/i18n";
 
 const locale = Astro.locals.locale;
+const returnPath = authReturnPath(Astro.url);
 const t = useT(locale);
 
 // Shopper signup: plain account, no organization. Lands on the personal account.
@@ -12,11 +14,12 @@ const t = useT(locale);
 
 <AuthLayout title={t.auth.shopperPageTitle}>
   <SignUp
-    signInUrl={localePath(locale, "/login")}
+    signInUrl={authFlowLink(localePath(locale, "/login"), returnPath)}
+    forceRedirectUrl={returnPath}
     fallbackRedirectUrl={localePath(locale, "/account")}
   />
   <a
-    href={localePath(locale, "/register")}
+    href={authFlowLink(localePath(locale, "/register"), returnPath)}
     class="text-sm text-text-muted hover:text-text-secondary"
   >
     {t.auth.otherOptions}

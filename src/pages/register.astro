@@ -1,23 +1,25 @@
 ---
 import { Icon } from "astro-icon/components";
+import { authReturnPath, authFlowLink } from "@/lib/auth-return";
 import AuthLayout from "@/layouts/AuthLayout.astro";
 import { localePath, useT } from "@/i18n";
 
 const locale = Astro.locals.locale;
+const returnPath = authReturnPath(Astro.url);
 const t = useT(locale);
 
 // Two distinct signup flows: shoppers get a plain account (no organization),
 // businesses continue to onboarding where the API creates their Clerk org.
 const paths = [
   {
-    href: localePath(locale, "/register/shopper"),
+    href: authFlowLink(localePath(locale, "/register/shopper"), returnPath),
     icon: "lucide:shopping-bag",
     title: t.auth.shopperTitle,
     desc: t.auth.shopperDesc,
     cta: t.auth.shopperCta,
   },
   {
-    href: localePath(locale, "/register/business"),
+    href: authFlowLink(localePath(locale, "/register/business"), returnPath),
     icon: "lucide:store",
     title: t.auth.businessTitle,
     desc: t.auth.businessDesc,
@@ -54,7 +56,7 @@ const paths = [
 
     <p class="mt-6 text-center text-sm text-text-muted">
       {t.auth.haveAccount}
-      <a href={localePath(locale, "/login")} class="font-medium text-accent hover:underline">
+      <a href={authFlowLink(localePath(locale, "/login"), returnPath)} class="font-medium text-accent hover:underline">
         {t.auth.signIn}
       </a>
     </p>
