@@ -20,6 +20,7 @@ const t = dict.settings;
 const to = (href: string) => localePath(locale, href);
 
 const { token, businessId } = await getServerAuth(Astro);
+const canManageOrganization = Astro.locals.auth().has({ role: "org:admin" });
 
 let business: Business | null = null;
 let hours: BusinessHours | null = null;
@@ -281,6 +282,22 @@ const lng = text(business?.longitude);
 
         {/* Right column */}
         <div class="flex flex-col gap-6">
+          {canManageOrganization && (
+            <section class="ol-card p-5">
+              <h2 class="font-heading font-semibold">{t.teamTitle}</h2>
+              <p class="mt-1 text-sm text-text-secondary">{t.teamIntro}</p>
+              <Button
+                variant="secondary"
+                icon="lucide:users"
+                block
+                class="mt-4"
+                href={to("/dashboard/organization")}
+              >
+                {t.manageOrganization}
+              </Button>
+            </section>
+          )}
+
           {/* Store status */}
           <div class="ol-card p-5">
             <div class="flex items-center justify-between">

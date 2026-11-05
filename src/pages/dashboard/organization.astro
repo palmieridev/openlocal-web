@@ -1,0 +1,33 @@
+---
+import { OrganizationProfile } from "@clerk/astro/components";
+import ClerkLocalization from "@/components/ClerkLocalization.astro";
+import DashboardLayout from "@/layouts/DashboardLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import { localePath, useT } from "@/i18n";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).settings;
+const settingsPath = localePath(locale, "/dashboard/settings");
+
+if (!Astro.locals.auth().has({ role: "org:admin" })) {
+  return Astro.redirect(settingsPath);
+}
+---
+
+<DashboardLayout title={t.manageOrganization} active="ajustes">
+  <ClerkLocalization />
+  <div class="mx-auto max-w-6xl px-6 py-8">
+    <Button variant="ghost" icon="lucide:arrow-left" href={settingsPath}>
+      {t.backToSettings}
+    </Button>
+    <h1 class="mt-4 font-heading text-2xl font-semibold">{t.teamTitle}</h1>
+    <p class="mt-1 text-sm text-text-secondary">{t.teamIntro}</p>
+    <div class="mt-6">
+      <OrganizationProfile
+        routing="hash"
+        afterLeaveOrganizationUrl={localePath(locale, "/dashboard")}
+        appearance={{ elements: { rootBox: "w-full", cardBox: "w-full max-w-full" } }}
+      />
+    </div>
+  </div>
+</DashboardLayout>

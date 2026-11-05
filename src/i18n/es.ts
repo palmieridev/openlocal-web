@@ -679,6 +679,10 @@ export const es = {
     holdingRate: "Tasa mantenimiento",
   },
   settings: {
+    teamTitle: "Equipo",
+    teamIntro: "Invita a tu personal y administra los miembros de la organización de tu negocio.",
+    manageOrganization: "Administrar organización",
+    backToSettings: "Volver a ajustes",
     title: "Ajustes — Openlocal",
     heading: "Ajustes del negocio",
     viewPublicShop: "Ver tienda pública",
