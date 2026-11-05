@@ -669,6 +669,10 @@ export const en = {
     holdingRate: "Holding rate",
   },
   settings: {
+    teamTitle: "Team",
+    teamIntro: "Invite staff and manage members of your business organization.",
+    manageOrganization: "Manage organization",
+    backToSettings: "Back to settings",
     title: "Settings — Openlocal",
     heading: "Business settings",
     viewPublicShop: "View public shop",
