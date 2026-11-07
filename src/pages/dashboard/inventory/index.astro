@@ -59,8 +59,15 @@ if (token && businessId && (levels.length > 0 || movements.length > 0)) {
   }
 }
 
-const isLow = (l: StockLevel) =>
-  l.reorder_point != null && l.reorder_point !== "" && Number(l.quantity_on_hand) <= Number(l.reorder_point);
+// Stock-level responses contain quantities only; reorder policy belongs to the variant.
+const reorderPoint = (l: StockLevel) =>
+  catalog.get(l.variant_id)?.variant.reorder_point ?? l.reorder_point;
+const isLow = (l: StockLevel) => {
+  const variant = catalog.get(l.variant_id)?.variant;
+  const reorder = reorderPoint(l);
+  return (!variant || variant.track_inventory === true) &&
+    reorder != null && reorder !== "" && Number(l.quantity_on_hand) <= Number(reorder);
+};
 
 // Existencias rows (variant-centric names).
 const existRows: ExistRow[] = levels.map((l) => {
@@ -71,7 +78,7 @@ const existRows: ExistRow[] = levels.map((l) => {
     name,
     sku: info?.variant.sku ?? l.sku ?? "",
     qty: l.quantity_on_hand,
-    reorder: l.reorder_point ?? "—",
+    reorder: reorderPoint(l) ?? "—",
     low: isLow(l),
   };
 });
