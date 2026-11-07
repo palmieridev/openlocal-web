@@ -1,7 +1,6 @@
 ---
 import AccountActivity from "@/components/account/AccountActivity.astro";
 import { Icon } from "astro-icon/components";
-import { OrganizationSwitcher } from "@clerk/astro/components";
 import { clerkClient } from "@clerk/astro/server";
 import ClerkLocalization from "@/components/ClerkLocalization.astro";
 import PublicLayout from "@/layouts/PublicLayout.astro";
@@ -15,16 +14,22 @@ const { userId, orgId } = Astro.locals.auth();
 Astro.response.headers.set("Cache-Control", "private, no-store");
 Astro.response.headers.set("X-Robots-Tag", "noindex, nofollow");
 
-// Membership belongs to a business, not to a separate kind of personal account.
-// Check memberships even with no active org, so returning staff can select one.
-let hasMembership = !!orgId;
+// Fetch every membership, including when an organization is already active.
+let businesses: { id: string; name: string }[] = [];
 let membershipError = false;
-if (userId && !orgId) {
+if (userId) {
   try {
-    const memberships = await clerkClient(Astro).users.getOrganizationMembershipList({ userId, limit: 1 });
-    hasMembership = memberships.totalCount > 0;
+    const client = clerkClient(Astro);
+    let offset = 0;
+    while (true) {
+      const page = await client.users.getOrganizationMembershipList({ userId, limit: 100, offset });
+      businesses.push(...page.data.map(({ organization }) => ({ id: organization.id, name: organization.name })));
+      offset += page.data.length;
+      if (!page.data.length || offset >= page.totalCount) break;
+    }
   } catch {
     membershipError = true;
+    businesses = [];
   }
 }
 ---
@@ -48,22 +53,27 @@ if (userId && !orgId) {
       <Icon name="lucide:chevron-right" width={20} height={20} class="shrink-0" />
     </a>
 
-    <AccountActivity />
-
-    <section class="ol-card space-y-4 p-6" aria-labelledby="business-heading">
+    <section class="ol-card space-y-4 p-6" aria-labelledby="business-heading" data-business-access data-dashboard-url={to("/dashboard")}>
       <h2 id="business-heading" class="font-heading text-xl font-semibold">{t.business}</h2>
-      {membershipError ? <p role="status" class="text-sm text-text-secondary">{t.membershipError}</p> : hasMembership ? (
+      {membershipError ? <p role="status" class="text-sm text-text-secondary">{t.membershipError}</p> : businesses.length ? (
         <>
           <p class="text-sm text-text-secondary">{t.businessDescription}</p>
-          <div class="flex flex-wrap items-center gap-4">
-            <OrganizationSwitcher
-              hidePersonal
-              afterSelectOrganizationUrl={to("/dashboard")}
-              createOrganizationMode="navigation"
-              createOrganizationUrl={to("/onboarding")}
-            />
-            {orgId && <Button href={to("/dashboard")} icon="lucide:store">{t.openDashboard}</Button>}
-          </div>
+          <ul class="grid gap-3 sm:grid-cols-2">
+            {businesses.map((business) => (
+              <li class="flex min-w-0 flex-col items-start gap-4 rounded-xl border border-border p-4">
+                <div class="flex w-full flex-wrap items-center gap-2">
+                  <h3 class="min-w-0 break-words font-semibold">{business.name}</h3>
+                  {business.id === orgId && <span class="rounded-full bg-accent-soft px-2 py-1 text-xs text-accent">{t.activeBusiness}</span>}
+                </div>
+                <Button data-manage-business={business.id} disabled icon="lucide:store" class="min-h-11">
+                  <span data-button-label>{t.manageBusiness}</span><span class="sr-only"> · {business.name}</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <p data-business-message role="status" aria-live="polite" class="text-sm text-text-secondary"></p>
+          <noscript><p class="text-sm text-text-secondary">{t.switchRequiresJs}</p></noscript>
+          <a class="inline-block text-sm font-medium text-accent underline" href={to("/onboarding")}>{t.startBusiness}</a>
         </>
       ) : (
         <>
@@ -72,6 +82,57 @@ if (userId && !orgId) {
         </>
       )}
     </section>
+
+    <AccountActivity />
   </div>
   <ClerkLocalization />
 </PublicLayout>
+
+<script>
+  import { $clerkStore, $isLoadedStore } from "@clerk/astro/client";
+  import { ui } from "@/lib/i18n-client";
+
+  const root = document.querySelector<HTMLElement>("[data-business-access]");
+  if (root) {
+    const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-manage-business]"));
+    const message = root.querySelector<HTMLElement>("[data-business-message]");
+    let switching = false;
+    const updateButtons = () => {
+      for (const button of buttons) button.disabled = switching || !$isLoadedStore.get();
+    };
+    $isLoadedStore.subscribe(updateButtons);
+    for (const button of buttons) {
+      button.addEventListener("click", async () => {
+        if (switching) return;
+        const label = button.querySelector<HTMLElement>("[data-button-label]")!;
+        const t = ui().account;
+        switching = true;
+        updateButtons();
+        if (message) message.textContent = "";
+        label.textContent = t.switchingBusiness;
+        try {
+          const clerk = $clerkStore.get();
+          const organization = button.dataset.manageBusiness!;
+          if (!clerk?.user) throw new Error("signed out");
+          await clerk.setActive({ organization });
+          // Use a fresh token to resolve the business for the new organization,
+          // before navigating with a cookie that may still name the old one.
+          const token = await clerk.session?.getToken({ skipCache: true });
+          if (!token) throw new Error("session unavailable");
+          const response = await fetch("/api/businesses/active", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ organization }),
+          });
+          if (!response.ok) throw new Error("business unavailable");
+          window.location.assign(root.dataset.dashboardUrl!);
+        } catch {
+          if (message) message.textContent = t.switchBusinessError;
+          label.textContent = t.manageBusiness;
+          switching = false;
+          updateButtons();
+        }
+      });
+    }
+  }
+</script>
