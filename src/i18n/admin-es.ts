@@ -100,7 +100,6 @@ export const adminEs = {
   "capabilities": {
     "can_manage_existing": "Gestionar solicitudes existentes",
     "can_configure": "Configurar el módulo",
-    "can_operate": "Operar solicitudes",
     "can_export": "Exportar",
     "advanced": "Funciones avanzadas"
   },

@@ -100,7 +100,6 @@ export const adminEn = {
   "capabilities": {
     "can_manage_existing": "Manage existing requests",
     "can_configure": "Configure module",
-    "can_operate": "Operate requests",
     "can_export": "Export",
     "advanced": "Advanced features"
   },

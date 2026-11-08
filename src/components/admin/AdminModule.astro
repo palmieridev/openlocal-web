@@ -8,7 +8,7 @@ const { module, access } = Astro.props;
 const locale = Astro.locals.locale;
 const t = useT(locale).admin;
 const title = useT(locale).modules[module];
-const capabilities = ["can_manage_existing", "can_configure", "can_operate", "can_export", "advanced"] as const;
+const capabilities = ["can_manage_existing", "can_configure", "can_export", "advanced"] as const;
 ---
 <section class="admin-card">
   <div class="admin-card-heading">
