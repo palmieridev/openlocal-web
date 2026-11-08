@@ -150,3 +150,12 @@ contenedor. `OL_INSECURE_COOKIES=1` es solo para pruebas locales por HTTP.
 - Owners and staff keep the same personal account. Business access comes from Clerk organization membership; the account page lets members select a business before opening `/dashboard`. The API remains responsible for business-specific permissions.
 - Sign-in defaults to the personal area, while explicit return URLs still take precedence. Shopper registration also lands there; business registration continues to onboarding.
 - Saved businesses and customer activity use the personal `/api/v1/me/*` endpoints through the BFF. Signed-in bookings are associated with the customer account; guest bookings retain their management-link flow. Historical activity remains visible when a business disables its module; module availability controls new requests.
+
+### Platform administration / Administración de plataforma
+
+- `/admin` (`/en/admin` in English) searches all businesses by name, slug, UUID or Clerk organization. Business details show the stored subscription, effective module capabilities, usage and active access sources. `/admin/activity` filters private audit history by business, local actor UUID and exact action.
+- Sign in with a Clerk user ID listed in the **API's** `PLATFORM_ADMIN_USER_IDS`. The Go API checks this allowlist on every read. Organization administrator roles do not grant platform access, and no active organization or `ol_bid` cookie is required. There is no separate frontend allowlist to synchronize.
+- Reads are server-side and use the Clerk session token. Pages, failures and redirects are private, uncached and excluded from indexing. An unavailable API returns an error view, never a misleading empty directory. Admin timestamps use UTC.
+- This release is read-only. Grant creation/extension/revocation and support-feedback triage are separate follow-up features; admin inspection does not authorize acting as a business owner.
+
+En `/admin` puedes buscar negocios, consultar suscripciones, acceso efectivo y uso de módulos, y filtrar el historial interno en `/admin/activity`. El acceso depende de `PLATFORM_ADMIN_USER_IDS` en la API, no del rol del negocio ni de la organización activa. Las vistas son privadas, no se guardan en caché y muestran fechas en UTC. Esta versión es de consulta; la gestión de concesiones y de comentarios de soporte se implementará por separado.

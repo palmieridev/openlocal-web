@@ -10,7 +10,9 @@
  * English dictionary satisfy the same shape with different values.
  */
 import { modulesEs } from "./modules-es";
+import { adminEs } from "./admin-es";
 export const es = {
+  admin: adminEs,
   modules: modulesEs,
   account: {
     personalPolicy: "Tu solicitud aparecerá en Mi cuenta. Allí podrás consultar su estado y cancelarla dentro del plazo del negocio.",

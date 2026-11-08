@@ -1,0 +1,62 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminError from "@/components/admin/AdminError.astro";
+import AdminModule from "@/components/admin/AdminModule.astro";
+import Button from "@/components/ui/Button.astro";
+import { localePath, useT } from "@/i18n";
+import { readAdmin } from "@/lib/api/admin";
+import { adminDate, adminHref, adminLabel } from "@/lib/admin";
+import type { Module } from "@/types/modules";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+const modulesT = useT(locale).modules;
+const onboardingT = useT(locale).onboarding;
+const businessTypes = { retail: onboardingT.typeRetail, artesanias: onboardingT.typeCrafts, comida: onboardingT.typeFood, servicios: onboardingT.typeServices, moda: onboardingT.typeFashion, belleza: onboardingT.typeBeauty, hogar: onboardingT.typeHome, otro: onboardingT.typeOther };
+const result = await readAdmin(Astro, (api) => api.business(Astro.params.id!));
+const detail = result.data;
+const business = detail?.business;
+const subscription = detail?.subscription;
+const modules: Module[] = ["appointments", "preorders"];
+---
+<AdminLayout title={business?.name ?? t.details}>
+  <div slot="actions" class="flex flex-wrap gap-2">
+    <Button href={localePath(locale, "/admin")} variant="secondary" class="min-h-11" icon="lucide:arrow-left">{t.backBusinesses}</Button>
+    {business && <Button href={adminHref(locale, "/admin/activity", { business_id: business.id })} variant="secondary" class="min-h-11" icon="lucide:history">{t.businessActivity}</Button>}
+  </div>
+  {result.error ? <AdminError error={result.error} /> : detail && business && <div class="admin-stack">
+    <div class="admin-grid">
+      <section class="admin-card">
+        <div class="admin-card-heading"><h2>{t.profile}</h2><span class="admin-chip" data-positive={String(business.status === "active")}>{adminLabel(t.statusLabels, business.status)}</span></div>
+        <p class="admin-muted">{business.slug}</p>
+        <dl class="admin-meta">
+          <div><dt>{t.businessId}</dt><dd class="admin-code">{business.id}</dd></div>
+          <div><dt>{t.organization}</dt><dd class="admin-code">{business.clerk_org_id ?? t.notSet}</dd></div>
+          <div><dt>{t.businessType}</dt><dd>{adminLabel(businessTypes, business.business_type)}</dd></div>
+          <div><dt>{t.timezone}</dt><dd>{business.timezone}</dd></div>
+          <div><dt>{t.created}</dt><dd><time datetime={business.created_at}>{adminDate(business.created_at, locale)}</time></dd></div>
+          <div><dt>{t.updated}</dt><dd><time datetime={business.updated_at}>{adminDate(business.updated_at, locale)}</time></dd></div>
+        </dl>
+      </section>
+      <section class="admin-card">
+        <div class="admin-card-heading"><h2>{t.subscription}</h2>{subscription && <span class="admin-chip">{adminLabel(modulesT.billingStatuses, subscription.status)}</span>}</div>
+        <p class="admin-muted">{t.subscriptionHint}</p>
+        {subscription ? <dl class="admin-meta">
+          <div><dt>{t.accessLevel}</dt><dd>{adminLabel(t.levels, subscription.tier)}</dd></div>
+          <div><dt>{t.subscribedModules}</dt><dd>{subscription.modules.map((module) => modulesT[module]).join(", ") || t.notSet}</dd></div>
+          <div><dt>{t.periodStart}</dt><dd>{adminDate(subscription.period_start, locale)}</dd></div>
+          <div><dt>{t.periodEnd}</dt><dd>{adminDate(subscription.period_end, locale)}</dd></div>
+          {subscription.grace_until && <div><dt>{t.graceUntil}</dt><dd>{adminDate(subscription.grace_until, locale)}</dd></div>}
+          <div><dt>{t.cancelAtEnd}</dt><dd>{subscription.cancel_at_period_end ? t.yes : t.no}</dd></div>
+          {subscription.scheduled_change && <div><dt>{t.scheduledChange}</dt><dd>{adminLabel(t.levels, subscription.scheduled_change.tier)} · {subscription.scheduled_change.modules.map((module) => modulesT[module]).join(", ")} · {adminDate(subscription.scheduled_change.effective_at, locale)}</dd></div>}
+          <div><dt>{t.stripeCustomer}</dt><dd class="admin-code">{subscription.stripe_customer_id ?? t.notSet}</dd></div>
+          <div><dt>{t.stripeSubscription}</dt><dd class="admin-code">{subscription.stripe_subscription_id ?? t.notSet}</dd></div>
+        </dl> : <p class="mt-6">{t.noSubscription}</p>}
+      </section>
+    </div>
+    <section aria-labelledby="admin-effective-access">
+      <div class="mb-6"><h2 id="admin-effective-access" class="text-xl">{t.effectiveAccess}</h2><p class="admin-hint">{t.ownerView}</p></div>
+      <div class="admin-grid">{modules.map((module) => <AdminModule module={module} access={detail.modules[module]} />)}</div>
+    </section>
+  </div>}
+</AdminLayout>

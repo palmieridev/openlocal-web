@@ -1,0 +1,48 @@
+---
+import { Icon } from "astro-icon/components";
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminError from "@/components/admin/AdminError.astro";
+import AdminPagination from "@/components/admin/AdminPagination.astro";
+import Button from "@/components/ui/Button.astro";
+import { interpolate, localePath, useT } from "@/i18n";
+import { readAdmin } from "@/lib/api/admin";
+import { adminLabel } from "@/lib/admin";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+const q = (Astro.url.searchParams.get("q") ?? "").trim();
+const cursor = Astro.url.searchParams.get("cursor") ?? "";
+const result = await readAdmin(Astro, (api) => api.businesses({ q, cursor }));
+---
+<AdminLayout title={t.businesses} description={t.intro}>
+  {result.error ? <AdminError error={result.error} /> : <>
+    <section class="admin-card">
+      <form method="get" action={localePath(locale, "/admin")} class="admin-filters" role="search">
+        <div class="admin-field">
+          <label class="ol-label" for="admin-search">{t.search}</label>
+          <input class="ol-input" id="admin-search" name="q" type="search" value={q} maxlength="200" aria-describedby="admin-search-hint" />
+          <p id="admin-search-hint" class="admin-hint">{t.searchHint}</p>
+        </div>
+        <Button type="submit" class="min-h-11" icon="lucide:search">{t.searchButton}</Button>
+        {(q || cursor) && <Button href={localePath(locale, "/admin")} variant="ghost" class="min-h-11">{t.clear}</Button>}
+      </form>
+    </section>
+    <p class="admin-result-heading">{interpolate(t.results, { count: result.data.items.length })}</p>
+    {result.data.items.length ? <ul class="admin-directory">
+      {result.data.items.map((business) => <li class="admin-business-row">
+        <div>
+          <a class="admin-business-name" href={localePath(locale, `/admin/businesses/${encodeURIComponent(business.id)}`)}>
+            {business.name}<Icon name="lucide:arrow-up-right" width={16} height={16} />
+          </a>
+          <p class="admin-muted">{business.slug}</p>
+        </div>
+        <div class="admin-business-identifiers">
+          <p class="admin-code"><span class="sr-only">{t.businessId}: </span>{business.id}</p>
+          <p class="admin-code admin-muted"><span class="sr-only">{t.organization}: </span>{business.clerk_org_id ?? t.notSet}</p>
+        </div>
+        <span class="admin-chip" data-positive={String(business.status === "active")}>{adminLabel(t.statusLabels, business.status)}</span>
+      </li>)}
+    </ul> : <div class="admin-card admin-empty"><p>{t.empty}</p><p class="admin-muted">{t.emptyHint}</p></div>}
+    <AdminPagination path="/admin" filters={{ q }} next={result.data.next_cursor} cursor={cursor} />
+  </>}
+</AdminLayout>

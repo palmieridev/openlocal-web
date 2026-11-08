@@ -1,0 +1,45 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import AdminError from "@/components/admin/AdminError.astro";
+import AdminPagination from "@/components/admin/AdminPagination.astro";
+import Button from "@/components/ui/Button.astro";
+import { interpolate, localePath, useT } from "@/i18n";
+import { readAdmin } from "@/lib/api/admin";
+import { adminDate } from "@/lib/admin";
+
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+const filters = {
+  business_id: Astro.url.searchParams.get("business_id") ?? "",
+  actor_user_id: Astro.url.searchParams.get("actor_user_id") ?? "",
+  action: (Astro.url.searchParams.get("action") ?? "").trim(),
+};
+const cursor = Astro.url.searchParams.get("cursor") ?? "";
+const result = await readAdmin(Astro, (api) => api.activity({ ...filters, cursor }));
+---
+<AdminLayout title={t.activity} description={t.activityIntro} active="activity">
+  {result.error ? <AdminError error={result.error} /> : <>
+    <section class="admin-card">
+      <form method="get" action={localePath(locale, "/admin/activity")} class="admin-filters">
+        <div class="admin-field"><label class="ol-label" for="activity-business">{t.businessFilter}</label><input class="ol-input" id="activity-business" name="business_id" value={filters.business_id} maxlength="36" /></div>
+        <div class="admin-field"><label class="ol-label" for="activity-actor">{t.actorFilter}</label><input class="ol-input" id="activity-actor" name="actor_user_id" value={filters.actor_user_id} maxlength="36" /></div>
+        <div class="admin-field"><label class="ol-label" for="activity-action">{t.actionFilter}</label><input class="ol-input" id="activity-action" name="action" value={filters.action} maxlength="120" /></div>
+        <Button type="submit" class="min-h-11" icon="lucide:list-filter">{t.filter}</Button>
+        {(cursor || Object.values(filters).some(Boolean)) && <Button href={localePath(locale, "/admin/activity")} variant="ghost" class="min-h-11">{t.clear}</Button>}
+      </form>
+    </section>
+    <p class="admin-result-heading">{interpolate(t.activityCount, { count: result.data.items.length })}</p>
+    {result.data.items.length ? <ol class="admin-events">
+      {result.data.items.map((event) => <li class="admin-card admin-event">
+        <div class="admin-event-header"><h2 class="admin-code">{event.action}</h2><time class="admin-muted" datetime={event.created_at}>{adminDate(event.created_at, locale)}</time></div>
+        <dl class="admin-meta">
+          <div><dt>{t.business}</dt><dd>{event.business_id ? <a class="admin-link admin-code" href={localePath(locale, `/admin/businesses/${encodeURIComponent(event.business_id)}`)}>{event.business_id}</a> : t.deletedReference}</dd></div>
+          <div><dt>{t.actor}</dt><dd class="admin-code">{event.actor_user_id ?? t.deletedReference}</dd></div>
+          <div><dt>{t.entity}</dt><dd><span class="admin-code">{event.entity_type}{event.entity_id && <> · {event.entity_id}</>}</span></dd></div>
+        </dl>
+        <details><summary>{t.internalDetails}</summary><pre>{JSON.stringify(event.metadata, null, 2)}</pre></details>
+      </li>)}
+    </ol> : <div class="admin-card admin-empty"><p>{t.emptyActivity}</p></div>}
+    <AdminPagination path="/admin/activity" filters={filters} next={result.data.next_cursor} cursor={cursor} />
+  </>}
+</AdminLayout>
