@@ -12,6 +12,9 @@ function harness(action = "extend") {
     duration: "indefinite",
     internal_reason: "Private audit reason",
     acknowledge: "on",
+    module: "appointments",
+    tier: "business",
+    starts_at: "2026-11-07T00:00",
   };
   const controls = [{ disabled: false }, { disabled: false }];
   const message = { textContent: "", focus: vi.fn(), append: vi.fn() };
@@ -35,11 +38,15 @@ function harness(action = "extend") {
     pathname: "/en/admin/businesses/business",
     search: "?grant_offset=10",
     assign: vi.fn(),
+    reload: vi.fn(),
   };
+  const history = { state: { retained: true }, replaceState: vi.fn() };
   const confirm = vi.fn((_message: string) => true);
   vi.stubGlobal("document", {
     querySelectorAll: () => [form],
-    querySelector: () => ({dataset: {grantCopy: JSON.stringify(useT("en").admin)}}),
+    querySelector: () => ({
+      dataset: { grantCopy: JSON.stringify(useT("en").admin) },
+    }),
     createElement: () => ({}),
   });
   vi.stubGlobal(
@@ -51,13 +58,14 @@ function harness(action = "extend") {
     },
   );
   vi.stubGlobal("location", location);
-  vi.stubGlobal("window", { confirm });
+  vi.stubGlobal("window", { confirm, history });
   setupGrantForms();
   return {
     submit: () => listeners.get("submit")!({ preventDefault: vi.fn() }),
     controls,
     message,
     location,
+    history,
     confirm,
   };
 }
@@ -76,9 +84,12 @@ describe("grant mutation outcomes", () => {
       String((fetch.mock.calls[0] as unknown as [string, RequestInit])[1].body),
     );
     expect(body.version).toBe(7);
-    expect(h.location.assign).toHaveBeenCalledWith(
+    expect(h.history.replaceState).toHaveBeenCalledWith(
+      h.history.state,
+      "",
       "https://openlocal.test/en/admin/businesses/business?grant_offset=10&grant_notice=conflict",
     );
+    expect(h.location.reload).toHaveBeenCalledTimes(1);
     expect(h.message.textContent).toContain("No automatic retry");
   });
   it("locks an uncertain mutation until a refresh rather than risking a duplicate", async () => {
@@ -94,6 +105,7 @@ describe("grant mutation outcomes", () => {
     expect(extension.message.textContent).toContain("could not be confirmed");
     expect(extension.controls.every((control) => control.disabled)).toBe(true);
     expect(extension.location.assign).not.toHaveBeenCalled();
+    expect(extension.location.reload).not.toHaveBeenCalled();
   });
   it("asks for meaningful permanent revocation confirmation before posting", async () => {
     const fetch = vi.fn();
@@ -116,6 +128,7 @@ describe("grant mutation outcomes", () => {
     await h.submit();
     expect(h.message.textContent).toContain("does not have access");
     expect(h.location.assign).not.toHaveBeenCalled();
+    expect(h.location.reload).not.toHaveBeenCalled();
     expect(h.controls.every((control) => !control.disabled)).toBe(true);
   });
   it("handles expired sessions with a locale-aware sign-in link and no automatic repeat", async () => {
@@ -126,6 +139,7 @@ describe("grant mutation outcomes", () => {
     await h.submit();
     expect(h.message.textContent).toContain("Sign in");
     expect(fetch).toHaveBeenCalledTimes(1);
+    expect(h.location.reload).not.toHaveBeenCalled();
     expect(h.message.append).toHaveBeenCalledWith(
       " ",
       expect.objectContaining({
@@ -141,9 +155,65 @@ describe("grant mutation outcomes", () => {
     const h = harness();
     h.location.href += "&grant_notice=conflict";
     await h.submit();
-    expect(h.location.assign).toHaveBeenCalledWith(
+    expect(h.history.replaceState).toHaveBeenCalledWith(
+      h.history.state,
+      "",
       "https://openlocal.test/en/admin/businesses/business?grant_offset=10",
     );
+    expect(h.location.reload).toHaveBeenCalledTimes(1);
     expect(h.message.textContent).toContain("Grant saved");
+  });
+  it.each(["extend", "revoke"])(
+    "fully reloads after %s from an anchored pagination link",
+    async (action) => {
+      const fetch = vi.fn(async () => Response.json({ version: 8 }));
+      vi.stubGlobal("fetch", fetch);
+      const h = harness(action);
+      h.location.href += "&grant_id=grant&history_offset=10#admin-grants";
+      await h.submit();
+      await h.submit();
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(h.history.replaceState).toHaveBeenCalledWith(
+        h.history.state,
+        "",
+        h.location.href,
+      );
+      expect(h.location.reload).toHaveBeenCalledTimes(1);
+      expect(h.location.assign).not.toHaveBeenCalled();
+    },
+  );
+  it("fully reloads a repeated anchored conflict without retrying its stale version", async () => {
+    const fetch = vi.fn(async () =>
+      Response.json({ code: "version_conflict" }, { status: 409 }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    const h = harness();
+    h.location.href += "&grant_notice=conflict#admin-grants";
+    await h.submit();
+    await h.submit();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(h.history.replaceState).toHaveBeenCalledWith(
+      h.history.state,
+      "",
+      h.location.href,
+    );
+    expect(h.location.reload).toHaveBeenCalledTimes(1);
+    expect(h.location.assign).not.toHaveBeenCalled();
+  });
+  it("reloads the first grant page after creation while clearing stale history and conflict filters", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ version: 1 }, { status: 201 })),
+    );
+    const h = harness("create");
+    h.location.href +=
+      "&grant_id=old&history_offset=20&history_limit=5&grant_notice=conflict#admin-grants";
+    await h.submit();
+    expect(h.history.replaceState).toHaveBeenCalledWith(
+      h.history.state,
+      "",
+      "https://openlocal.test/en/admin/businesses/business?grant_offset=0&history_limit=5#admin-grants",
+    );
+    expect(h.location.reload).toHaveBeenCalledTimes(1);
   });
 });

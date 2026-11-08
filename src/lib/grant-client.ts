@@ -16,13 +16,22 @@ export async function submitGrant(
   });
   return response.status;
 }
+/** Updating the URL first lets reload preserve pagination, notices and anchor position.
+ * assign() can otherwise perform only fragment navigation and leave stale versions visible.
+ */
+function reloadGrantPage(url: URL) {
+  window.history.replaceState(window.history.state, "", url.href);
+  location.reload();
+}
+
 export function setupGrantForms() {
   for (const form of document.querySelectorAll<HTMLFormElement>(
     "[data-grant-form]",
   )) {
     const locale: Locale = form.dataset.locale === "en" ? "en" : "es";
     const t: Pick<Dict["admin"], "grants" | "errors" | "signIn"> = JSON.parse(
-      document.querySelector<HTMLElement>("[data-grant-copy]")!.dataset.grantCopy!,
+      document.querySelector<HTMLElement>("[data-grant-copy]")!.dataset
+        .grantCopy!,
     );
     const message = form.querySelector<HTMLElement>("[data-grant-message]")!;
     const end = form.elements.namedItem(
@@ -95,7 +104,7 @@ export function setupGrantForms() {
           const url = new URL(location.href);
           url.searchParams.set("grant_notice", "conflict");
           message.textContent = t.grants.conflict;
-          location.assign(url.href);
+          reloadGrantPage(url);
         } else if (status === 401) {
           locked = true;
           message.textContent = t.errors.signedOut;
@@ -117,7 +126,7 @@ export function setupGrantForms() {
             url.searchParams.delete("grant_id");
             url.searchParams.delete("history_offset");
           }
-          location.assign(url.href);
+          reloadGrantPage(url);
         } else {
           locked = status >= 500;
           message.textContent =
