@@ -3,7 +3,7 @@ import { intlLocale, localePath, useT, type Locale } from "@/i18n";
 export function adminDate(value: string | null, locale: Locale): string {
   const date = value ? new Date(value) : null;
   if (!date || !Number.isFinite(date.getTime())) return useT(locale).admin.notSet;
-  return new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(date);
+  return new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: "medium", timeStyle: "medium", timeZone: "UTC" }).format(date);
 }
 
 export function adminLabel(labels: Record<string, string>, value: string): string {

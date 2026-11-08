@@ -1,0 +1,57 @@
+---
+import { useT } from '@/i18n';
+import { adminDate, adminHref, adminLabel } from '@/lib/admin';
+import type { GrantPage, GrantHistory } from '@/types/admin';
+import GrantForm from './GrantForm.astro';
+interface Props { businessId: string; page: GrantPage; history: GrantHistory | null; selected: string | null }
+const { businessId, page, history, selected } = Astro.props;
+const locale = Astro.locals.locale, t = useT(locale).admin, g = t.grants, m = useT(locale).modules;
+const path = `/admin/businesses/${businessId}`;
+const href = (offset: number, historyOffset = 0, grant = selected) => adminHref(locale, path, {
+  grant_limit: String(page.limit), grant_offset: String(offset), grant_id: grant, history_offset: String(historyOffset), history_limit: String(history?.limit ?? 10),
+}) + '#admin-grants';
+---
+<section id="admin-grants" data-grant-copy={JSON.stringify({grants:g, errors:t.errors, signIn:t.signIn})} class="admin-stack" aria-labelledby="grants-title">
+  <div><h2 id="grants-title" class="text-xl">{g.title}</h2><p class="admin-hint">{g.effects}</p></div>
+  {Astro.url.searchParams.get('grant_notice') === 'conflict' && <p role="status" class="admin-card admin-error">{g.conflict}</p>}
+  <details class="admin-card admin-grant-details"><summary>{g.create}</summary><GrantForm businessId={businessId} action="create" /></details>
+  <div class="admin-result-heading"><h3>{g.list}</h3><span>{g.total}: {page.total}</span></div>
+  <a class="admin-link" href={href(page.offset)}>{g.refresh}</a>
+  {!page.items.length && <p class="admin-card">{g.empty}</p>}
+  {page.items.map(grant => <article class="admin-card admin-stack">
+    <div class="admin-event-header"><h3>{m[grant.module]} · {t.levels[grant.tier]}</h3><span class="admin-chip">{g.status[grant.status]}</span></div>
+    <p class="admin-code">{grant.id} · {g.version} {grant.version}</p>
+    <dl class="admin-meta">
+      <div><dt>{t.starts}</dt><dd>{adminDate(grant.starts_at, locale)} UTC</dd></div>
+      <div><dt>{t.expires}</dt><dd>{grant.expires_at ? adminDate(grant.expires_at, locale) + ' UTC' : g.indefinite}</dd></div>
+      <div><dt>{g.reason}</dt><dd class="admin-prose">{grant.internal_reason}</dd></div>
+      {grant.owner_message && <div><dt>{t.ownerMessage}</dt><dd class="admin-prose">{grant.owner_message}</dd></div>}
+      {grant.revoked_at && <div><dt>{g.status.revoked}</dt><dd>{adminDate(grant.revoked_at, locale)} UTC · {grant.revocation_reason}</dd></div>}
+    </dl>
+    <p class="admin-hint">{g.immutable}</p>
+    <a class="admin-link" href={href(page.offset, 0, grant.id)}>{g.history}</a>
+    {grant.status !== 'revoked' && <div class="admin-grid">
+      {!grant.indefinite && <details class="admin-grant-details"><summary>{g.extend}</summary><GrantForm businessId={businessId} action="extend" grant={grant} /></details>}
+      <details class="admin-grant-details"><summary>{g.revoke}</summary><GrantForm businessId={businessId} action="revoke" grant={grant} /></details>
+    </div>}
+  </article>)}
+  <nav aria-label={t.pagination} class="admin-pagination">
+    {page.offset > 0 && <a class="admin-link" href={href(Math.max(0,page.offset-page.limit))}>{g.previous}</a>}
+    {page.offset + page.limit < page.total && <a class="admin-link" href={href(page.offset+page.limit)}>{t.next}</a>}
+  </nav>
+  {history && <section class="admin-card admin-stack" aria-labelledby="grant-history-title">
+    <h3 id="grant-history-title">{g.historyTitle}</h3><p class="admin-code">{selected}</p><p class="admin-hint">{g.historyHelp}</p>
+    {!history.items.length && <p>{g.historyEmpty}</p>}
+    {history.items.map(event => <article class="admin-stack">
+      <h4>{adminLabel(g.actions,event.action)} · {g.version} {event.metadata.after.version}</h4>
+      <p>{adminDate(event.at,locale)} UTC</p>
+      <p class="admin-code">{t.actor}: {event.actor_user_id ?? t.deletedReference}</p>
+      <p class="admin-prose">{event.metadata.internal_reason}</p>
+      <p>{t.expires}: {event.metadata.before ? (event.metadata.before.expires_at ? adminDate(event.metadata.before.expires_at,locale) + ' UTC' : g.indefinite) + ' → ' : ''}{event.metadata.after.expires_at ? adminDate(event.metadata.after.expires_at,locale) + ' UTC' : g.indefinite}</p>
+    </article>)}
+    <nav aria-label={g.historyTitle} class="admin-pagination">
+      {history.offset > 0 && <a class="admin-link" href={href(page.offset,Math.max(0,history.offset-history.limit))}>{g.previous}</a>}
+      {history.items.length === history.limit && <a class="admin-link" href={href(page.offset,history.offset+history.limit)}>{t.next}</a>}
+    </nav>
+  </section>}
+</section>

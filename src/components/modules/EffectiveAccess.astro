@@ -1,0 +1,17 @@
+---
+import { useT, intlLocale } from '@/i18n';
+import type { Module, ModuleEntitlement } from '@/types/modules';
+interface Props { module: Module; access: ModuleEntitlement }
+const { module, access } = Astro.props;
+const locale = Astro.locals.locale, t = useT(locale).modules, a = t.accessInfo;
+const date = (value: string) => new Intl.DateTimeFormat(intlLocale(locale), { dateStyle: 'medium', timeStyle: 'medium', timeZone: 'UTC' }).format(new Date(value));
+---
+<div class="module-stack" data-effective-module={module}>
+  <p><strong>{a.effective}: {a.levels[access.tier]}</strong></p>
+  <p class="module-muted">{a.sources}</p>
+  {access.sources.length ? <ul class="module-stack">{access.sources.map(source => <li class="module-notice">
+    <p><strong>{a.sourcesLabels[source.kind]} · {a.levels[source.tier]}</strong></p>
+    <p>{a.starts}: {date(source.starts_at)} UTC · {source.expires_at ? a.expires + ': ' + date(source.expires_at) + ' UTC' : a.indefinite}</p>
+    {source.kind === 'grant' && source.owner_message && <p class="whitespace-pre-wrap break-words">{source.owner_message}</p>}
+  </li>)}</ul> : <p>{a.empty}</p>}
+</div>

@@ -1,4 +1,7 @@
 ---
+import Grants from "@/components/admin/Grants.astro";
+import { grantId, grantPage } from "@/lib/grants";
+import { ApiError } from "@/lib/api/client";
 import AdminLayout from "@/layouts/AdminLayout.astro";
 import AdminError from "@/components/admin/AdminError.astro";
 import AdminModule from "@/components/admin/AdminModule.astro";
@@ -13,8 +16,21 @@ const t = useT(locale).admin;
 const modulesT = useT(locale).modules;
 const onboardingT = useT(locale).onboarding;
 const businessTypes = { retail: onboardingT.typeRetail, artesanias: onboardingT.typeCrafts, comida: onboardingT.typeFood, servicios: onboardingT.typeServices, moda: onboardingT.typeFashion, belleza: onboardingT.typeBeauty, hogar: onboardingT.typeHome, otro: onboardingT.typeOther };
-const result = await readAdmin(Astro, (api) => api.business(Astro.params.id!));
-const detail = result.data;
+const result = await readAdmin(Astro, async (api) => {
+  const id = Astro.params.id!;
+  let page, historyPage;
+  const selected = Astro.url.searchParams.get("grant_id");
+  try {
+    if (!grantId(id) || (selected !== null && !grantId(selected))) throw new Error("invalid");
+    page = grantPage(Astro.url.searchParams, "grant_");
+    historyPage = grantPage(Astro.url.searchParams, "history_");
+  } catch { throw new ApiError(400, "invalid grant filters"); }
+  const [detail, grants, history] = await Promise.all([
+    api.business(id), api.grants(id, page), selected ? api.grantHistory(id, selected, historyPage) : null,
+  ]);
+  return { detail, grants, history, selected };
+});
+const detail = result.data?.detail;
 const business = detail?.business;
 const subscription = detail?.subscription;
 const modules: Module[] = ["appointments", "preorders"];
@@ -58,5 +74,6 @@ const modules: Module[] = ["appointments", "preorders"];
       <div class="mb-6"><h2 id="admin-effective-access" class="text-xl">{t.effectiveAccess}</h2><p class="admin-hint">{t.ownerView}</p></div>
       <div class="admin-grid">{modules.map((module) => <AdminModule module={module} access={detail.modules[module]} />)}</div>
     </section>
+    {result.data && <Grants businessId={business.id} page={result.data.grants} history={result.data.history} selected={result.data.selected} />}
   </div>}
 </AdminLayout>

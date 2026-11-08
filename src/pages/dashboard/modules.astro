@@ -1,4 +1,5 @@
 ---
+import EffectiveAccess from "@/components/modules/EffectiveAccess.astro";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import { Icon } from "astro-icon/components";
 import Button from "@/components/ui/Button.astro";
@@ -39,6 +40,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
                 {entry.owned && <p>
                   {t.usage}: {entry.usage} / {entry.limit}
                 </p>}
+                <EffectiveAccess module={module} access={entry} />
                 <div class="module-stack">
                   {entry.can_configure && (
                     <>
@@ -86,7 +88,7 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
         <ModuleState />
       )
     }
-    {access && <div class="module-notice"><p>{t.configureFirst}</p><p class="module-muted mt-2">{t.existing}</p></div>}
+    {access && <div class="module-notice"><p>{t.accessInfo.billing}</p><p>{t.accessInfo.rules}</p><p>{t.accessInfo.intake}</p><p>{t.accessInfo.utc}</p><p>{t.configureFirst}</p><p class="module-muted mt-2">{t.existing}</p></div>}
     <section class="module-card !my-0">
       <h2>{t.support}</h2><p>{t.supportText}</p>
     </section>

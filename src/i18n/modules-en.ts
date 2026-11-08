@@ -1,5 +1,31 @@
 import type { modulesEs } from "./modules-es";
 export const modulesEn: typeof modulesEs = {
+  "accessInfo": {
+    "subscribedModules": "Subscription modules",
+    "title": "Effective module access",
+    "stored": "Stored subscription",
+    "intro": "Your subscription records billing. Your current access is evaluated separately for each module.",
+    "effective": "Effective level",
+    "sources": "Active access sources",
+    "empty": "No active access sources.",
+    "starts": "Starts",
+    "expires": "Expires (exclusive)",
+    "indefinite": "No expiration",
+    "utc": "Access dates and times are shown in UTC.",
+    "billing": "Complimentary access does not stop existing subscription charges. When it expires, automatic billing never starts.",
+    "rules": "The strongest active level applies per module. Quotas do not add together and grants do not reset usage. Saved settings and existing requests are retained when access ends.",
+    "intake": "You control whether to accept new requests. Access does not turn on your saved intake switch.",
+    "sourcesLabels": {
+      "subscription": "Subscription",
+      "pilot": "Pilot",
+      "grant": "Complimentary access"
+    },
+    "levels": {
+      "free": "No paid access",
+      "essential": "Essential",
+      "business": "Business"
+    }
+  },
   loadError: "We couldn't load this module",
   accessRestricted: "Access unavailable",
   emptyTitle: "No requests yet",
