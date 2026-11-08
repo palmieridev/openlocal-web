@@ -48,7 +48,7 @@ export const adminEs = {
   "ownerView": "Estas capacidades corresponden al propietario del negocio. La administración de plataforma no concede permisos para operar en su nombre.",
   "accessLevel": "Nivel de acceso",
   "intake": "Recepción de solicitudes",
-  "enabled": "Configuración habilitada",
+  "enabled": "Recepción de solicitudes (ajuste guardado)",
   "usage": "{used} de {limit} confirmaciones",
   "noQuota": "Sin cuota disponible",
   "usageWithoutQuota": "{used} confirmaciones · sin cuota disponible",

@@ -48,7 +48,7 @@ export const adminEn = {
   "ownerView": "These capabilities describe the business owner's access. Platform administration does not grant permission to operate on their behalf.",
   "accessLevel": "Access level",
   "intake": "Accepting requests",
-  "enabled": "Configuration enabled",
+  "enabled": "Saved intake switch",
   "usage": "{used} of {limit} confirmations",
   "noQuota": "No available quota",
   "usageWithoutQuota": "{used} confirmations · no available quota",
