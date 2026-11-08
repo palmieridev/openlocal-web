@@ -123,7 +123,18 @@ export interface ModuleRequest {
   management_token?: string;
   management_url?: string;
 }
+/** Safe owner projection from effective entitlements; never import admin Grant here. */
+export interface AccessSource {
+  kind: "subscription" | "pilot" | "grant";
+  tier: Tier;
+  grant_id?: string;
+  starts_at: string;
+  expires_at: string | null;
+  owner_message?: string | null;
+}
 export interface ModuleEntitlement {
+  tier: Tier;
+  sources: AccessSource[];
   owned: boolean;
   enabled: boolean;
   can_accept_new: boolean;

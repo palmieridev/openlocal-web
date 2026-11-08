@@ -1,5 +1,5 @@
 import { apiFetch, ApiError } from "./client";
-import type { AdminActivity, AdminBusiness, AdminBusinessDetail, AdminPage } from "@/types/admin";
+import type { AdminActivity, AdminBusiness, AdminBusinessDetail, AdminPage, GrantPage, GrantHistory } from "@/types/admin";
 
 type Filters = Record<string, string | undefined>;
 
@@ -13,6 +13,8 @@ export function adminApi(token: string, timeoutMs = 10_000) {
   return {
     businesses: (query: Filters) => read<AdminPage<AdminBusiness>>("/businesses", query),
     business: (id: string) => read<AdminBusinessDetail>(`/businesses/${encodeURIComponent(id)}`),
+    grants: (id: string, page: { limit: number; offset: number }) => read<GrantPage>(`/businesses/${encodeURIComponent(id)}/grants`, { limit: String(page.limit), offset: String(page.offset) }),
+    grantHistory: (id: string, grant: string, page: { limit: number; offset: number }) => read<GrantHistory>(`/businesses/${encodeURIComponent(id)}/grants/${encodeURIComponent(grant)}/history`, { limit: String(page.limit), offset: String(page.offset) }),
     activity: (query: Filters) => read<AdminPage<AdminActivity>>("/activity", query),
   };
 }

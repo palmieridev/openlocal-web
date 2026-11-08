@@ -1,4 +1,5 @@
 ---
+import EffectiveAccess from "@/components/modules/EffectiveAccess.astro";
 import DashboardLayout from "@/layouts/DashboardLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import PlanCards from "@/components/modules/PlanCards.astro";
@@ -62,10 +63,11 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
       {subscription && catalog ? <>
         <section class="module-card billing-current" aria-labelledby="current-plan-title" data-tour="billing-current">
           <div class="module-row billing-current-heading">
-            <div><p class="module-muted">{t.currentPlan}</p><h2 id="current-plan-title">{t[subscription.tier]}</h2></div>
+            <div><p class="module-muted">{t.accessInfo.stored}</p><h2 id="current-plan-title">{t[subscription.tier]}</h2></div>
             <span class="module-status">{t.billingStatuses[subscription.status as keyof typeof t.billingStatuses] ?? t.unavailable}</span>
             {subscription.period_end && <p class="module-muted">{t.resets}: {date(subscription.period_end)}</p>}
           </div>
+          <p class="module-muted">{t.accessInfo.subscribedModules}: {subscription.modules.map(module => t[module]).join(", ") || t.free}</p>
           {subscription.entitlements && subscription.modules.length > 0 && <div class="billing-usage">
             {subscription.modules.map((module) => <div>
               <span>{t[module]}</span>
@@ -77,6 +79,14 @@ Astro.response.headers.set("Cache-Control", "private, no-store");
           <p class="module-notice" data-scheduled-change hidden={!subscription.scheduled_change}>
             {subscription.scheduled_change && (t.effective + ": " + date(subscription.scheduled_change.effective_at) + " · " + t[subscription.scheduled_change.tier] + " · " + subscription.scheduled_change.modules.map((module) => t[module]).join(", "))}
           </p>
+        </section>
+        <section class="module-card module-stack" aria-labelledby="effective-access-title">
+          <h2 id="effective-access-title">{t.accessInfo.title}</h2>
+          <p>{t.accessInfo.intro}</p>
+          {subscription.entitlements ? <div class="module-grid">{(["appointments", "preorders"] as Module[]).map(module => <section class="module-stack">
+            <h3>{t[module]}</h3><EffectiveAccess module={module} access={subscription!.entitlements!.modules[module]} />
+          </section>)}</div> : <ModuleState />}
+          <p>{t.accessInfo.billing}</p><p class="module-muted">{t.accessInfo.rules}</p><p class="module-muted">{t.accessInfo.intake}</p><p class="module-muted">{t.accessInfo.utc}</p>
         </section>
         <form data-billing-form class="module-card billing-editor" data-second-price={catalog.second_module_price}>
           <fieldset class="billing-section" data-tour="billing-plans">

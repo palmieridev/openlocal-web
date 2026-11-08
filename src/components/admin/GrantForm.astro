@@ -1,0 +1,41 @@
+---
+import Button from "@/components/ui/Button.astro";
+import { useT } from '@/i18n';
+import type { Grant } from '@/types/admin';
+interface Props { businessId: string; action: 'create' | 'extend' | 'revoke'; grant?: Grant }
+const { businessId, action, grant } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).admin.grants;
+const modules = useT(locale).modules;
+---
+<form class="admin-stack admin-grant-form" method="post" action={`/api/admin/businesses/${businessId}/grants${grant ? `/${grant.id}/${action}` : ''}`} data-grant-form data-locale={locale} data-action={action}
+  data-endpoint={`/api/admin/businesses/${businessId}/grants${grant ? `/${grant.id}/${action}` : ''}`}
+  data-version={grant?.version} autocomplete="off">
+  {action === 'create' && <>
+    <p class="admin-hint">{t.createHelp}</p>
+    <div class="admin-grid">
+      <label class="admin-field">{t.module}<select name="module" class="ol-input" required><option value="appointments">{modules.appointments}</option><option value="preorders">{modules.preorders}</option></select></label>
+      <label class="admin-field">{t.tier}<select name="tier" class="ol-input" required><option value="essential">{modules.essential}</option><option value="business">{modules.business}</option></select></label>
+    </div>
+    <label class="admin-field">{t.start}<input class="ol-input" name="starts_at" type="datetime-local" min="2000-01-01T00:00" max="9999-12-31T23:59" value={new Date().toISOString().slice(0,16)} required /></label>
+  </>}
+  {action === 'extend' && <p class="admin-hint">{t.extendHelp}</p>}
+  {action !== 'revoke' && <fieldset class="admin-stack">
+    <legend>{t.duration}</legend>
+    <label><input type="radio" name="duration" value="finite" checked required /> {t.finite}</label>
+    <label><input type="radio" name="duration" value="indefinite" required /> {t.indefinite}</label>
+    <label class="admin-field">{t.end}<input class="ol-input" name="expires_at" type="datetime-local" min="2000-01-01T00:00" max="9999-12-31T23:59" required /></label>
+  </fieldset>}
+  <label class="admin-field">{t.reason}<textarea class="ol-input" name="internal_reason" rows="3" maxlength="2000" required /></label>
+  {action === 'create' && <label class="admin-field">{t.message}<textarea class="ol-input" name="owner_message" rows="3" maxlength="2000" /></label>}
+  {action === 'revoke' && <>
+    <p>{t.revokeEffects}</p>
+    <label><input name="acknowledge" type="checkbox" required /> {t.acknowledge}</label>
+  </>}
+  <Button variant="secondary" class="min-h-11" type="submit">{t[action]}</Button>
+  <p data-grant-message role="status" tabindex="-1" />
+</form>
+<script>
+  import { setupGrantForms } from '@/lib/grant-client';
+  setupGrantForms();
+</script>

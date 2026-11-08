@@ -1,4 +1,30 @@
 export const modulesEs = {
+  "accessInfo": {
+    "subscribedModules": "Módulos de la suscripción",
+    "title": "Acceso efectivo por módulo",
+    "stored": "Suscripción guardada",
+    "intro": "Tu suscripción registra la facturación. El acceso actual se evalúa por separado para cada módulo.",
+    "effective": "Nivel efectivo",
+    "sources": "Fuentes de acceso activas",
+    "empty": "No hay fuentes de acceso activas.",
+    "starts": "Inicio",
+    "expires": "Vencimiento (exclusivo)",
+    "indefinite": "Sin vencimiento",
+    "utc": "Las fechas y horas de acceso se muestran en UTC.",
+    "billing": "El acceso de cortesía no detiene los cargos de una suscripción existente. Al vencer, nunca inicia cobros automáticos.",
+    "rules": "Se aplica el nivel activo más alto por módulo. Las cuotas no se suman y las concesiones no reinician el uso. Los ajustes guardados y las solicitudes existentes se conservan cuando termina el acceso.",
+    "intake": "Tú controlas si recibes nuevas solicitudes. El acceso no activa tu ajuste guardado de recepción.",
+    "sourcesLabels": {
+      "subscription": "Suscripción",
+      "pilot": "Piloto",
+      "grant": "Acceso de cortesía"
+    },
+    "levels": {
+      "free": "Sin acceso de pago",
+      "essential": "Essential",
+      "business": "Business"
+    }
+  },
   loadError: "No pudimos cargar el módulo",
   accessRestricted: "Acceso no disponible",
   emptyTitle: "Sin solicitudes",

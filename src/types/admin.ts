@@ -1,4 +1,4 @@
-import type { Module, ModuleEntitlement, Tier } from "./modules";
+import type { AccessSource, Module, ModuleEntitlement, Tier } from "./modules";
 
 /** Private API projections. Never reuse these in public/owner views. */
 export interface AdminBusiness {
@@ -13,18 +13,44 @@ export interface AdminBusiness {
   updated_at: string;
 }
 
-export interface AdminAccessSource {
-  kind: "subscription" | "pilot" | "grant";
-  tier: Tier;
-  grant_id?: string;
+export type AdminAccessSource = AccessSource;
+export interface AdminModule extends ModuleEntitlement {}
+
+export interface Grant {
+  id: string;
+  business_id: string;
+  module: Module;
+  tier: "essential" | "business";
   starts_at: string;
   expires_at: string | null;
-  owner_message?: string;
+  indefinite: boolean;
+  status: "active" | "scheduled" | "expired" | "revoked";
+  internal_reason: string;
+  owner_message: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  version: number;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  revocation_reason: string | null;
 }
-
-export interface AdminModule extends ModuleEntitlement {
-  tier: Tier;
-  sources: AdminAccessSource[];
+export interface GrantPage {
+  items: Grant[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+export interface GrantHistory {
+  items: {
+    id: string;
+    actor_user_id: string | null;
+    action: string;
+    at: string;
+    metadata: { internal_reason: string; before: Grant | null; after: Grant };
+  }[];
+  limit: number;
+  offset: number;
 }
 
 export interface AdminBusinessDetail {
@@ -39,7 +65,11 @@ export interface AdminBusinessDetail {
     period_end: string | null;
     grace_until: string | null;
     cancel_at_period_end: boolean;
-    scheduled_change: { tier: Tier; modules: Module[]; effective_at: string } | null;
+    scheduled_change: {
+      tier: Tier;
+      modules: Module[];
+      effective_at: string;
+    } | null;
     updated_at: string;
   } | null;
   access_role: "owner";
