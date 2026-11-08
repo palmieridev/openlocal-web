@@ -24,7 +24,7 @@ async function visit(path: string, userId: string | null, orgId: string | null =
 }
 
 describe("personal and business route access", () => {
-  it.each(["/account", "/account/profile", "/dashboard", "/onboarding"])("requires sign-in for %s", async (path) => {
+  it.each(["/account", "/account/profile", "/dashboard", "/onboarding", "/admin", "/admin/activity", "/admin/businesses/id"])("requires sign-in for %s", async (path) => {
     const { response, next } = await visit(path, null);
     expect(response.headers.get("Location")).toBe("http://localhost:4321/login");
     expect(next).not.toHaveBeenCalled();
@@ -52,5 +52,19 @@ describe("personal and business route access", () => {
   });
   it("keeps marketplace browsing public", async () => {
     expect((await visit("/marketplace", null)).next).toHaveBeenCalled();
+  });
+  it.each([null, "org_1"])("allows an admin request without requiring organization selection (org %s)", async (orgId) => {
+    const { response, next } = await visit("/admin", "user_platform", orgId);
+    // The page's Go API read still checks the platform allowlist.
+    expect(next).toHaveBeenCalled();
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+    expect(response.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+  });
+  it("preserves the localized admin return URL and marks its redirect private", async () => {
+    const { response } = await visit("/admin/activity?business_id=business", null, null, "en");
+    const location = new URL(response.headers.get("Location")!);
+    expect(location.pathname).toBe("/en/login");
+    expect(location.searchParams.get("redirect_url")).toBe("/en/admin/activity?business_id=business");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 });

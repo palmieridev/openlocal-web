@@ -1,0 +1,13 @@
+---
+import Button from "@/components/ui/Button.astro";
+import { useT } from "@/i18n";
+import { adminHref } from "@/lib/admin";
+interface Props { path: string; filters: Record<string, string>; next: string | null; cursor: string }
+const { path, filters, next, cursor } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+---
+{(next || cursor) && <nav class="admin-pagination" aria-label={t.pagination}>
+  <div>{cursor && <Button href={adminHref(locale, path, filters)} variant="secondary" class="min-h-11" icon="lucide:arrow-left">{t.first}</Button>}</div>
+  {next && <Button href={adminHref(locale, path, { ...filters, cursor: next })} variant="secondary" class="min-h-11" iconEnd="lucide:arrow-right">{t.next}</Button>}
+</nav>}

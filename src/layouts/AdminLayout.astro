@@ -1,0 +1,57 @@
+---
+import { Icon } from "astro-icon/components";
+import { UserButton } from "@clerk/astro/components";
+import BaseLayout from "./BaseLayout.astro";
+import LocaleSwitcher from "@/components/LocaleSwitcher.astro";
+import ClerkLocalization from "@/components/ClerkLocalization.astro";
+import { localePath, useT } from "@/i18n";
+import "@/styles/admin.css";
+
+interface Props { title: string; description?: string; active?: "businesses" | "activity" }
+const { title, description, active = "businesses" } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+const to = (path: string) => localePath(locale, path);
+Astro.response.headers.set("Cache-Control", "private, no-store");
+Astro.response.headers.set("X-Robots-Tag", "noindex, nofollow");
+Astro.response.headers.set("Referrer-Policy", "no-referrer");
+const nav = [
+  { key: "businesses", href: "/admin", label: t.businesses, icon: "lucide:store" },
+  { key: "activity", href: "/admin/activity", label: t.activity, icon: "lucide:history" },
+];
+---
+
+<BaseLayout title={`${title} · Openlocal`} description={t.subtitle} noIndex>
+  <div class="admin-shell">
+    <a href="#admin-content" class="admin-skip">{t.skip}</a>
+    <aside class="admin-sidebar">
+      <a class="admin-brand" href={to("/admin")}>
+        <span class="admin-brand-icon"><Icon name="lucide:store" width={22} height={22} /></span>
+        <span>Openlocal<span class="admin-brand-caption">{t.subtitle}</span></span>
+      </a>
+      <nav aria-label={t.navigation} class="admin-nav">
+        {nav.map((item) => <a href={to(item.href)} aria-current={active === item.key ? "page" : undefined}>
+          <Icon name={item.icon} width={20} height={20} /><span>{item.label}</span>
+        </a>)}
+      </nav>
+      <div class="admin-sidebar-footer">
+        <p class="admin-private"><Icon name="lucide:shield-check" width={16} height={16} />{t.privateArea}</p>
+        <a href={to("/account")} class="admin-account">{t.backAccount}<Icon name="lucide:arrow-up-right" width={16} height={16} /></a>
+      </div>
+    </aside>
+    <div class="admin-workspace">
+      <header class="admin-topbar">
+        <span class="admin-muted">{t.readOnly}</span>
+        <div class="admin-topbar-controls"><LocaleSwitcher /><UserButton /><ClerkLocalization /></div>
+      </header>
+      <main id="admin-content" class="admin-main" tabindex="-1">
+        <div class="admin-heading">
+          <div><h1>{title}</h1>{description && <p class="admin-muted">{description}</p>}</div>
+          <slot name="actions" />
+        </div>
+        <slot />
+        <p class="admin-date-note">{t.datesUTC}</p>
+      </main>
+    </div>
+  </div>
+</BaseLayout>

@@ -1,0 +1,37 @@
+---
+import { interpolate, useT } from "@/i18n";
+import { adminDate, adminLabel } from "@/lib/admin";
+import type { AdminModule } from "@/types/admin";
+import type { Module } from "@/types/modules";
+interface Props { module: Module; access: AdminModule }
+const { module, access } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+const title = useT(locale).modules[module];
+const capabilities = ["can_manage_existing", "can_configure", "can_export", "advanced"] as const;
+---
+<section class="admin-card">
+  <div class="admin-card-heading">
+    <h2>{title}</h2>
+    <span class="admin-chip" data-positive={String(access.owned)}>{adminLabel(t.levels, access.tier)}</span>
+  </div>
+  <p class="admin-muted">{access.can_accept_new ? t.intake + ": " + t.yes : adminLabel(t.reasons, access.reason ?? "module_unavailable")}</p>
+  <div class="admin-quota">
+    <p>{interpolate(access.limit ? t.usage : t.usageWithoutQuota, { used: access.usage, limit: access.limit })}</p>
+    {access.limit > 0 && <progress value={Math.min(access.usage, access.limit)} max={access.limit} aria-label={interpolate(t.usage, { used: access.usage, limit: access.limit })} />}
+  </div>
+  <dl class="admin-meta">
+    <div><dt>{t.enabled}</dt><dd>{access.enabled ? t.yes : t.no}</dd></div>
+    {module === "appointments" && <div><dt>{t.resources}</dt><dd>{access.max_resources}</dd></div>}
+    {capabilities.map((key) => <div><dt>{t.capabilities[key]}</dt><dd>{access[key] ? t.yes : t.no}</dd></div>)}
+  </dl>
+  <h3 class="mt-6 text-sm font-semibold">{t.accessSources}</h3>
+  {access.sources.length ? <ul class="admin-sources">
+    {access.sources.map((source) => <li>
+      <div class="admin-source-heading"><strong>{adminLabel(t.sources, source.kind)}</strong><span>{adminLabel(t.levels, source.tier)}</span></div>
+      <p class="admin-muted">{t.starts}: <time datetime={source.starts_at}>{adminDate(source.starts_at, locale)}</time></p>
+      <p class="admin-muted">{source.expires_at ? <>{t.expires}: <time datetime={source.expires_at}>{adminDate(source.expires_at, locale)}</time></> : t.indefinite}</p>
+      {source.owner_message && <p>{t.ownerMessage}: {source.owner_message}</p>}
+    </li>)}
+  </ul> : <p class="admin-hint">{t.noSources}</p>}
+</section>

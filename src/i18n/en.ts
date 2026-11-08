@@ -1,11 +1,13 @@
 import type { Dict } from "./es";
 import { modulesEn } from "./modules-en";
+import { adminEn } from "./admin-en";
 
 /**
  * English dictionary. `satisfies Dict` is the whole safety net: adding a key to
  * `es.ts` without translating it here is a type error, and so is a typo.
  */
 export const en = {
+  admin: adminEn,
   modules: modulesEn,
   account: {
     personalPolicy: "Your request will appear in My account, where you can check its status and cancel within the business’s deadline.",

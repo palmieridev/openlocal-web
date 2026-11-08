@@ -11,7 +11,7 @@ import { LOCALES, localePath } from "@/i18n";
 export const GET: APIRoute = () => {
   const isProduction = process.env.VERCEL_ENV === "production";
 
-  const ownerAreas = ["/dashboard", "/onboarding"].flatMap((path) =>
+  const ownerAreas = ["/dashboard", "/onboarding", "/admin"].flatMap((path) =>
     LOCALES.map((locale) => localePath(locale, path)),
   );
 

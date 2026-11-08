@@ -10,7 +10,7 @@ import {
 } from "@/i18n";
 
 // Personal and business areas require an authenticated Clerk session.
-const isProtected = createRouteMatcher(["/account(.*)", "/dashboard(.*)", "/onboarding(.*)"]);
+const isProtected = createRouteMatcher(["/account(.*)", "/dashboard(.*)", "/onboarding(.*)", "/admin", "/admin/(.*)"]);
 
 const auth = clerkMiddleware((auth, context) => {
   if (isProtected(context.request)) {
@@ -100,4 +100,18 @@ const noindex = defineMiddleware(async (_context, next) => {
   return response;
 });
 
-export const onRequest = sequence(i18n, auth, noindex);
+// Wrap auth too: admin redirects and errors must never be cached or indexed.
+const adminPrivacy = defineMiddleware(async (context, next) => {
+  const response = await next();
+  if (/^\/admin(?:\/|$)/.test(context.url.pathname)) {
+    // Clerk may return an immutable redirect response.
+    const privateResponse = new Response(response.body, response);
+    privateResponse.headers.set("Cache-Control", "private, no-store");
+    privateResponse.headers.set("X-Robots-Tag", "noindex, nofollow");
+    privateResponse.headers.set("Referrer-Policy", "no-referrer");
+    return privateResponse;
+  }
+  return response;
+});
+
+export const onRequest = sequence(i18n, adminPrivacy, auth, noindex);

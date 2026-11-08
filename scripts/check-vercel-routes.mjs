@@ -11,7 +11,7 @@ const { routes } = JSON.parse(
   await readFile(new URL("../.vercel/output/config.json", import.meta.url), "utf8"),
 );
 
-for (const path of ["/en", "/en/marketplace", "/en/dashboard/share", "/es/dashboard/share"]) {
+for (const path of ["/en", "/en/marketplace", "/en/dashboard/share", "/es/dashboard/share", "/admin", "/admin/activity", "/admin/businesses/example", "/en/admin", "/en/admin/activity", "/en/admin/businesses/example"]) {
   const route = routes.find((entry) => entry.src && !entry.continue && new RegExp(entry.src).test(path));
   assert.ok(route, `No Vercel route handles ${path}`);
   assert.equal(route.dest, "_render", `${path} must reach the Astro server`);

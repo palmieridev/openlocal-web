@@ -6,13 +6,16 @@ import ClerkLocalization from "@/components/ClerkLocalization.astro";
 import PublicLayout from "@/layouts/PublicLayout.astro";
 import Button from "@/components/ui/Button.astro";
 import { localePath, useT } from "@/i18n";
+import { hasAdminAccess } from "@/lib/api/admin";
 
 const locale = Astro.locals.locale;
 const t = useT(locale).account;
+const adminT = useT(locale).admin;
 const to = (path: string) => localePath(locale, path);
 const { userId, orgId } = Astro.locals.auth();
 Astro.response.headers.set("Cache-Control", "private, no-store");
 Astro.response.headers.set("X-Robots-Tag", "noindex, nofollow");
+const adminAccess = hasAdminAccess(Astro.locals);
 
 // Fetch every membership, including when an organization is already active.
 let businesses: { id: string; name: string }[] = [];
@@ -32,6 +35,7 @@ if (userId) {
     businesses = [];
   }
 }
+const showAdmin = await adminAccess;
 ---
 
 <PublicLayout title={t.title}>
@@ -52,6 +56,15 @@ if (userId) {
       </div>
       <Icon name="lucide:chevron-right" width={20} height={20} class="shrink-0" />
     </a>
+
+    {showAdmin && <a href={to("/admin")} class="ol-card flex items-center gap-4 p-6 transition-colors hover:bg-surface-secondary">
+      <Icon name="lucide:shield-check" width={24} height={24} class="shrink-0 text-accent" />
+      <div class="min-w-0 flex-1">
+        <h2 class="font-heading text-lg font-semibold">{adminT.title}</h2>
+        <p class="mt-1 text-sm text-text-secondary">{adminT.accountDescription}</p>
+      </div>
+      <Icon name="lucide:chevron-right" width={20} height={20} class="shrink-0" />
+    </a>}
 
     <section class="ol-card space-y-4 p-6" aria-labelledby="business-heading" data-business-access data-dashboard-url={to("/dashboard")}>
       <h2 id="business-heading" class="font-heading text-xl font-semibold">{t.business}</h2>

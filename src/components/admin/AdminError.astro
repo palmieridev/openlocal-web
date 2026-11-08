@@ -1,0 +1,20 @@
+---
+import Button from "@/components/ui/Button.astro";
+import { localePath, useT } from "@/i18n";
+import { adminHref } from "@/lib/admin";
+import type { AdminError } from "@/lib/api/admin";
+interface Props { error: AdminError }
+const { error } = Astro.props;
+const locale = Astro.locals.locale;
+const t = useT(locale).admin;
+const retry = localePath(locale, `${Astro.url.pathname}${Astro.url.search}`);
+const login = adminHref(locale, "/login", { redirect_url: retry });
+---
+<section class="admin-card admin-error" role="alert">
+  <h2>{t.errorTitle}</h2>
+  <p class="admin-muted">{t.errors[error]}</p>
+  {error === "signedOut" ? <Button href={login}>{t.signIn}</Button>
+    : error === "forbidden" ? <Button href={localePath(locale, "/account")} variant="secondary">{t.backAccount}</Button>
+    : error === "invalid" || error === "notFound" ? <Button href={localePath(locale, Astro.url.pathname.startsWith("/admin/activity") ? "/admin/activity" : "/admin")} variant="secondary">{t.clear}</Button>
+    : <Button href={retry} variant="secondary">{t.retry}</Button>}
+</section>
