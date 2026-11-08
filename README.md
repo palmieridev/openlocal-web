@@ -155,6 +155,7 @@ contenedor. `OL_INSECURE_COOKIES=1` es solo para pruebas locales por HTTP.
 
 - `/admin` (`/en/admin` in English) searches all businesses by name, slug, UUID or Clerk organization. Business details show the stored subscription, effective module capabilities, usage and active access sources. `/admin/activity` filters private audit history by business, local actor UUID and exact action.
 - Sign in with a Clerk user ID listed in the **API's** `PLATFORM_ADMIN_USER_IDS`. The Go API checks this allowlist on every read. Organization administrator roles do not grant platform access, and no active organization or `ol_bid` cookie is required. There is no separate frontend allowlist to synchronize.
+- My account shows an Administration link only after a successful server-side admin API check. Denied access, missing sessions, and API failures hide the link without failing the account page.
 - Reads are server-side and use the Clerk session token. Pages, failures and redirects are private, uncached and excluded from indexing. An unavailable API returns an error view, never a misleading empty directory. Admin timestamps use UTC.
 - This release is read-only. Grant creation/extension/revocation and support-feedback triage are separate follow-up features; admin inspection does not authorize acting as a business owner.
 

@@ -4,17 +4,31 @@ import type { AdminActivity, AdminBusiness, AdminBusinessDetail, AdminPage } fro
 type Filters = Record<string, string | undefined>;
 
 /** Only SSR callers supply the verified session token; no active business cookie. */
-export function adminApi(token: string) {
+export function adminApi(token: string, timeoutMs = 10_000) {
   const read = <T>(path: string, query?: Filters) => apiFetch<T>(`/api/v1/admin${path}`, {
     token,
     query,
-    init: { cache: "no-store", signal: AbortSignal.timeout(10_000) },
+    init: { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) },
   });
   return {
     businesses: (query: Filters) => read<AdminPage<AdminBusiness>>("/businesses", query),
     business: (id: string) => read<AdminBusinessDetail>(`/businesses/${encodeURIComponent(id)}`),
     activity: (query: Filters) => read<AdminPage<AdminActivity>>("/activity", query),
   };
+}
+
+/** Optional account navigation: hide on denial/outage without failing the account page. */
+export async function hasAdminAccess(locals: App.Locals): Promise<boolean> {
+  try {
+    const auth = locals.auth();
+    const token = auth.userId ? await auth.getToken() : null;
+    if (!token) return false;
+    // A successful protected read proves allowlist membership, even with no businesses.
+    await adminApi(token, 2_000).businesses({ limit: "1" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export type AdminError = "invalid" | "signedOut" | "forbidden" | "notFound" | "rateLimited" | "unavailable";

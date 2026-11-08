@@ -1,5 +1,6 @@
 export const adminEn = {
   "title": "Administration",
+  "accountDescription": "Inspect businesses, module access, and platform activity.",
   "subtitle": "Platform administration",
   "businesses": "Businesses",
   "activity": "Activity",

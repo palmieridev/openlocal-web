@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { readAdmin } from "./admin";
+import { hasAdminAccess, readAdmin } from "./admin";
 import { adminHref } from "@/lib/admin";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -63,6 +63,45 @@ describe("private admin reads", () => {
     const ctx = context();
     expect(await readAdmin(ctx, (api) => api.activity({}))).toEqual({ data: null, error: "unavailable" });
     expect(ctx.response.status).toBe(503);
+  });
+});
+
+describe("allowlist-based account navigation", () => {
+  it("shows the link after API authorization even without an active org or any businesses", async () => {
+    const fetch = vi.fn(async () => Response.json({ items: [], next_cursor: null, limit: 1 }));
+    vi.stubGlobal("fetch", fetch);
+    const ctx = context();
+    expect(await hasAdminAccess(ctx.locals)).toBe(true);
+    const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(new URL(url).pathname).toBe("/api/v1/admin/businesses");
+    expect(new URL(url).searchParams.get("limit")).toBe("1");
+    expect(init.cache).toBe("no-store");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer session-token");
+  });
+
+  it("hides the link from organization admins rejected by the API without changing account status", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ code: "platform_admin_required" }, { status: 403 })));
+    const ctx = context();
+    ctx.locals = { auth: () => ({ userId: "user_owner", orgId: "org_1", orgRole: "org:admin", getToken: ctx.getToken }) } as unknown as App.Locals;
+    expect(await hasAdminAccess(ctx.locals)).toBe(false);
+    expect(ctx.response.status).toBe(200);
+  });
+
+  it.each([[null, "token"], ["user_platform", null]])("hides the link without a session/token", async (userId, token) => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    expect(await hasAdminAccess(context(userId, token).locals)).toBe(false);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 429, 500, 503])("hides the link on API %s without failing the account page", async (status) => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({}, { status })));
+    expect(await hasAdminAccess(context().locals)).toBe(false);
+  });
+
+  it("hides the link on a network failure", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("network failure"); }));
+    expect(await hasAdminAccess(context().locals)).toBe(false);
   });
 });
 
