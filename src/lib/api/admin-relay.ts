@@ -29,7 +29,11 @@ export async function relayAdmin(ctx: APIContext): Promise<Response> {
     const key = errors[status] ?? "unavailable";
     return json(
       {
-        error: status === 409 ? t.grants.conflict : t.errors[key],
+        error: status === 409
+          ? t.grants.conflict
+          : key === "invalid"
+            ? t.grants.invalid
+            : t.errors[key],
         code: status === 409 ? "version_conflict" : key,
       },
       status,
